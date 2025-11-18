@@ -11,7 +11,10 @@ export const linkedInUserSchema = z.object({
   picture: z.string().optional(),
   email: z.string().email().optional(),
   email_verified: z.boolean().optional(),
-  locale: z.string().optional(),
+  locale: z.union([z.string(), z.object({
+    country: z.string(),
+    language: z.string(),
+  })]).optional(),
 });
 
 export type LinkedInUser = z.infer<typeof linkedInUserSchema>;

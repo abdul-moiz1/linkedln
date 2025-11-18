@@ -302,6 +302,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
        * 
        * Note: shareCommentary requires a locale object specifying the language
        */
+      // Extract locale parts - handle both string and object formats
+      let localeData: { country: string; language: string };
+      if (typeof profile.locale === 'object' && profile.locale !== null) {
+        localeData = {
+          country: profile.locale.country || "US",
+          language: profile.locale.language || "en",
+        };
+      } else if (typeof profile.locale === 'string') {
+        const parts = profile.locale.split('_');
+        localeData = {
+          country: parts[1] || "US",
+          language: parts[0] || "en",
+        };
+      } else {
+        localeData = { country: "US", language: "en" };
+      }
+
       const postPayload = {
         author: `urn:li:person:${personId}`,
         lifecycleState: "PUBLISHED",
@@ -309,10 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "com.linkedin.ugc.ShareContent": {
             shareCommentary: {
               text: text,
-              locale: {
-                country: profile.locale?.split('_')[1] || "US",
-                language: profile.locale?.split('_')[0] || "en",
-              },
+              locale: localeData,
             },
             shareMediaCategory: "NONE", // Text-only post
           },
