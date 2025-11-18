@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,15 +10,23 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { SiLinkedin } from "react-icons/si";
-import { Copy, LogOut, Send, Check, Loader2, List, Calendar, User2, Mail, Globe, Shield } from "lucide-react";
+import { Copy, LogOut, Send, Check, Loader2, List, Calendar, User2, Mail, Globe, Shield, Image as ImageIcon, Video, X } from "lucide-react";
 import type { SessionUser, CreatePost } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+
+type MediaFile = {
+  url: string;
+  type: "IMAGE" | "VIDEO";
+  filename: string;
+};
 
 export default function Profile() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [postText, setPostText] = useState("");
   const [copied, setCopied] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch current user session
   const { data: user, isLoading } = useQuery<SessionUser>({
@@ -46,6 +54,10 @@ export default function Profile() {
         description: "Your post has been shared on LinkedIn",
       });
       setPostText("");
+      setMediaFiles([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -68,6 +80,52 @@ export default function Profile() {
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const maxSize = file.type.startsWith("video/") ? 50 * 1024 * 1024 : 5 * 1024 * 1024; // 50MB for video, 5MB for image
+
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: file.type.startsWith("video/") 
+          ? "Videos must be under 50MB" 
+          : "Images must be under 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+      toast({
+        title: "Invalid file type",
+        description: "Only images and videos are supported",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      const mediaType = file.type.startsWith("video/") ? "VIDEO" : "IMAGE";
+      
+      setMediaFiles(prev => [...prev, {
+        url: base64,
+        type: mediaType,
+        filename: file.name,
+      }]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeMedia = (index: number) => {
+    setMediaFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleCreatePost = () => {
     if (!postText.trim()) {
       toast({
@@ -77,7 +135,10 @@ export default function Profile() {
       });
       return;
     }
-    createPostMutation.mutate({ text: postText });
+    createPostMutation.mutate({ 
+      text: postText,
+      media: mediaFiles.length > 0 ? mediaFiles : undefined,
+    });
   };
 
   if (isLoading) {
@@ -337,7 +398,80 @@ export default function Profile() {
                 maxLength={3000}
                 data-testid="input-post-content"
               />
-              <div className="flex justify-between items-center">
+              
+              {/* Media Preview */}
+              {mediaFiles.length > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {mediaFiles.map((media, index) => (
+                    <div key={index} className="relative group rounded-md overflow-hidden border bg-muted">
+                      {media.type === "IMAGE" ? (
+                        <img 
+                          src={media.url} 
+                          alt={media.filename}
+                          className="w-full h-48 object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-48 flex items-center justify-center bg-muted/50">
+                          <Video className="w-12 h-12 text-muted-foreground" />
+                        </div>
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeMedia(index)}
+                        data-testid={`button-remove-media-${index}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-2 py-1 truncate">
+                        {media.filename}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Media Upload Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  data-testid="input-file-upload"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={mediaFiles.length >= 4}
+                  data-testid="button-add-image"
+                >
+                  <ImageIcon className="w-4 h-4 mr-2" />
+                  Add Image
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={mediaFiles.length >= 1}
+                  data-testid="button-add-video"
+                >
+                  <Video className="w-4 h-4 mr-2" />
+                  Add Video
+                </Button>
+                {mediaFiles.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {mediaFiles.length} file{mediaFiles.length > 1 ? 's' : ''} attached
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap justify-between items-center gap-2">
                 <p className="text-xs text-muted-foreground">
                   {postText.length} / 3,000 characters
                 </p>
