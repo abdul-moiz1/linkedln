@@ -22,6 +22,11 @@ export type LinkedInUser = z.infer<typeof linkedInUserSchema>;
 // LinkedIn Post Creation Schema
 export const createPostSchema = z.object({
   text: z.string().min(1, "Post content is required").max(3000, "Post content must be less than 3000 characters"),
+  media: z.array(z.object({
+    url: z.string(),
+    type: z.enum(["IMAGE", "VIDEO"]),
+    filename: z.string(),
+  })).optional(),
 });
 
 export type CreatePost = z.infer<typeof createPostSchema>;
