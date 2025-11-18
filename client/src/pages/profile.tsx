@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { SiLinkedin } from "react-icons/si";
-import { Copy, LogOut, Send, Check, Loader2, List, Calendar } from "lucide-react";
+import { Copy, LogOut, Send, Check, Loader2, List, Calendar, User2, Mail, Globe, Shield } from "lucide-react";
 import type { SessionUser, CreatePost } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -82,8 +82,11 @@ export default function Profile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading your profile...</p>
+        </div>
       </div>
     );
   }
@@ -99,128 +102,157 @@ export default function Profile() {
     : profile.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-muted/30">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <SiLinkedin className="w-6 h-6 text-primary" />
-            <h1 className="text-xl font-semibold">LinkedIn OAuth Demo</h1>
+      <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
+        <div className="container max-w-6xl flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-3">
+            <SiLinkedin className="w-7 h-7 text-primary" />
+            <div>
+              <h1 className="text-lg font-semibold text-foreground">LinkedIn OAuth</h1>
+              <p className="text-xs text-muted-foreground">Profile Management</p>
+            </div>
           </div>
           <Button
             onClick={() => logoutMutation.mutate()}
-            variant="ghost"
-            size="sm"
+            variant="outline"
             disabled={logoutMutation.isPending}
             data-testid="button-logout"
           >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
+            {logoutMutation.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <LogOut className="w-4 h-4 mr-2" />
+            )}
+            Sign Out
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container max-w-4xl py-8 space-y-8">
+      <main className="container max-w-6xl py-8 px-6 space-y-6">
         {/* Profile Section */}
-        <Card data-testid="card-profile">
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>
-              Data retrieved from LinkedIn's /v2/userinfo endpoint
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Profile Header */}
-            <div className="flex items-start gap-4">
-              <Avatar className="w-20 h-20">
+        <Card data-testid="card-profile" className="overflow-hidden">
+          {/* Profile Header with Background */}
+          <div className="h-20 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5" />
+          
+          <CardContent className="pt-0 pb-8">
+            {/* Avatar and Basic Info */}
+            <div className="flex flex-wrap items-start gap-6 -mt-10 mb-6">
+              <Avatar className="w-28 h-28 border-4 border-card shadow-lg">
                 <AvatarImage src={profile.picture} alt={profile.name || "User"} />
-                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+                <AvatarFallback className="text-2xl font-semibold bg-primary text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
-              <div className="flex-1 space-y-1">
-                <h2 className="text-2xl font-bold" data-testid="text-profile-name">
-                  {profile.name || "LinkedIn User"}
-                </h2>
+              <div className="flex-1 min-w-0 pt-12">
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <h2 className="text-3xl font-bold text-foreground" data-testid="text-profile-name">
+                    {profile.name || "LinkedIn User"}
+                  </h2>
+                  {profile.email_verified && (
+                    <Badge variant="secondary" className="gap-1">
+                      <Shield className="w-3 h-3" />
+                      Verified
+                    </Badge>
+                  )}
+                </div>
                 {profile.email && (
-                  <div className="flex items-center gap-2">
-                    <p className="text-muted-foreground" data-testid="text-profile-email">
-                      {profile.email}
-                    </p>
-                    {profile.email_verified && (
-                      <Badge variant="secondary" className="text-xs">
-                        <Check className="w-3 h-3 mr-1" />
-                        Verified
-                      </Badge>
-                    )}
+                  <div className="flex items-center gap-2 text-muted-foreground mb-4">
+                    <Mail className="w-4 h-4" />
+                    <p data-testid="text-profile-email">{profile.email}</p>
                   </div>
                 )}
               </div>
             </div>
 
-            <Separator />
+            <Separator className="my-6" />
 
-            {/* Profile Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Profile Details Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {profile.given_name && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                    First Name
-                  </Label>
-                  <p className="font-medium" data-testid="text-given-name">{profile.given_name}</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <User2 className="w-4 h-4" />
+                    <Label className="text-xs uppercase tracking-wide font-medium">
+                      First Name
+                    </Label>
+                  </div>
+                  <p className="text-base font-medium pl-6" data-testid="text-given-name">
+                    {profile.given_name}
+                  </p>
                 </div>
               )}
               {profile.family_name && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                    Last Name
-                  </Label>
-                  <p className="font-medium" data-testid="text-family-name">{profile.family_name}</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <User2 className="w-4 h-4" />
+                    <Label className="text-xs uppercase tracking-wide font-medium">
+                      Last Name
+                    </Label>
+                  </div>
+                  <p className="text-base font-medium pl-6" data-testid="text-family-name">
+                    {profile.family_name}
+                  </p>
                 </div>
               )}
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                  LinkedIn ID
-                </Label>
-                <p className="font-mono text-sm" data-testid="text-linkedin-id">{profile.sub}</p>
-              </div>
               {profile.locale && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                    Locale
-                  </Label>
-                  <p className="font-medium" data-testid="text-locale">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Globe className="w-4 h-4" />
+                    <Label className="text-xs uppercase tracking-wide font-medium">
+                      Locale
+                    </Label>
+                  </div>
+                  <p className="text-base font-medium pl-6" data-testid="text-locale">
                     {typeof profile.locale === 'string' 
                       ? profile.locale 
                       : `${profile.locale.language}_${profile.locale.country}`}
                   </p>
                 </div>
               )}
+              <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <SiLinkedin className="w-4 h-4" />
+                  <Label className="text-xs uppercase tracking-wide font-medium">
+                    LinkedIn ID
+                  </Label>
+                </div>
+                <p className="font-mono text-sm pl-6 text-muted-foreground" data-testid="text-linkedin-id">
+                  {profile.sub}
+                </p>
+              </div>
             </div>
 
-            <Separator />
+            <Separator className="my-6" />
 
-            {/* Access Token */}
-            <div className="space-y-2">
+            {/* Access Token Section */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                  Access Token (for testing)
+                <Label className="text-sm font-medium">
+                  Access Token <span className="text-muted-foreground text-xs">(for development)</span>
                 </Label>
                 <Button
                   onClick={handleCopyToken}
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   data-testid="button-copy-token"
                 >
                   {copied ? (
-                    <Check className="w-4 h-4 mr-2" />
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Copied
+                    </>
                   ) : (
-                    <Copy className="w-4 h-4 mr-2" />
+                    <>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy Token
+                    </>
                   )}
-                  {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
-              <div className="bg-muted rounded-md p-3 border">
-                <code className="text-xs font-mono break-all block" data-testid="text-access-token">
+              <div className="bg-muted/50 rounded-md p-4 border">
+                <code className="text-xs font-mono break-all block text-muted-foreground" data-testid="text-access-token">
                   {accessToken}
                 </code>
               </div>
@@ -229,97 +261,117 @@ export default function Profile() {
         </Card>
 
         {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Access your posts and manage scheduled content
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                className="h-auto flex-col items-start p-4 space-y-2"
-                onClick={() => navigate("/posts")}
-                data-testid="button-view-posts"
-              >
-                <div className="flex items-center gap-2 w-full">
-                  <List className="w-5 h-5" />
-                  <span className="font-semibold">My Posts</span>
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-xl font-semibold mb-1">Quick Actions</h3>
+            <p className="text-sm text-muted-foreground">Manage your LinkedIn content</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card 
+              className="hover-elevate cursor-pointer transition-all" 
+              onClick={() => navigate("/posts")}
+              data-testid="card-quick-action-posts"
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-primary/10 text-primary">
+                    <List className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-lg mb-1">My Posts</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      View all your LinkedIn posts with analytics including likes, comments, and engagement metrics
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground text-left">
-                  View all your LinkedIn posts with analytics (likes, comments) and repost functionality
-                </p>
-              </Button>
+              </CardContent>
+            </Card>
 
-              <Button
-                variant="outline"
-                className="h-auto flex-col items-start p-4 space-y-2"
-                onClick={() => navigate("/scheduled")}
-                data-testid="button-view-scheduled"
-              >
-                <div className="flex items-center gap-2 w-full">
-                  <Calendar className="w-5 h-5" />
-                  <span className="font-semibold">Scheduled Posts</span>
+            <Card 
+              className="hover-elevate cursor-pointer transition-all" 
+              onClick={() => navigate("/scheduled")}
+              data-testid="card-quick-action-scheduled"
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-primary/10 text-primary">
+                    <Calendar className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-lg mb-1">Scheduled Posts</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Schedule posts for future dates and manage your content calendar efficiently
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground text-left">
-                  Schedule posts for future dates and manage your content calendar
-                </p>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {/* Post Creation Section */}
         <Card data-testid="card-post-creation">
-          <CardHeader>
-            <CardTitle>Share on LinkedIn</CardTitle>
-            <CardDescription>
-              Create a text post that will be shared to your LinkedIn profile
-            </CardDescription>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Send className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Share on LinkedIn</CardTitle>
+                <CardDescription>
+                  Create and publish content directly to your LinkedIn profile
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="post-content">Post Content</Label>
+            <div className="space-y-3">
+              <Label htmlFor="post-content" className="text-sm font-medium">What would you like to share?</Label>
               <Textarea
                 id="post-content"
-                placeholder="What would you like to share?"
+                placeholder="Share your thoughts, insights, or updates with your network..."
                 value={postText}
                 onChange={(e) => setPostText(e.target.value)}
-                className="min-h-32 resize-none"
+                className="min-h-36 resize-none text-base"
                 maxLength={3000}
                 data-testid="input-post-content"
               />
               <div className="flex justify-between items-center">
                 <p className="text-xs text-muted-foreground">
-                  {postText.length} / 3000 characters
+                  {postText.length} / 3,000 characters
                 </p>
                 <Button
                   onClick={handleCreatePost}
                   disabled={createPostMutation.isPending || !postText.trim()}
+                  size="default"
                   data-testid="button-submit-post"
                 >
                   {createPostMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Sharing...
+                      Publishing...
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4 mr-2" />
-                      Share Post
+                      Publish Post
                     </>
                   )}
                 </Button>
               </div>
             </div>
 
-            <div className="bg-muted/50 rounded-md p-4 border-l-4 border-l-primary">
-              <p className="text-sm text-muted-foreground">
-                <strong>Note:</strong> This will create a real post on your LinkedIn profile.
-                Make sure your LinkedIn app has the "Share on LinkedIn" product enabled.
-              </p>
+            <div className="bg-accent/50 rounded-lg p-4 border border-accent">
+              <div className="flex gap-3">
+                <Shield className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Publishing to LinkedIn</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    This will create a real post on your LinkedIn profile. Ensure your app has the "Share on LinkedIn" product enabled in your LinkedIn App settings.
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
