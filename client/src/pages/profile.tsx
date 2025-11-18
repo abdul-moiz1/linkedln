@@ -188,7 +188,11 @@ export default function Profile() {
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">
                     Locale
                   </Label>
-                  <p className="font-medium" data-testid="text-locale">{profile.locale}</p>
+                  <p className="font-medium" data-testid="text-locale">
+                    {typeof profile.locale === 'string' 
+                      ? profile.locale 
+                      : `${profile.locale.language}_${profile.locale.country}`}
+                  </p>
                 </div>
               )}
             </div>
