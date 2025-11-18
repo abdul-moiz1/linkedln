@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -9,6 +10,29 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+
+/**
+ * Session Management Configuration
+ * 
+ * Uses express-session with in-memory storage for this demo.
+ * In production, you should use a persistent session store like:
+ * - connect-pg-simple (PostgreSQL)
+ * - connect-redis (Redis)
+ * - connect-mongo (MongoDB)
+ */
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "linkedin-oauth-demo-secret-change-in-production",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      httpOnly: true, // Prevent XSS attacks
+      maxAge: 1000 * 60 * 60 * 24, // 24 hours
+    },
+  })
+);
+
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;

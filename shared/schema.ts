@@ -1,18 +1,28 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+// LinkedIn User Profile from /v2/userinfo endpoint (OpenID Connect)
+export const linkedInUserSchema = z.object({
+  sub: z.string(),
+  name: z.string().optional(),
+  given_name: z.string().optional(),
+  family_name: z.string().optional(),
+  picture: z.string().optional(),
+  email: z.string().email().optional(),
+  email_verified: z.boolean().optional(),
+  locale: z.string().optional(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export type LinkedInUser = z.infer<typeof linkedInUserSchema>;
+
+// LinkedIn Post Creation Schema
+export const createPostSchema = z.object({
+  text: z.string().min(1, "Post content is required").max(3000, "Post content must be less than 3000 characters"),
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type CreatePost = z.infer<typeof createPostSchema>;
+
+// Session User Data (stored in session)
+export interface SessionUser {
+  profile: LinkedInUser;
+  accessToken: string;
+}
