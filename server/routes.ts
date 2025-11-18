@@ -63,6 +63,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * - w_member_social: Permission to post on behalf of the user
    */
   app.get("/auth/linkedin", (req: Request, res: Response) => {
+    // Check if LinkedIn credentials are configured
+    if (!LINKEDIN_CLIENT_ID || !LINKEDIN_CLIENT_SECRET) {
+      return res.status(503).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>LinkedIn OAuth Not Configured</title>
+            <style>
+              body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; }
+              .error { background: #fee; border: 1px solid #fcc; border-radius: 8px; padding: 20px; }
+              h1 { color: #c33; margin-top: 0; }
+              code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+              ol { line-height: 1.8; }
+              a { color: #0066cc; }
+            </style>
+          </head>
+          <body>
+            <div class="error">
+              <h1>⚠️ LinkedIn OAuth Not Configured</h1>
+              <p>This application requires LinkedIn OAuth credentials to function. Please set up the following:</p>
+              <ol>
+                <li>Go to <a href="https://www.linkedin.com/developers/apps" target="_blank">LinkedIn Developers</a> and create a new app</li>
+                <li>In your app settings, add this OAuth redirect URL:<br>
+                    <code>${BASE_URL}/auth/linkedin/callback</code></li>
+                <li>Request these scopes: <code>openid</code>, <code>profile</code>, <code>email</code>, <code>w_member_social</code></li>
+                <li>Add the credentials to your Replit Secrets:
+                  <ul>
+                    <li><code>LINKEDIN_CLIENT_ID</code> - Your LinkedIn app's Client ID</li>
+                    <li><code>LINKEDIN_CLIENT_SECRET</code> - Your LinkedIn app's Client Secret</li>
+                  </ul>
+                </li>
+              </ol>
+              <p><a href="/">← Back to Home</a></p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
     // Generate a random state parameter for CSRF protection
     const state = Math.random().toString(36).substring(7);
     
