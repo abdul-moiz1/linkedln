@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 
 // LinkedIn User Profile from /v2/userinfo endpoint (OpenID Connect)
 export const linkedInUserSchema = z.object({
@@ -26,3 +28,91 @@ export interface SessionUser {
   profile: LinkedInUser;
   accessToken: string;
 }
+
+// LinkedIn Post from /rest/posts API
+export const linkedInPostSchema = z.object({
+  id: z.string(), // URN like "urn:li:share:123456"
+  author: z.string(), // URN like "urn:li:person:abc"
+  commentary: z.string().optional(),
+  publishedAt: z.number().optional(), // Unix timestamp in milliseconds
+  lifecycleState: z.string().optional(), // "PUBLISHED", "DRAFT", etc.
+  visibility: z.string().optional(), // "PUBLIC", "CONNECTIONS", etc.
+  reshareContext: z.object({
+    parent: z.string(),
+    root: z.string().optional(),
+  }).optional(),
+});
+
+export type LinkedInPost = z.infer<typeof linkedInPostSchema>;
+
+// LinkedIn Post Analytics from /v2/socialActions API
+export const postAnalyticsSchema = z.object({
+  postId: z.string(),
+  likesSummary: z.object({
+    totalLikes: z.number(),
+    likedByCurrentUser: z.boolean().optional(),
+  }),
+  commentsSummary: z.object({
+    totalFirstLevelComments: z.number(),
+    aggregatedTotalComments: z.number().optional(),
+  }),
+});
+
+export type PostAnalytics = z.infer<typeof postAnalyticsSchema>;
+
+// Combined Post with Analytics
+export interface PostWithAnalytics extends LinkedInPost {
+  analytics?: PostAnalytics;
+}
+
+// Repost Request Schema
+export const repostSchema = z.object({
+  postId: z.string().startsWith("urn:li:"), // Original post URN
+  commentary: z.string().max(3000).optional(), // Optional comment on repost
+});
+
+export type RepostRequest = z.infer<typeof repostSchema>;
+
+// Scheduled Post Schema (for database storage)
+export const scheduledPostSchema = z.object({
+  id: z.string().optional(),
+  userId: z.string(), // LinkedIn sub (person ID)
+  content: z.string().min(1).max(3000),
+  scheduledTime: z.string().datetime(), // ISO 8601 format
+  status: z.enum(["pending", "posted", "failed"]).default("pending"),
+  createdAt: z.string().datetime().optional(),
+  postedAt: z.string().datetime().optional(),
+  errorMessage: z.string().optional(),
+});
+
+export type ScheduledPost = z.infer<typeof scheduledPostSchema>;
+
+// Create Scheduled Post Request
+export const createScheduledPostSchema = z.object({
+  content: z.string().min(1, "Post content is required").max(3000, "Post content must be less than 3000 characters"),
+  scheduledTime: z.string().datetime("Invalid date/time format. Use ISO 8601 format (e.g., 2025-12-31T14:30:00Z)"),
+});
+
+export type CreateScheduledPost = z.infer<typeof createScheduledPostSchema>;
+
+// Drizzle Database Table: Scheduled Posts
+export const scheduledPosts = pgTable("scheduled_posts", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id").notNull(), // LinkedIn sub (person ID)
+  content: text("content").notNull(),
+  scheduledTime: timestamp("scheduled_time", { withTimezone: true }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // "pending", "posted", "failed"
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  postedAt: timestamp("posted_at", { withTimezone: true }),
+  errorMessage: text("error_message"),
+});
+
+// Drizzle-Zod Insert Schema (for validation)
+export const insertScheduledPostSchema = createInsertSchema(scheduledPosts).omit({
+  id: true,
+  createdAt: true,
+  postedAt: true,
+});
+
+export type InsertScheduledPost = z.infer<typeof insertScheduledPostSchema>;
+export type SelectScheduledPost = typeof scheduledPosts.$inferSelect;

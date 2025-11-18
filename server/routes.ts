@@ -1,6 +1,31 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { linkedInUserSchema, createPostSchema, type SessionUser } from "@shared/schema";
+import { 
+  linkedInUserSchema, 
+  createPostSchema, 
+  type SessionUser,
+  repostSchema,
+  createScheduledPostSchema,
+  scheduledPosts,
+  type SelectScheduledPost,
+} from "@shared/schema";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import { eq, and, lte } from "drizzle-orm";
+
+// Initialize database connection (optional - only needed for scheduled posts)
+let db: ReturnType<typeof drizzle> | null = null;
+
+function getDb() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL not configured. Scheduled posts feature requires a database.");
+  }
+  if (!db) {
+    const sql = neon(process.env.DATABASE_URL);
+    db = drizzle(sql);
+  }
+  return db;
+}
 
 // LinkedIn OAuth2 Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
@@ -13,6 +38,8 @@ const LINKEDIN_AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization";
 const LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken";
 const LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo";
 const LINKEDIN_SHARE_URL = "https://api.linkedin.com/v2/ugcPosts";
+const LINKEDIN_POSTS_URL = "https://api.linkedin.com/rest/posts";
+const LINKEDIN_SOCIAL_ACTIONS_URL = "https://api.linkedin.com/v2/socialActions";
 
 // Extend Express Session type to include user data and OAuth state
 declare module "express-session" {
@@ -287,6 +314,296 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         error: error.message || "Failed to share post" 
       });
+    }
+  });
+
+  /**
+   * API: List LinkedIn Posts
+   * 
+   * Fetches the authenticated user's LinkedIn posts using the /rest/posts API.
+   * Returns posts with basic information (content, timestamp, URN).
+   */
+  app.get("/api/posts", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { accessToken, profile } = req.session.user;
+      const personId = profile.sub.replace(/^linkedin-person-/, '');
+      const authorUrn = `urn:li:person:${personId}`;
+
+      // Fetch posts from LinkedIn /rest/posts API
+      const postsResponse = await fetch(
+        `${LINKEDIN_POSTS_URL}?author=${encodeURIComponent(authorUrn)}&q=author&count=50&sortBy=LAST_MODIFIED`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "LinkedIn-Version": "202501",
+            "X-Restli-Protocol-Version": "2.0.0",
+            "X-RestLi-Method": "FINDER",
+          },
+        }
+      );
+
+      if (!postsResponse.ok) {
+        const errorText = await postsResponse.text();
+        console.error("Failed to fetch posts:", errorText);
+        return res.status(postsResponse.status).json({ 
+          error: "Failed to fetch posts from LinkedIn",
+          details: errorText 
+        });
+      }
+
+      const postsData = await postsResponse.json();
+      res.json(postsData.elements || []);
+    } catch (error: any) {
+      console.error("Get posts error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch posts" });
+    }
+  });
+
+  /**
+   * API: Get Post Analytics
+   * 
+   * Fetches engagement metrics (likes, comments) for a specific LinkedIn post.
+   * Note: LinkedIn API only provides likes and comments for personal posts.
+   * Full analytics (impressions, clicks) only available for company pages.
+   */
+  app.get("/api/posts/:postId/analytics", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { accessToken } = req.session.user;
+      const { postId } = req.params;
+
+      // Fetch analytics from LinkedIn /v2/socialActions API
+      const analyticsResponse = await fetch(
+        `${LINKEDIN_SOCIAL_ACTIONS_URL}/${encodeURIComponent(postId)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "X-Restli-Protocol-Version": "2.0.0",
+          },
+        }
+      );
+
+      if (!analyticsResponse.ok) {
+        const errorText = await analyticsResponse.text();
+        console.error("Failed to fetch analytics:", errorText);
+        return res.status(analyticsResponse.status).json({ 
+          error: "Failed to fetch post analytics",
+          details: errorText 
+        });
+      }
+
+      const analyticsData = await analyticsResponse.json();
+      res.json({
+        postId,
+        ...analyticsData,
+      });
+    } catch (error: any) {
+      console.error("Get analytics error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch analytics" });
+    }
+  });
+
+  /**
+   * API: Repost (Reshare) a LinkedIn Post
+   * 
+   * Creates a reshare of an existing LinkedIn post.
+   * Can optionally add commentary to the repost.
+   * Requires LinkedIn-Version: 202209 or higher.
+   */
+  app.post("/api/posts/:postId/repost", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { postId } = req.params;
+      const { commentary } = repostSchema.parse({ postId, ...req.body });
+      const { accessToken, profile } = req.session.user;
+      const personId = profile.sub.replace(/^linkedin-person-/, '');
+      const authorUrn = `urn:li:person:${personId}`;
+
+      // Build reshare payload
+      const resharePayload = {
+        author: authorUrn,
+        commentary: commentary || "",
+        visibility: "PUBLIC",
+        distribution: {
+          feedDistribution: "MAIN_FEED",
+          targetEntities: [],
+          thirdPartyDistributionChannels: [],
+        },
+        lifecycleState: "PUBLISHED",
+        isReshareDisabledByAuthor: false,
+        reshareContext: {
+          parent: postId,
+        },
+      };
+
+      // Create reshare via LinkedIn API
+      const reshareResponse = await fetch(LINKEDIN_POSTS_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "LinkedIn-Version": "202301",
+          "X-Restli-Protocol-Version": "2.0.0",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(resharePayload),
+      });
+
+      if (!reshareResponse.ok) {
+        const errorText = await reshareResponse.text();
+        console.error("Reshare failed:", errorText);
+        return res.status(reshareResponse.status).json({ 
+          error: "Failed to repost on LinkedIn",
+          details: errorText 
+        });
+      }
+
+      // Get the new post URN from response header
+      const newPostUrn = reshareResponse.headers.get("x-restli-id");
+      res.json({ 
+        success: true, 
+        postId: newPostUrn,
+        message: "Post reshared successfully" 
+      });
+    } catch (error: any) {
+      console.error("Repost error:", error);
+      res.status(500).json({ error: error.message || "Failed to repost" });
+    }
+  });
+
+  /**
+   * API: Schedule a Post
+   * 
+   * Stores a post in the database to be published at a future date/time.
+   * A background job will check the database and post when the time arrives.
+   */
+  app.post("/api/posts/schedule", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { content, scheduledTime } = createScheduledPostSchema.parse(req.body);
+      const { profile } = req.session.user;
+      const personId = profile.sub.replace(/^linkedin-person-/, '');
+
+      // Verify scheduled time is in the future
+      const scheduledDate = new Date(scheduledTime);
+      if (scheduledDate <= new Date()) {
+        return res.status(400).json({ 
+          error: "Scheduled time must be in the future" 
+        });
+      }
+
+      // Insert into database
+      const [scheduledPost] = await getDb().insert(scheduledPosts).values({
+        userId: personId,
+        content,
+        scheduledTime: scheduledDate,
+        status: "pending",
+      }).returning();
+
+      res.json({ 
+        success: true, 
+        scheduledPost,
+        message: "Post scheduled successfully" 
+      });
+    } catch (error: any) {
+      console.error("Schedule post error:", error);
+      if (error.message?.includes("DATABASE_URL not configured")) {
+        return res.status(503).json({ 
+          error: "Scheduled posts feature is currently unavailable. Database not configured." 
+        });
+      }
+      res.status(500).json({ error: error.message || "Failed to schedule post" });
+    }
+  });
+
+  /**
+   * API: Get Scheduled Posts
+   * 
+   * Returns all scheduled posts for the authenticated user.
+   * Includes pending, posted, and failed posts.
+   */
+  app.get("/api/posts/scheduled", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { profile } = req.session.user;
+      const personId = profile.sub.replace(/^linkedin-person-/, '');
+
+      // Fetch all scheduled posts for this user
+      const userScheduledPosts = await getDb()
+        .select()
+        .from(scheduledPosts)
+        .where(eq(scheduledPosts.userId, personId))
+        .orderBy(scheduledPosts.scheduledTime);
+
+      res.json(userScheduledPosts);
+    } catch (error: any) {
+      console.error("Get scheduled posts error:", error);
+      if (error.message?.includes("DATABASE_URL not configured")) {
+        return res.status(503).json({ 
+          error: "Scheduled posts feature is currently unavailable. Database not configured." 
+        });
+      }
+      res.status(500).json({ error: error.message || "Failed to fetch scheduled posts" });
+    }
+  });
+
+  /**
+   * API: Delete Scheduled Post
+   * 
+   * Deletes a pending scheduled post before it's published.
+   */
+  app.delete("/api/posts/scheduled/:id", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { id } = req.params;
+      const { profile } = req.session.user;
+      const personId = profile.sub.replace(/^linkedin-person-/, '');
+
+      // Delete only if owned by this user and still pending
+      const result = await getDb()
+        .delete(scheduledPosts)
+        .where(
+          and(
+            eq(scheduledPosts.id, id),
+            eq(scheduledPosts.userId, personId),
+            eq(scheduledPosts.status, "pending")
+          )
+        )
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ 
+          error: "Scheduled post not found or already posted" 
+        });
+      }
+
+      res.json({ success: true, message: "Scheduled post deleted" });
+    } catch (error: any) {
+      console.error("Delete scheduled post error:", error);
+      if (error.message?.includes("DATABASE_URL not configured")) {
+        return res.status(503).json({ 
+          error: "Scheduled posts feature is currently unavailable. Database not configured." 
+        });
+      }
+      res.status(500).json({ error: error.message || "Failed to delete scheduled post" });
     }
   });
 

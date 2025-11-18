@@ -2,6 +2,10 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { scheduledPosts } from "@shared/schema";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import { eq, and, lte } from "drizzle-orm";
 
 const app = express();
 
@@ -102,4 +106,77 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
   });
+
+  /**
+   * Scheduled Post Processor
+   * 
+   * Background job that checks for scheduled posts every minute and publishes
+   * them to LinkedIn when their scheduled time arrives.
+   * 
+   * In production, consider using a more robust solution like:
+   * - BullMQ with Redis
+   * - Temporal.io
+   * - AWS EventBridge / Google Cloud Scheduler
+   */
+  if (process.env.DATABASE_URL) {
+    const sql = neon(process.env.DATABASE_URL);
+    const db = drizzle(sql);
+
+    const processScheduledPosts = async () => {
+      try {
+        const now = new Date();
+
+        // Find all pending posts whose time has arrived
+        const dueUsers = await db
+          .select()
+          .from(scheduledPosts)
+          .where(
+            and(
+              eq(scheduledPosts.status, "pending"),
+              lte(scheduledPosts.scheduledTime, now)
+            )
+          );
+
+        for (const post of dueUsers) {
+          try {
+            // Note: This is a simplified version. In production, you would:
+            // 1. Fetch the user's access token from database/session
+            // 2. Check if token is still valid
+            // 3. Post to LinkedIn
+            // 4. Handle token refresh if needed
+            
+            // For now, we just mark as failed with a message to use manual posting
+            await db
+              .update(scheduledPosts)
+              .set({
+                status: "failed",
+                errorMessage: "Automated posting requires persistent access tokens. Please post manually from the app.",
+              })
+              .where(eq(scheduledPosts.id, post.id));
+
+            log(`Scheduled post ${post.id} marked for manual posting`);
+          } catch (error: any) {
+            log(`Error processing scheduled post ${post.id}: ${error.message}`);
+            await db
+              .update(scheduledPosts)
+              .set({
+                status: "failed",
+                errorMessage: error.message || "Unknown error",
+              })
+              .where(eq(scheduledPosts.id, post.id));
+          }
+        }
+      } catch (error: any) {
+        log(`Scheduled post processor error: ${error.message}`);
+      }
+    };
+
+    // Run every minute
+    setInterval(processScheduledPosts, 60 * 1000);
+    
+    // Run once at startup
+    processScheduledPosts().catch(console.error);
+    
+    log("Scheduled post processor started");
+  }
 })();

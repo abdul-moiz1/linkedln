@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,11 +10,12 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { SiLinkedin } from "react-icons/si";
-import { Copy, LogOut, Send, Check, Loader2 } from "lucide-react";
+import { Copy, LogOut, Send, Check, Loader2, List, Calendar } from "lucide-react";
 import type { SessionUser, CreatePost } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function Profile() {
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [postText, setPostText] = useState("");
   const [copied, setCopied] = useState(false);
@@ -218,6 +220,49 @@ export default function Profile() {
                   {accessToken}
                 </code>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>
+              Access your posts and manage scheduled content
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-auto flex-col items-start p-4 space-y-2"
+                onClick={() => navigate("/posts")}
+                data-testid="button-view-posts"
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <List className="w-5 h-5" />
+                  <span className="font-semibold">My Posts</span>
+                </div>
+                <p className="text-sm text-muted-foreground text-left">
+                  View all your LinkedIn posts with analytics (likes, comments) and repost functionality
+                </p>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-auto flex-col items-start p-4 space-y-2"
+                onClick={() => navigate("/scheduled")}
+                data-testid="button-view-scheduled"
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <Calendar className="w-5 h-5" />
+                  <span className="font-semibold">Scheduled Posts</span>
+                </div>
+                <p className="text-sm text-muted-foreground text-left">
+                  Schedule posts for future dates and manage your content calendar
+                </p>
+              </Button>
             </div>
           </CardContent>
         </Card>
