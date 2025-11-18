@@ -403,7 +403,7 @@ export default function Profile() {
               {mediaFiles.length > 0 && (
                 <div className="grid grid-cols-2 gap-3">
                   {mediaFiles.map((media, index) => (
-                    <div key={index} className="relative group rounded-md overflow-hidden border bg-muted">
+                    <div key={index} className="relative rounded-md overflow-hidden border bg-muted">
                       {media.type === "IMAGE" ? (
                         <img 
                           src={media.url} 
@@ -418,7 +418,7 @@ export default function Profile() {
                       <Button
                         variant="destructive"
                         size="icon"
-                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-2 right-2 h-7 w-7 shadow-md"
                         onClick={() => removeMedia(index)}
                         data-testid={`button-remove-media-${index}`}
                       >

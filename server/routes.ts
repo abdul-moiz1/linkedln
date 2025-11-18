@@ -261,15 +261,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * API: Share Post on LinkedIn
    * 
-   * Creates a text post on the authenticated user's LinkedIn profile.
+   * Creates a text post (with optional media) on the authenticated user's LinkedIn profile.
    * 
    * LinkedIn Share API (v2/ugcPosts):
    * - Requires w_member_social scope
-   * - Posts are created as "NONE" visibility by default (connections only)
+   * - Supports text, images, and videos
    * - Uses UGC (User Generated Content) API format
    * 
    * Request body:
    * - text: The content of the post (1-3000 characters)
+   * - media: Optional array of media objects (images/videos) with base64 data
    */
   app.post("/api/share", async (req: Request, res: Response) => {
     // Verify user is authenticated
@@ -279,30 +280,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       // Validate request body
-      const { text } = createPostSchema.parse(req.body);
+      const { text, media } = createPostSchema.parse(req.body);
       const { accessToken, profile } = req.session.user;
 
       /**
        * Extract LinkedIn Person ID from OpenID Connect 'sub' field
-       * 
-       * LinkedIn's OpenID Connect returns sub in format: "linkedin-person-{PERSON_ID}"
-       * We need to strip the "linkedin-person-" prefix to get the raw person ID
-       * for building the correct URN format: "urn:li:person:{PERSON_ID}"
        */
       const personId = profile.sub.replace(/^linkedin-person-/, '');
+      const authorUrn = `urn:li:person:${personId}`;
 
-      /**
-       * LinkedIn UGC Post Format
-       * 
-       * The post payload includes:
-       * - author: URN format "urn:li:person:{USER_ID}" (numeric ID only)
-       * - lifecycleState: "PUBLISHED" to make post live immediately
-       * - specificContent: Contains the actual post content with required locale
-       * - visibility: Who can see the post (PUBLIC, CONNECTIONS, etc.)
-       * 
-       * Note: shareCommentary requires a locale object specifying the language
-       */
-      // Extract locale parts - handle both string and object formats
+      // Extract locale data
       let localeData: { country: string; language: string };
       if (typeof profile.locale === 'object' && profile.locale !== null) {
         localeData = {
@@ -319,17 +306,177 @@ export async function registerRoutes(app: Express): Promise<Server> {
         localeData = { country: "US", language: "en" };
       }
 
+      // Process media uploads if provided
+      let mediaAssets: any[] = [];
+      let mediaCategory = "NONE";
+      let uploadErrors: string[] = [];
+      let successfulUploads: string[] = [];
+
+      if (media && media.length > 0) {
+        // Check for videos - currently not fully supported
+        const hasVideo = media.some(m => m.type === "VIDEO");
+        if (hasVideo) {
+          return res.status(400).json({ 
+            error: "Video uploads are currently not supported. LinkedIn video uploads require complex multi-part chunked uploads and transcoding. Please use images for now."
+          });
+        }
+        
+        mediaCategory = "IMAGE";
+
+        for (const mediaFile of media) {
+          try {
+            if (mediaFile.type !== "IMAGE") {
+              uploadErrors.push(`Unsupported media type: ${mediaFile.type}`);
+              continue;
+            }
+
+            // Convert base64 to buffer and determine content type
+            const base64Data = mediaFile.url.split(',')[1];
+            if (!base64Data) {
+              uploadErrors.push(`Invalid base64 data for ${mediaFile.filename}`);
+              continue;
+            }
+            
+            // Extract MIME type from data URL
+            const mimeMatch = mediaFile.url.match(/^data:(image\/[a-z]+);base64,/);
+            const contentType = mimeMatch ? mimeMatch[1] : "image/jpeg"; // Default to JPEG
+            
+            const buffer = Buffer.from(base64Data, 'base64');
+            
+            // Register upload with LinkedIn
+            const registerPayload = {
+              registerUploadRequest: {
+                recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
+                owner: authorUrn,
+                serviceRelationships: [{
+                  relationshipType: "OWNER",
+                  identifier: "urn:li:userGeneratedContent"
+                }]
+              }
+            };
+
+            const registerResponse = await fetch("https://api.linkedin.com/v2/assets?action=registerUpload", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(registerPayload),
+            });
+
+            if (!registerResponse.ok) {
+              const errorText = await registerResponse.text();
+              console.error("Media registration failed:", errorText);
+              uploadErrors.push(`${mediaFile.filename}: Failed to register`);
+              continue;
+            }
+
+            const registerData = await registerResponse.json();
+            const uploadUrl = registerData.value.uploadMechanism["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"].uploadUrl;
+            const asset = registerData.value.asset;
+
+            // Upload binary data with correct Content-Type
+            const uploadResponse = await fetch(uploadUrl, {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": contentType,
+              },
+              body: buffer,
+            });
+
+            if (!uploadResponse.ok) {
+              const errorText = await uploadResponse.text();
+              console.error("Binary upload failed:", errorText);
+              uploadErrors.push(`${mediaFile.filename}: Failed to upload`);
+              continue;
+            }
+
+            // Poll asset status until READY (required by LinkedIn)
+            const assetId = asset.split(':').pop(); // Extract ID from URN
+            let assetReady = false;
+            let pollAttempts = 0;
+            const maxPolls = 10;
+            
+            while (!assetReady && pollAttempts < maxPolls) {
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+              
+              try {
+                const statusResponse = await fetch(`https://api.linkedin.com/v2/assets/${asset}`, {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                  },
+                });
+
+                if (statusResponse.ok) {
+                  const statusData = await statusResponse.json();
+                  if (statusData.status === "READY" || statusData.status === "AVAILABLE") {
+                    assetReady = true;
+                  }
+                }
+              } catch (pollError) {
+                console.warn("Asset status poll error:", pollError);
+              }
+              
+              pollAttempts++;
+            }
+
+            if (!assetReady) {
+              console.warn(`Asset ${asset} did not become READY after ${maxPolls} attempts, continuing anyway`);
+            }
+
+            // Build media descriptor according to LinkedIn specs
+            const mediaDescriptor: any = {
+              status: "READY",
+              media: asset,
+              title: {
+                text: mediaFile.filename.replace(/\.[^/.]+$/, ""), // Use filename without extension
+                locale: localeData,
+              },
+            };
+
+            mediaAssets.push(mediaDescriptor);
+            successfulUploads.push(mediaFile.filename);
+          } catch (mediaError: any) {
+            console.error("Media upload error:", mediaError);
+            uploadErrors.push(`${mediaFile.filename}: ${mediaError.message}`);
+          }
+        }
+
+        // If all media failed to upload, fail the entire request
+        if (mediaAssets.length === 0 && media.length > 0) {
+          return res.status(500).json({ 
+            error: "All media uploads failed",
+            details: uploadErrors,
+            failed: media.map(m => m.filename)
+          });
+        }
+
+        // If some uploads failed, include details in response
+        if (uploadErrors.length > 0) {
+          console.warn("Some media uploads failed:", uploadErrors);
+        }
+      }
+
+      // Build post payload
+      const shareContent: any = {
+        shareCommentary: {
+          text: text,
+          locale: localeData,
+        },
+        shareMediaCategory: mediaCategory,
+      };
+
+      // Add media if successfully uploaded
+      if (mediaAssets.length > 0) {
+        shareContent.media = mediaAssets;
+      }
+
       const postPayload = {
-        author: `urn:li:person:${personId}`,
+        author: authorUrn,
         lifecycleState: "PUBLISHED",
         specificContent: {
-          "com.linkedin.ugc.ShareContent": {
-            shareCommentary: {
-              text: text,
-              locale: localeData,
-            },
-            shareMediaCategory: "NONE", // Text-only post
-          },
+          "com.linkedin.ugc.ShareContent": shareContent,
         },
         visibility: {
           "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
@@ -342,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "X-Restli-Protocol-Version": "2.0.0", // Required header for LinkedIn API
+          "X-Restli-Protocol-Version": "2.0.0",
         },
         body: JSON.stringify(postPayload),
       });
@@ -357,11 +504,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const shareData = await shareResponse.json();
-      res.json({ 
+      
+      const responseData: any = { 
         success: true, 
         postId: shareData.id,
-        message: "Post shared successfully on LinkedIn" 
-      });
+        message: "Post shared successfully on LinkedIn" + (mediaAssets.length > 0 ? ` with ${mediaAssets.length} image(s)` : "")
+      };
+
+      // Include upload details if there were any issues
+      if (uploadErrors.length > 0) {
+        responseData.partialSuccess = true;
+        responseData.uploadedFiles = successfulUploads;
+        responseData.failedFiles = uploadErrors;
+        responseData.message += `. Warning: ${uploadErrors.length} file(s) failed to upload.`;
+      }
+
+      res.json(responseData);
     } catch (error: any) {
       console.error("Share post error:", error);
       res.status(500).json({ 
