@@ -226,15 +226,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Try to persist user to Firestore (optional - will fail gracefully if not configured)
       try {
-        const { saveUser } = await import("./lib/firebase-admin");
-        await saveUser({
-          linkedinId: profile.sub,
-          email: profile.email || "",
-          name: profile.name || "",
-          profilePicture: profile.picture,
-          accessToken,
-          tokenExpiresAt: new Date(Date.now() + (tokenData.expires_in || 3600) * 1000),
-        });
+        const { saveUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
+        if (isFirebaseConfigured) {
+          await saveUser({
+            linkedinId: profile.sub,
+            email: profile.email || "",
+            name: profile.name || "",
+            profilePicture: profile.picture,
+            accessToken,
+            tokenExpiresAt: new Date(Date.now() + (tokenData.expires_in || 3600) * 1000),
+          });
+        }
       } catch (firestoreError) {
         // Firestore is optional - continue even if it fails
         console.warn("Firestore save failed (Firebase may not be configured):", firestoreError);

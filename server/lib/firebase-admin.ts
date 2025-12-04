@@ -1,25 +1,43 @@
 import admin from "firebase-admin";
 
-const serviceAccount = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-};
+const isFirebaseConfigured = Boolean(
+  process.env.FIREBASE_PROJECT_ID &&
+  process.env.FIREBASE_CLIENT_EMAIL &&
+  process.env.FIREBASE_PRIVATE_KEY
+);
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  });
+let adminDb: admin.firestore.Firestore | null = null;
+let adminAuth: admin.auth.Auth | null = null;
+
+if (isFirebaseConfigured) {
+  try {
+    const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    };
+
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+      });
+    }
+
+    adminDb = admin.firestore();
+    adminAuth = admin.auth();
+  } catch (error) {
+    console.warn("Firebase initialization failed:", error);
+  }
 }
 
-export const adminDb = admin.firestore();
-export const adminAuth = admin.auth();
+function getDb() {
+  if (!adminDb) {
+    throw new Error("Firebase not configured. Please add FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY to your secrets.");
+  }
+  return adminDb;
+}
 
-export const collections = {
-  users: adminDb.collection("users"),
-  projects: adminDb.collection("projects"),
-  sessions: adminDb.collection("sessions"),
-};
+export { adminDb, adminAuth, isFirebaseConfigured };
 
 export interface User {
   id: string;
@@ -56,8 +74,9 @@ export interface Session {
 }
 
 export async function saveUser(userData: Omit<User, "id" | "createdAt" | "updatedAt">) {
+  const db = getDb();
   const now = new Date();
-  const userRef = collections.users.doc(userData.linkedinId);
+  const userRef = db.collection("users").doc(userData.linkedinId);
   
   await userRef.set({
     ...userData,
@@ -77,14 +96,16 @@ export async function saveUser(userData: Omit<User, "id" | "createdAt" | "update
 }
 
 export async function getUser(linkedinId: string): Promise<User | null> {
-  const doc = await collections.users.doc(linkedinId).get();
+  const db = getDb();
+  const doc = await db.collection("users").doc(linkedinId).get();
   if (!doc.exists) return null;
   return { id: doc.id, ...doc.data() } as User;
 }
 
 export async function saveProject(projectData: Omit<Project, "id" | "createdAt" | "updatedAt">) {
+  const db = getDb();
   const now = new Date();
-  const projectRef = collections.projects.doc();
+  const projectRef = db.collection("projects").doc();
   
   await projectRef.set({
     ...projectData,
@@ -96,7 +117,8 @@ export async function saveProject(projectData: Omit<Project, "id" | "createdAt" 
 }
 
 export async function updateProject(projectId: string, updates: Partial<Project>) {
-  const projectRef = collections.projects.doc(projectId);
+  const db = getDb();
+  const projectRef = db.collection("projects").doc(projectId);
   await projectRef.update({
     ...updates,
     updatedAt: new Date(),
@@ -104,7 +126,8 @@ export async function updateProject(projectId: string, updates: Partial<Project>
 }
 
 export async function getUserProjects(userId: string): Promise<Project[]> {
-  const snapshot = await collections.projects
+  const db = getDb();
+  const snapshot = await db.collection("projects")
     .where("userId", "==", userId)
     .orderBy("updatedAt", "desc")
     .get();
@@ -113,7 +136,8 @@ export async function getUserProjects(userId: string): Promise<Project[]> {
 }
 
 export async function getProject(projectId: string): Promise<Project | null> {
-  const doc = await collections.projects.doc(projectId).get();
+  const db = getDb();
+  const doc = await db.collection("projects").doc(projectId).get();
   if (!doc.exists) return null;
   return { id: doc.id, ...doc.data() } as Project;
 }
