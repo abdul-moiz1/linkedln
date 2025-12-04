@@ -19,6 +19,10 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Added beautiful hover effects throughout homepage (buttons, cards, icons)
 - **Dec 4**: Redesigned footer with 4-column layout, social links, and gradient background
 - **Dec 4**: Improved "How It Works" section with colorful icons, card hover animations, and step indicators
+- **Dec 4**: Redesigned "Share on LinkedIn" section to match LinkedIn's native post creation interface
+- **Dec 4**: Added Apify LinkedIn Post Scraper integration for fetching user posts with engagement metrics
+- **Dec 4**: Added "My LinkedIn Posts" page with Most Viral filter and responsive grid layout
+- **Dec 4**: Fixed profile URL issue - added dialog for users to enter their LinkedIn profile URL (Apify needs public URL, not OpenID sub)
 
 ## Architecture
 
@@ -42,6 +46,7 @@ A professional SaaS application that allows users to create AI-generated LinkedI
   - `POST /api/project/save` - Saves project drafts
   - `GET /api/projects` - Gets user projects
   - `GET /api/project/:projectId` - Gets single project
+  - `POST /api/posts/fetch` - Fetches LinkedIn posts via Apify scraper
 - **Session Management**: Express-session with in-memory storage
 
 ### Database (Firebase/Firestore)
@@ -62,6 +67,8 @@ Required secrets:
 - `FIREBASE_PROJECT_ID` - Firebase project ID
 - `FIREBASE_CLIENT_EMAIL` - Firebase service account email
 - `FIREBASE_PRIVATE_KEY` - Firebase service account private key
+- `APIFY_TOKEN` - Apify API token for LinkedIn post scraping
+- `APIFY_TASK_ID` - Apify task ID for LinkedIn Post Scraper
 
 ## LinkedIn API Configuration
 **Redirect URI**: `{BASE_URL}/auth/linkedin/callback`
