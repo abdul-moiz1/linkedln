@@ -1,0 +1,136 @@
+Add full integration of Apify’s LinkedIn Post Scraper into the “My LinkedIn Posts” page.
+
+✔ 1. Backend: Create /api/posts/fetch
+
+Add a new Express route:
+
+/api/posts/fetch
+
+
+It should:
+
+Receive the logged-in user’s LinkedIn profile URL
+
+Call Apify Task:
+
+POST https://api.apify.com/v2/actor-tasks/${process.env.APIFY_TASK_ID}/run-sync?token=${process.env.APIFY_TOKEN}
+
+
+Send body:
+
+{
+  "startUrls": [{ "url": profileUrl }]
+}
+
+
+Apify returns the user’s LinkedIn posts.
+
+Normalize each post into this structure:
+
+{
+  id: post.url,
+  text: post.text || "",
+  image: post.media?.[0] || null,
+  url: post.url,
+  createdAt: new Date(post.publishedAt).getTime(),
+  likes: post.likes || 0,
+  comments: post.comments || 0,
+  impressions: post.impressions || 0
+}
+
+
+Respond to frontend:
+
+res.json({
+  success: true,
+  posts: normalizedPosts
+});
+
+✔ 2. Frontend: Load Posts When “My Posts” Page Opens
+
+In the component that currently shows "No posts found", replace the logic with:
+
+useEffect(() => {
+  async function loadPosts() {
+    setLoading(true);
+    const response = await fetch("/api/posts/fetch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileUrl: user.linkedInUrl })
+    });
+    const data = await response.json();
+    if (data.success) setPosts(data.posts);
+    setLoading(false);
+  }
+  loadPosts();
+}, []);
+
+✔ 3. Add Filter Dropdown (Most Recent, Most Liked, Most Viral)
+
+Add this state:
+
+const [filter, setFilter] = useState("recent");
+
+
+Add filter logic:
+
+const sortedPosts = [...posts].sort((a, b) => {
+  switch (filter) {
+    case "likes":
+      return b.likes - a.likes;
+
+    case "viral":
+      const viralA = (a.likes * 2 + a.comments * 3 + a.impressions * 0.1);
+      const viralB = (b.likes * 2 + b.comments * 3 + b.impressions * 0.1);
+      return viralB - viralA;
+
+    default: // recent
+      return b.createdAt - a.createdAt;
+  }
+});
+
+
+Add dropdown:
+
+<select
+  value={filter}
+  onChange={(e) => setFilter(e.target.value)}
+  className="border rounded px-3 py-2"
+>
+  <option value="recent">Most Recent</option>
+  <option value="likes">Most Liked</option>
+  <option value="viral">Most Viral</option>
+</select>
+
+✔ 4. Display Posts Under the Filter
+
+Replace the blank “No posts found” area with:
+
+{sortedPosts.length === 0 ? (
+  <p>No posts found.</p>
+) : (
+  <div className="grid gap-4 md:grid-cols-2">
+    {sortedPosts.map((post) => (
+      <div key={post.id} className="border p-4 rounded shadow-sm">
+        {post.image && (
+          <img src={post.image} className="rounded mb-3" />
+        )}
+        <p className="font-semibold mb-2">
+          {post.text.slice(0, 140)}...
+        </p>
+
+        <div className="text-sm text-gray-500 mb-2">
+          👍 {post.likes} 💬 {post.comments}
+        </div>
+
+        <a href={post.url} target="_blank" className="text-blue-600 underline">
+          View on LinkedIn
+        </a>
+      </div>
+    ))}
+  </div>
+)}
+
+✔ 5. Do NOT break carousel creation or PDF logic
+
+Modify only the “Posts” tab and the new backend route.
