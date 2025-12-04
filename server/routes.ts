@@ -1228,10 +1228,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const shareData = await shareResponse.json();
+      // Handle empty response or parse JSON safely
+      let shareData: any = {};
+      const responseText = await shareResponse.text();
+      if (responseText && responseText.trim()) {
+        try {
+          shareData = JSON.parse(responseText);
+        } catch (parseError) {
+          console.warn("Could not parse share response:", responseText);
+        }
+      }
+      
+      // LinkedIn may return post ID in headers for 201 responses
+      const postId = shareData.id || shareData.urn || shareResponse.headers.get("x-restli-id") || "unknown";
+      
       res.json({ 
         success: true, 
-        postId: shareData.id || shareData.urn,
+        postId: postId,
         message: "Carousel posted successfully to LinkedIn" 
       });
     } catch (error: any) {

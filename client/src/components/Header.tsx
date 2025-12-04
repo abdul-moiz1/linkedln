@@ -60,131 +60,94 @@ export default function Header({ variant = "home" }: HeaderProps) {
         </div>
         
         <nav className="hidden md:flex items-center gap-6">
+          <a 
+            href={user ? "/profile" : "#home"} 
+            className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+            data-testid="nav-home"
+          >
+            {user ? "Dashboard" : "Home"}
+          </a>
+          <a 
+            href={user ? "/posts" : "#how-it-works"} 
+            className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+            data-testid="nav-how-it-works"
+          >
+            {user ? "My Posts" : "How It Works"}
+          </a>
+          <a 
+            href={user ? "/scheduled" : "#features"} 
+            className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+            data-testid="nav-features"
+          >
+            {user ? "Scheduled" : "Features"}
+          </a>
+          
           {!user ? (
-            <>
-              <a 
-                href="#home" 
-                className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
-                data-testid="nav-home"
-              >
-                Home
-              </a>
-              <a 
-                href="#how-it-works" 
-                className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
-                data-testid="nav-how-it-works"
-              >
-                How It Works
-              </a>
-              <a 
-                href="#features" 
-                className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
-                data-testid="nav-features"
-              >
-                Features
-              </a>
-              <Button 
-                onClick={handleLinkedInLogin}
-                variant="outline"
-                className="gap-2"
-                data-testid="button-login"
-              >
-                <SiLinkedin className="w-4 h-4" />
-                Login
-              </Button>
-            </>
+            <Button 
+              onClick={handleLinkedInLogin}
+              variant="outline"
+              className="gap-2"
+              data-testid="button-login"
+            >
+              <SiLinkedin className="w-4 h-4" />
+              Login
+            </Button>
           ) : (
-            <>
-              <button
-                onClick={() => navigate("/profile")}
-                className={`text-sm font-medium transition-colors ${
-                  isActive("/profile") 
-                    ? "text-blue-600" 
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-                data-testid="nav-profile"
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => navigate("/posts")}
-                className={`text-sm font-medium transition-colors ${
-                  isActive("/posts") 
-                    ? "text-blue-600" 
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-                data-testid="nav-posts"
-              >
-                My Posts
-              </button>
-              <button
-                onClick={() => navigate("/scheduled")}
-                className={`text-sm font-medium transition-colors ${
-                  isActive("/scheduled") 
-                    ? "text-blue-600" 
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-                data-testid="nav-scheduled"
-              >
-                Scheduled
-              </button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    className="gap-2 pl-2 pr-3"
-                    data-testid="button-user-menu"
-                  >
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={user.profile?.picture} alt={user.profile?.name || "User"} />
-                      <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="hidden lg:inline text-sm font-medium text-slate-700">
-                      {user.profile?.given_name || user.profile?.name?.split(" ")[0] || "User"}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-slate-500" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem 
-                    onClick={() => navigate("/profile")}
-                    className="gap-2 cursor-pointer"
-                    data-testid="menu-profile"
-                  >
-                    <User className="w-4 h-4" />
-                    My Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => navigate("/posts")}
-                    className="gap-2 cursor-pointer"
-                    data-testid="menu-posts"
-                  >
-                    <List className="w-4 h-4" />
-                    My Posts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => navigate("/scheduled")}
-                    className="gap-2 cursor-pointer"
-                    data-testid="menu-scheduled"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Scheduled Posts
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => logoutMutation.mutate()}
-                    className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                    data-testid="menu-logout"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="gap-2 pl-2 pr-3"
+                  data-testid="button-user-menu"
+                >
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={user.profile?.picture} alt={user.profile?.name || "User"} />
+                    <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden lg:inline text-sm font-medium text-slate-700">
+                    {user.profile?.given_name || user.profile?.name?.split(" ")[0] || "User"}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  onClick={() => navigate("/profile")}
+                  className="gap-2 cursor-pointer"
+                  data-testid="menu-profile"
+                >
+                  <User className="w-4 h-4" />
+                  My Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => navigate("/posts")}
+                  className="gap-2 cursor-pointer"
+                  data-testid="menu-posts"
+                >
+                  <List className="w-4 h-4" />
+                  My Posts
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => navigate("/scheduled")}
+                  className="gap-2 cursor-pointer"
+                  data-testid="menu-scheduled"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Scheduled Posts
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => logoutMutation.mutate()}
+                  className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                  data-testid="menu-logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </nav>
 
