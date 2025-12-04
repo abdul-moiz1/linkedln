@@ -49,6 +49,12 @@ interface ResharedPost {
   } | null;
 }
 
+interface ImageObject {
+  url?: string;
+  height?: number;
+  width?: number;
+}
+
 interface ApifyPost {
   id: string;
   urn: string | null;
@@ -59,9 +65,19 @@ interface ApifyPost {
   postedAtRelative: string;
   author: PostAuthor | null;
   stats: PostStats;
-  images: string[];
+  images: (string | ImageObject)[];
   resharedPost: ResharedPost | null;
 }
+
+const getImageUrl = (img: string | ImageObject): string | null => {
+  if (typeof img === 'string') {
+    return img;
+  }
+  if (img && typeof img === 'object') {
+    return img.url || null;
+  }
+  return null;
+};
 
 export default function PostsPage() {
   const [, navigate] = useLocation();
@@ -255,109 +271,149 @@ export default function PostsPage() {
     );
   }
 
+  const firstPostAuthor = posts.length > 0 ? posts[0].author : null;
+  const totalReactions = posts.reduce((sum, p) => sum + p.stats.totalReactions, 0);
+  const totalComments = posts.reduce((sum, p) => sum + p.stats.comments, 0);
+
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="container max-w-2xl mx-auto p-4 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => navigate("/profile")} 
-              variant="ghost" 
-              size="icon"
-              data-testid="button-back-profile"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">My Posts</h1>
-              <p className="text-sm text-muted-foreground">
-                View your LinkedIn posts with analytics
-              </p>
-            </div>
+      <div className="container max-w-5xl mx-auto p-4">
+        <div className="flex gap-6">
+          {/* Left Sidebar - User Card */}
+          <div className="hidden lg:block w-64 flex-shrink-0">
+            <Card className="sticky top-4">
+              <CardContent className="p-0">
+                {/* Cover Image */}
+                <div className="h-16 bg-gradient-to-r from-blue-600 to-blue-400 rounded-t-lg" />
+                
+                {/* Profile Info */}
+                <div className="px-4 pb-4">
+                  <div className="-mt-10 mb-3">
+                    <Avatar className="w-20 h-20 border-4 border-background">
+                      {firstPostAuthor?.profilePicture && (
+                        <AvatarImage 
+                          src={firstPostAuthor.profilePicture} 
+                          alt={firstPostAuthor.fullName}
+                        />
+                      )}
+                      <AvatarFallback className="bg-blue-600 text-white text-xl font-semibold">
+                        {getInitials(firstPostAuthor)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  
+                  <h2 className="font-semibold text-base" data-testid="text-user-name">
+                    {firstPostAuthor?.fullName || user?.profile?.name || "User"}
+                  </h2>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1" data-testid="text-user-headline">
+                    {firstPostAuthor?.headline || "LinkedIn User"}
+                  </p>
+                  
+                  {/* Stats */}
+                  <div className="mt-4 pt-4 border-t space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Posts</span>
+                      <span className="font-medium" data-testid="text-posts-count">{posts.length}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Total Reactions</span>
+                      <span className="font-medium text-blue-600" data-testid="text-reactions-count">{totalReactions}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Total Comments</span>
+                      <span className="font-medium" data-testid="text-comments-count">{totalComments}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Profile Link */}
+                  {firstPostAuthor?.profileUrl && (
+                    <a 
+                      href={firstPostAuthor.profileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 flex items-center gap-2 text-xs text-blue-600 hover:underline"
+                      data-testid="link-linkedin-profile"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      View LinkedIn Profile
+                    </a>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          <div className="flex items-center gap-2">
-            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="w-[140px]" data-testid="select-sort-posts">
-                <SelectValue placeholder="Sort by..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Most Recent</SelectItem>
-                <SelectItem value="likes">Most Liked</SelectItem>
-                <SelectItem value="viral">Most Viral</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button 
-              onClick={() => fetchPosts()} 
-              disabled={isLoading || !profileUrl}
-              data-testid="button-fetch-posts"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  {hasFetched ? "Refresh" : "Load Posts"}
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
 
-        {!profileUrl && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Link className="w-5 h-5 text-muted-foreground" />
-                <h3 className="font-medium">Connect Your LinkedIn Profile</h3>
+          {/* Main Content */}
+          <div className="flex-1 max-w-2xl space-y-4">
+            {/* Minimal Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Button 
+                  onClick={() => navigate("/profile")} 
+                  variant="ghost" 
+                  size="icon"
+                  data-testid="button-back-profile"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <h1 className="text-xl font-semibold">My Posts</h1>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Enter your LinkedIn profile URL to fetch and analyze your posts.
-              </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                  <SelectTrigger className="w-[130px]" data-testid="select-sort-posts">
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent">Most Recent</SelectItem>
+                    <SelectItem value="likes">Most Liked</SelectItem>
+                    <SelectItem value="viral">Most Viral</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  onClick={() => fetchPosts()} 
+                  disabled={isLoading || !profileUrl}
+                  size="sm"
+                  data-testid="button-fetch-posts"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Compact Profile URL Input */}
+            {!profileUrl ? (
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-background rounded-lg border">
+                <Link className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <Input
                   type="text"
-                  placeholder="https://www.linkedin.com/in/your-username"
+                  placeholder="Enter LinkedIn profile URL or username..."
                   value={profileUrlInput}
                   onChange={(e) => setProfileUrlInput(e.target.value)}
-                  className="flex-1 min-w-[250px]"
+                  className="flex-1 min-w-[200px] h-8 text-sm"
                   data-testid="input-profile-url"
                 />
                 <Button 
                   onClick={handleSaveProfileUrl}
                   disabled={isLoading || !profileUrlInput.trim()}
+                  size="sm"
                   data-testid="button-save-profile-url"
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Fetching...
-                    </>
-                  ) : (
-                    "Save & Fetch Posts"
-                  )}
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Fetch Posts"}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {profileUrl && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Link className="w-5 h-5 text-muted-foreground" />
-                <h3 className="font-medium">Your LinkedIn Profile</h3>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
+            ) : (
+              <div className="flex flex-wrap items-center gap-2 p-2 bg-background rounded-lg border">
+                <Link className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <Input
                   type="text"
-                  placeholder="https://www.linkedin.com/in/your-username"
+                  placeholder="LinkedIn profile URL or username"
                   value={profileUrlInput || profileUrl}
                   onChange={(e) => setProfileUrlInput(e.target.value)}
-                  className="flex-1 min-w-[250px]"
+                  className="flex-1 min-w-[180px] h-8 text-sm border-0 bg-transparent focus-visible:ring-0"
                   data-testid="input-profile-url-edit"
                 />
                 <Button 
@@ -397,22 +453,21 @@ export default function PostsPage() {
                     }
                   }}
                   disabled={isLoading}
+                  size="sm"
                   data-testid="button-update-profile-url"
                 >
                   {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Fetching...
-                    </>
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      {profileUrlInput && profileUrlInput !== profileUrl ? "Update & Fetch" : "Refresh Posts"}
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      {profileUrlInput && profileUrlInput !== profileUrl ? "Update" : "Refresh"}
                     </>
                   )}
                 </Button>
                 <Button
                   variant="ghost"
+                  size="sm"
                   onClick={async () => {
                     try {
                       const response = await fetch("/api/user/profile-url", {
@@ -449,49 +504,44 @@ export default function PostsPage() {
                   Clear
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Enter a LinkedIn profile URL (e.g., https://linkedin.com/in/username) or just the username (e.g., satyanadella)
-              </p>
-            </CardContent>
-          </Card>
-        )}
+            )}
 
-        {error && (
-          <Card className="bg-destructive/10 border-destructive/30">
-            <CardContent className="pt-4">
-              <p className="text-sm text-destructive">{error}</p>
-              <p className="text-xs text-muted-foreground mt-2">
-                Make sure APIFY_TOKEN and APIFY_TASK_ID are configured.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {isLoading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i} className="overflow-hidden">
-                <CardContent className="p-4 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Skeleton className="w-12 h-12 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-3 w-48" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-20 w-full" />
-                  <Skeleton className="h-48 w-full rounded-lg" />
-                  <div className="flex gap-4">
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-4 w-16" />
-                  </div>
+            {error && (
+              <Card className="bg-destructive/10 border-destructive/30">
+                <CardContent className="pt-4">
+                  <p className="text-sm text-destructive">{error}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Make sure APIFY_TOKEN and APIFY_TASK_ID are configured.
+                  </p>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        ) : posts.length > 0 ? (
-          <div className="space-y-4">
+            )}
+
+            {isLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="w-12 h-12 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-48" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-20 w-full" />
+                      <Skeleton className="h-48 w-full rounded-lg" />
+                      <div className="flex gap-4">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : posts.length > 0 ? (
+              <div className="space-y-4">
             {sortedPosts.map((post, index) => (
               <Card key={post.id || index} className="overflow-hidden" data-testid={`card-post-${index}`}>
                 <CardContent className="p-4 space-y-3">
@@ -588,27 +638,31 @@ export default function PostsPage() {
                       post.images.length === 2 ? 'grid-cols-2' : 
                       'grid-cols-2'
                     }`}>
-                      {post.images.slice(0, 4).map((img, imgIndex) => (
-                        <div 
-                          key={imgIndex} 
-                          className={`relative ${
-                            post.images.length === 1 ? 'aspect-video' : 'aspect-square'
-                          }`}
-                        >
-                          <img 
-                            src={img} 
-                            alt={`Post image ${imgIndex + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          {imgIndex === 3 && post.images.length > 4 && (
-                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                              <span className="text-white text-xl font-semibold">
-                                +{post.images.length - 4}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                      {post.images.slice(0, 4).map((img, imgIndex) => {
+                        const imageUrl = getImageUrl(img);
+                        if (!imageUrl) return null;
+                        return (
+                          <div 
+                            key={imgIndex} 
+                            className={`relative ${
+                              post.images.length === 1 ? 'aspect-video' : 'aspect-square'
+                            }`}
+                          >
+                            <img 
+                              src={imageUrl} 
+                              alt={`Post image ${imgIndex + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            {imgIndex === 3 && post.images.length > 4 && (
+                              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                <span className="text-white text-xl font-semibold">
+                                  +{post.images.length - 4}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -686,34 +740,36 @@ export default function PostsPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <RefreshCw className="w-8 h-8 text-muted-foreground" />
+              ))}
               </div>
-              <h3 className="font-semibold text-lg mb-2">No posts loaded yet</h3>
-              <p className="text-muted-foreground text-center text-sm mb-6 max-w-sm">
-                Click the button below to fetch your LinkedIn posts with engagement analytics.
-              </p>
-              <Button onClick={() => fetchPosts()} disabled={isLoading || !profileUrl} data-testid="button-fetch-posts-empty">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Load My Posts
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <RefreshCw className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-semibold text-lg mb-2">No posts loaded yet</h3>
+                  <p className="text-muted-foreground text-center text-sm mb-6 max-w-sm">
+                    Click the button below to fetch your LinkedIn posts with engagement analytics.
+                  </p>
+                  <Button onClick={() => fetchPosts()} disabled={isLoading || !profileUrl} data-testid="button-fetch-posts-empty">
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Load My Posts
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </div>
 
       <Dialog open={repostDialogOpen} onOpenChange={setRepostDialogOpen}>
