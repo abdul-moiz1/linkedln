@@ -54,17 +54,6 @@ export default function Home() {
               <Sparkles className="w-5 h-5" />
               Start Creating
             </Button>
-            
-            <Button 
-              onClick={handleLinkedInLogin}
-              size="lg"
-              variant="outline"
-              className="gap-2 text-lg px-8 py-6 border-2 border-[#0A66C2] text-[#0A66C2] hover:bg-[#0A66C2] hover:text-white"
-              data-testid="button-linkedin-login"
-            >
-              <SiLinkedin className="w-5 h-5" />
-              Sign in with LinkedIn
-            </Button>
           </div>
         </div>
       </section>
