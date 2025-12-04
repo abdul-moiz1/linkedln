@@ -26,6 +26,9 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Reverted Apify integration to use Task API with APIFY_TASK_ID for user's pre-configured scraper
 - **Dec 4**: Redesigned Posts page with LinkedIn-style cards (profile picture, author info, reaction icons, engagement stats)
 - **Dec 4**: Fixed repost functionality to properly extract and use LinkedIn URNs (activity_urn, share_urn, ugcPost_urn) instead of URLs
+- **Dec 4**: Added auto-fetch for My Posts page - posts load automatically when profileUrl is stored in Firestore
+- **Dec 4**: Extended SessionUser type to include optional profileUrl for type-safe frontend usage
+- **Dec 4**: Made updateUserProfileUrl upsert-safe using Firestore set/merge for robustness
 
 ## Architecture
 
