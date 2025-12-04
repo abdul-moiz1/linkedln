@@ -13,6 +13,7 @@ import { SiLinkedin } from "react-icons/si";
 import { Copy, LogOut, Send, Check, Loader2, List, Calendar, User2, Mail, Globe, Shield, Image as ImageIcon, Video, X } from "lucide-react";
 import type { SessionUser, CreatePost } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import CarouselCreator from "@/components/CarouselCreator";
 
 type MediaFile = {
   url: string;
@@ -370,6 +371,9 @@ export default function Profile() {
             </Card>
           </div>
         </div>
+
+        {/* AI Carousel Creator */}
+        <CarouselCreator />
 
         {/* Post Creation Section */}
         <Card data-testid="card-post-creation">
