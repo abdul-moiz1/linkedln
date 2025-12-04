@@ -1,0 +1,33 @@
+"text": "AI and quantum are transforming how we tackle the toughest scientific challenges—from sustainable materials and clean energy to biosecurity and drug discovery. The Genesis Mission and the work by U.S. Department of Energy (DOE) is a pivotal step toward accelerating these priorities. At Microsoft, we’re already seeing real-world impact: faster materials screening and advanced biosurveillance modeling through collaborations with federal researchers and universities. Now is the time to scale these breakthroughs across the entire R&D ecosystem. We’re ready to deepen our industry partnership across government and academia to move faster together.\n\nLearn more about the Genesis Mission https://lnkd.in/gssUbV3t \n\n#AI #Microsoft #AcceleratingScientificDiscovery #ScientificDiscovery #PublicPrivatePartnerships",
+  "url": "https://www.linkedin.com/posts/jlzander_launching-the-genesis-mission-activity-7398872365251616768-N6O3?utm_source=social_share_send&utm_medium=member_desktop_web&rcm=ACoAAGEEOt4BT0IyL993FYixmOPY-SC0Jf9d0CY",
+  "post_type": "repost",
+  "author": {
+    "first_name": "Jason",
+    "last_name": "Zander",
+    "headline": "Executive Vice President at Microsoft",
+    "username": "jlzander",
+    "profile_url": "https://www.linkedin.com/in/jlzander?miniProfileUrn=urn%3Ali%3Afsd_profile%3AACoAAAfFu_8B1ctWg3KGKYOzziq42JSmnRCdnRA",
+    "profile_picture": "https://media.licdn.com/dms/image/v2/C5603AQHsz3cwfJMPjw/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1527025272666?e=1766620800&v=beta&t=1qp-aD5RZBOWRhm4GdPvTIrxymkoGLPQoY9ohrZozy8"
+  },
+  "stats": {
+    "total_reactions": 352,
+    "like": 296,
+    "support": 3,
+    "love": 4,
+    "insight": 15,
+    "celebrate": 34,
+    "funny": 0,
+    "comments": 45,
+    "reposts": 39
+  },
+  "reshared_post": {
+    "urn": {
+      "activity_urn": "7398863342179667968",
+      "share_urn": "7398863341336612864",
+      "ugcPost_urn": null
+    },
+    "posted_at": {
+      "date": "2025-11-25 00:21:25",
+      "relative": "1 week ago • Visible to anyone on or off LinkedIn",
+      "timestamp": 1764026485009
+    },
