@@ -145,7 +145,8 @@ export default function CarouselCreator() {
         messages,
         provider: aiProvider 
       });
-      return response as unknown as GenerateImagesResponse;
+      const data = await response.json();
+      return data as GenerateImagesResponse;
     },
     onSuccess: (data) => {
       if (data.imageUrls && data.imageUrls.length > 0) {
@@ -187,7 +188,8 @@ export default function CarouselCreator() {
         imageUrls, 
         title: carouselTitle || "LinkedIn Carousel" 
       });
-      return response as unknown as CreatePdfResponse;
+      const data = await response.json();
+      return data as CreatePdfResponse;
     },
     onSuccess: (data) => {
       if (data.pdfUrl) {
@@ -218,7 +220,8 @@ export default function CarouselCreator() {
         caption: caption,
         title: carouselTitle || "LinkedIn Carousel",
       });
-      return response as unknown as UploadResponse;
+      const data = await response.json();
+      return data as UploadResponse;
     },
     onSuccess: () => {
       toast({
