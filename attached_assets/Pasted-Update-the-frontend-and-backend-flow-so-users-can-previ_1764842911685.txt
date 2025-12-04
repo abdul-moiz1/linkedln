@@ -1,0 +1,92 @@
+Update the frontend and backend flow so users can preview their generated images before creating a PDF.
+Do NOT modify the working Stability AI backend.
+Only update the UI/front-end workflow.
+
+1. Frontend changes
+Add new UI state:
+const [generatedImages, setGeneratedImages] = useState([]);
+const [pdfReady, setPdfReady] = useState(false);
+
+After generating images:
+
+Replace the old logic with:
+
+const data = await generateImages(slides);
+
+if (data.success && data.images.length > 0) {
+  setGeneratedImages(data.images);
+  setPdfReady(true);
+} else {
+  toast.error("No images were generated");
+}
+
+2. Add an Image Preview Section in the UI
+
+Insert this new component after "Generate Images" button:
+
+{generatedImages.length > 0 && (
+  <div className="mt-6">
+    <h3 className="text-lg font-semibold mb-2">Preview Your Slides</h3>
+
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {generatedImages.map((img, idx) => (
+        <div key={idx} className="p-2 border rounded shadow-sm">
+          <img
+            src={`data:image/png;base64,${img}`}
+            className="rounded-md"
+            alt={`Slide ${idx + 1}`}
+          />
+          <p className="text-center text-sm mt-1">Slide {idx + 1}</p>
+        </div>
+      ))}
+    </div>
+
+    <button
+      onClick={handleCreatePdf}
+      className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
+    >
+      Create PDF
+    </button>
+  </div>
+)}
+
+3. Update PDF Creation Logic
+
+Add:
+
+const handleCreatePdf = async () => {
+  const res = await fetch("/api/pdf/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ images: generatedImages })
+  });
+
+  const data = await res.json();
+
+  if (data.success) {
+    const blob = base64ToBlob(data.pdf, "application/pdf");
+    const url = URL.createObjectURL(blob);
+    setPdfUrl(url); // store for LinkedIn upload
+    toast.success("PDF created successfully!");
+  } else {
+    toast.error("Failed to create PDF");
+  }
+};
+
+4. Add PDF Download Preview (optional)
+
+Below the preview section:
+
+{pdfUrl && (
+  <div className="mt-4">
+    <a
+      href={pdfUrl}
+      download="carousel.pdf"
+      className="bg-green-600 text-white px-4 py-2 rounded"
+    >
+      Download PDF
+    </a>
+  </div>
+)}
+
+5. DO NOT remove existing Stability AI or PDF backend routes. Only extend the UI flow.

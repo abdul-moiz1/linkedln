@@ -391,7 +391,7 @@ export default function CarouselCreator() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">
-                  Preview Slides ({currentImageIndex + 1}/{generatedImages.length})
+                  Preview Your Slides ({generatedImages.length} images)
                 </Label>
                 <Button 
                   variant="ghost" 
@@ -403,59 +403,73 @@ export default function CarouselCreator() {
                 </Button>
               </div>
 
-              <div className="relative aspect-square rounded-lg overflow-hidden border bg-muted">
-                {generatedImages[currentImageIndex] && (
-                  <img
-                    src={generatedImages[currentImageIndex]}
-                    alt={`Slide ${currentImageIndex + 1}`}
-                    className="w-full h-full object-cover"
-                    data-testid={`image-slide-${currentImageIndex}`}
-                  />
-                )}
-
-                {generatedImages.length > 1 && (
-                  <>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white shadow-md"
-                      onClick={() => navigateImage("prev")}
-                      disabled={currentImageIndex === 0}
-                      data-testid="button-prev-image"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white shadow-md"
-                      onClick={() => navigateImage("next")}
-                      disabled={currentImageIndex === generatedImages.length - 1}
-                      data-testid="button-next-image"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </Button>
-                  </>
-                )}
-              </div>
-
-              <div className="flex justify-center gap-2">
-                {generatedImages.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentImageIndex(index)}
-                    className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                      index === currentImageIndex
-                        ? "bg-primary"
-                        : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {generatedImages.map((img, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`p-2 border rounded-lg shadow-sm cursor-pointer transition-all ${
+                      idx === currentImageIndex 
+                        ? "ring-2 ring-primary border-primary" 
+                        : "hover:border-primary/50"
                     }`}
-                    data-testid={`button-dot-${index}`}
-                  />
+                    onClick={() => setCurrentImageIndex(idx)}
+                    data-testid={`card-slide-preview-${idx}`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Slide ${idx + 1}`}
+                      className="w-full aspect-square object-cover rounded-md"
+                      data-testid={`image-slide-${idx}`}
+                    />
+                    <p className="text-center text-sm mt-2 font-medium text-muted-foreground">
+                      Slide {idx + 1}
+                    </p>
+                  </div>
                 ))}
               </div>
+
+              {generatedImages[currentImageIndex] && (
+                <div className="mt-4">
+                  <Label className="text-sm font-medium mb-2 block">
+                    Selected: Slide {currentImageIndex + 1}
+                  </Label>
+                  <div className="relative aspect-square max-w-md mx-auto rounded-lg overflow-hidden border bg-muted">
+                    <img
+                      src={generatedImages[currentImageIndex]}
+                      alt={`Slide ${currentImageIndex + 1} - Large Preview`}
+                      className="w-full h-full object-cover"
+                      data-testid="image-slide-large-preview"
+                    />
+                    {generatedImages.length > 1 && (
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 shadow-md"
+                          onClick={() => navigateImage("prev")}
+                          disabled={currentImageIndex === 0}
+                          data-testid="button-prev-image"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 shadow-md"
+                          onClick={() => navigateImage("next")}
+                          disabled={currentImageIndex === generatedImages.length - 1}
+                          data-testid="button-next-image"
+                        >
+                          <ChevronRight className="w-5 h-5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <Button 
                 variant="outline" 
                 onClick={handleReset} 
