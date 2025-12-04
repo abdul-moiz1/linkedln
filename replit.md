@@ -23,6 +23,7 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Added Apify LinkedIn Post Scraper integration for fetching user posts with engagement metrics
 - **Dec 4**: Added "My LinkedIn Posts" page with Most Viral filter and responsive grid layout
 - **Dec 4**: Fixed profile URL issue - added dialog for users to enter their LinkedIn profile URL (Apify needs public URL, not OpenID sub)
+- **Dec 4**: Simplified Apify integration - now uses Actor API directly (apimaestro~linkedin-profile-posts), only requires APIFY_TOKEN
 
 ## Architecture
 
@@ -67,8 +68,7 @@ Required secrets:
 - `FIREBASE_PROJECT_ID` - Firebase project ID
 - `FIREBASE_CLIENT_EMAIL` - Firebase service account email
 - `FIREBASE_PRIVATE_KEY` - Firebase service account private key
-- `APIFY_TOKEN` - Apify API token for LinkedIn post scraping
-- `APIFY_TASK_ID` - Apify task ID for LinkedIn Post Scraper
+- `APIFY_TOKEN` - Apify API token for LinkedIn post scraping (uses apimaestro/linkedin-profile-posts actor directly, no task ID needed)
 
 ## LinkedIn API Configuration
 **Redirect URI**: `{BASE_URL}/auth/linkedin/callback`
