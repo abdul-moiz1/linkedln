@@ -29,6 +29,9 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Added auto-fetch for My Posts page - posts load automatically when profileUrl is stored in Firestore
 - **Dec 4**: Extended SessionUser type to include optional profileUrl for type-safe frontend usage
 - **Dec 4**: Made updateUserProfileUrl upsert-safe using Firestore set/merge for robustness
+- **Dec 4**: Fixed Apify input override to use correct `urls` field per LinkedIn Post Scraper documentation
+- **Dec 4**: Added comprehensive logging for Firebase and Apify operations for debugging
+- **Dec 4**: Added warning message when zero posts are returned to help diagnose configuration issues
 
 ## Architecture
 

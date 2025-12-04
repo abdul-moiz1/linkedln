@@ -718,11 +718,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Build input override if profileUrl is provided
       // This overrides the task's default input with the user-provided profile URL
-      // Include multiple common input formats for compatibility with different LinkedIn scrapers
+      // The LinkedIn Post Scraper uses "urls" field for profile URLs
       const inputOverride = profileUrl ? {
-        startUrls: [{ url: profileUrl }],
-        profileUrls: [profileUrl],
-        profiles: [profileUrl],
         urls: [profileUrl],
       } : undefined;
       
