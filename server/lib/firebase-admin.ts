@@ -150,3 +150,68 @@ export async function updateUserProfileUrl(userId: string, profileUrl: string): 
     updatedAt: new Date(),
   }, { merge: true });
 }
+
+// Cache TTL in milliseconds (24 hours)
+const POSTS_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+export interface CachedPosts {
+  userId: string;
+  posts: any[];
+  cachedAt: Date;
+  expiresAt: Date;
+}
+
+/**
+ * Get cached LinkedIn posts for a user
+ * Returns null if cache is expired or doesn't exist
+ */
+export async function getCachedPosts(userId: string): Promise<any[] | null> {
+  const db = getDb();
+  const cacheRef = db.collection("posts_cache").doc(userId);
+  const doc = await cacheRef.get();
+  
+  if (!doc.exists) {
+    return null;
+  }
+  
+  const data = doc.data() as CachedPosts;
+  const expiresAt = data.expiresAt instanceof Date ? data.expiresAt : new Date((data.expiresAt as any).toDate());
+  
+  // Check if cache is expired
+  if (expiresAt < new Date()) {
+    console.log(`Posts cache expired for user ${userId}`);
+    return null;
+  }
+  
+  console.log(`Found ${data.posts?.length || 0} cached posts for user ${userId}`);
+  return data.posts;
+}
+
+/**
+ * Save LinkedIn posts to cache for a user
+ */
+export async function saveCachedPosts(userId: string, posts: any[]): Promise<void> {
+  const db = getDb();
+  const cacheRef = db.collection("posts_cache").doc(userId);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + POSTS_CACHE_TTL);
+  
+  await cacheRef.set({
+    userId,
+    posts,
+    cachedAt: now,
+    expiresAt,
+  });
+  
+  console.log(`Cached ${posts.length} posts for user ${userId}, expires at ${expiresAt.toISOString()}`);
+}
+
+/**
+ * Clear cached posts for a user (useful when they want to force refresh)
+ */
+export async function clearCachedPosts(userId: string): Promise<void> {
+  const db = getDb();
+  const cacheRef = db.collection("posts_cache").doc(userId);
+  await cacheRef.delete();
+  console.log(`Cleared posts cache for user ${userId}`);
+}

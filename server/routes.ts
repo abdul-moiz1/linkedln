@@ -673,8 +673,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * Request body (optional):
    * - userId: string - The user's LinkedIn ID (for caching)
    * - profileUrl: string - The user's LinkedIn profile URL
+   * - forceRefresh: boolean - If true, bypasses cache and fetches fresh data
    * 
    * Returns posts with author info, stats, and images in LinkedIn-compatible format.
+   * Posts are cached in Firestore for 24 hours to reduce Apify calls.
    */
   app.post("/api/posts/fetch", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -691,8 +693,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
-    // Extract optional profileUrl and userId from request body
-    const { userId, profileUrl } = req.body || {};
+    // Extract optional profileUrl, userId, and forceRefresh from request body
+    const { userId, profileUrl, forceRefresh = false } = req.body || {};
     
     // If profileUrl is provided, try to save it to Firestore for the user
     if (userId && profileUrl) {
@@ -713,14 +715,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Skipping profile URL save - userId: ${userId}, profileUrl: ${profileUrl ? 'provided' : 'missing'}`);
     }
 
+    // Check cache first (if Firebase is configured and not force refreshing)
+    if (userId && !forceRefresh) {
+      try {
+        const { getCachedPosts, isFirebaseConfigured } = await import("./lib/firebase-admin");
+        if (isFirebaseConfigured) {
+          const cachedPosts = await getCachedPosts(userId);
+          if (cachedPosts && cachedPosts.length > 0) {
+            console.log(`Returning ${cachedPosts.length} cached posts for user ${userId}`);
+            return res.json({
+              success: true,
+              posts: cachedPosts,
+              cached: true,
+              message: "Posts loaded from cache. Use forceRefresh=true to fetch fresh data."
+            });
+          }
+        }
+      } catch (cacheError) {
+        console.warn("Failed to check cache:", cacheError);
+        // Continue to fetch from Apify
+      }
+    }
+
     try {
       console.log(`Running Apify task: ${APIFY_TASK_ID}${profileUrl ? ` for profile: ${profileUrl}` : ''}`);
       
       // Build input override if profileUrl is provided
       // This overrides the task's default input with the user-provided profile URL
-      // The LinkedIn Post Scraper uses "urls" field for profile URLs
+      // Different Apify LinkedIn scrapers use different input field names:
+      // - "profileUrls" for harvestapi/linkedin-profile-posts, apimaestro/linkedin-profile-posts
+      // - "startUrls" for curious_coder/linkedin-post-search-scraper
+      // - "urls" for some other actors
+      // We provide all common field names to maximize compatibility
       const inputOverride = profileUrl ? {
+        profileUrls: [profileUrl],
+        startUrls: [profileUrl],
         urls: [profileUrl],
+        profiles: [profileUrl],
       } : undefined;
       
       if (inputOverride) {
@@ -854,13 +885,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       });
 
+      // Save posts to cache if Firebase is configured
+      if (userId && normalizedPosts.length > 0) {
+        try {
+          const { saveCachedPosts, isFirebaseConfigured } = await import("./lib/firebase-admin");
+          if (isFirebaseConfigured) {
+            await saveCachedPosts(userId, normalizedPosts);
+          }
+        } catch (cacheError) {
+          console.warn("Failed to cache posts:", cacheError);
+          // Continue even if caching fails
+        }
+      }
+
       res.json({
         success: true,
-        posts: normalizedPosts
+        posts: normalizedPosts,
+        cached: false,
       });
     } catch (error: any) {
       console.error("Apify fetch error:", error);
       res.status(500).json({ error: error.message || "Failed to fetch posts via Apify" });
+    }
+  });
+
+  /**
+   * API: Clear posts cache (force refresh on next fetch)
+   * 
+   * Clears the cached posts for the current user.
+   */
+  app.post("/api/posts/clear-cache", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { clearCachedPosts, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      const userId = req.session.user.profile.sub;
+      
+      if (!isFirebaseConfigured) {
+        return res.json({ success: true, message: "Cache not available (Firebase not configured)" });
+      }
+      
+      await clearCachedPosts(userId);
+      res.json({ success: true, message: "Posts cache cleared successfully" });
+    } catch (error: any) {
+      console.error("Clear cache error:", error);
+      res.status(500).json({ error: error.message || "Failed to clear cache" });
     }
   });
 
