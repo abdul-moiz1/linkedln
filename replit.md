@@ -32,6 +32,9 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Fixed Apify input override to use correct `urls` field per LinkedIn Post Scraper documentation
 - **Dec 4**: Added comprehensive logging for Firebase and Apify operations for debugging
 - **Dec 4**: Added warning message when zero posts are returned to help diagnose configuration issues
+- **Dec 4**: Added Firestore caching for LinkedIn posts (24-hour TTL) to reduce Apify scraping calls
+- **Dec 4**: Fixed Apify input format to include profileUrls/startUrls/urls/profiles for maximum actor compatibility
+- **Dec 4**: Added /api/posts/clear-cache endpoint and forceRefresh parameter to bypass cache
 
 ## Architecture
 
@@ -55,13 +58,15 @@ A professional SaaS application that allows users to create AI-generated LinkedI
   - `POST /api/project/save` - Saves project drafts
   - `GET /api/projects` - Gets user projects
   - `GET /api/project/:projectId` - Gets single project
-  - `POST /api/posts/fetch` - Fetches LinkedIn posts via Apify scraper
+  - `POST /api/posts/fetch` - Fetches LinkedIn posts via Apify scraper (with Firestore caching)
+  - `POST /api/posts/clear-cache` - Clears cached posts for the user
 - **Session Management**: Express-session with in-memory storage
 
 ### Database (Firebase/Firestore)
 Collections:
-- `users` - LinkedIn user profiles and tokens
+- `users` - LinkedIn user profiles and tokens (includes profileUrl)
 - `projects` - Carousel projects and drafts
+- `posts_cache` - Cached LinkedIn posts with 24-hour TTL
 - `sessions` - User sessions
 
 ## Environment Variables
