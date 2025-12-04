@@ -237,9 +237,22 @@ export default function PostsPage() {
     return `${author.firstName?.[0] || ""}${author.lastName?.[0] || ""}`.toUpperCase() || "?";
   };
 
+  useEffect(() => {
+    if (!user && !userLoading) {
+      navigate("/");
+    }
+  }, [user, userLoading, navigate]);
+
   if (!user && !userLoading) {
-    navigate("/");
     return null;
+  }
+
+  if (userLoading) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
@@ -332,10 +345,115 @@ export default function PostsPage() {
         )}
 
         {profileUrl && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link className="w-4 h-4" />
-            <span>Profile: {profileUrl}</span>
-          </div>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Link className="w-5 h-5 text-muted-foreground" />
+                <h3 className="font-medium">Your LinkedIn Profile</h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="text"
+                  placeholder="https://www.linkedin.com/in/your-username"
+                  value={profileUrlInput || profileUrl}
+                  onChange={(e) => setProfileUrlInput(e.target.value)}
+                  className="flex-1 min-w-[250px]"
+                  data-testid="input-profile-url-edit"
+                />
+                <Button 
+                  onClick={async () => {
+                    const newUrl = profileUrlInput.trim();
+                    if (newUrl && newUrl !== profileUrl) {
+                      try {
+                        const response = await fetch("/api/user/profile-url", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          credentials: "include",
+                          body: JSON.stringify({ profileUrl: newUrl }),
+                        });
+                        
+                        if (response.ok) {
+                          setProfileUrl(newUrl);
+                          queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+                          fetchPosts(newUrl);
+                        } else {
+                          throw new Error("Failed to save profile URL");
+                        }
+                      } catch (err: any) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: err.message || "Failed to save profile URL",
+                        });
+                      }
+                    } else if (!newUrl) {
+                      toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "Please enter a valid LinkedIn profile URL or username",
+                      });
+                    } else {
+                      fetchPosts(profileUrl);
+                    }
+                  }}
+                  disabled={isLoading}
+                  data-testid="button-update-profile-url"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      {profileUrlInput && profileUrlInput !== profileUrl ? "Update & Fetch" : "Refresh Posts"}
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/user/profile-url", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({ profileUrl: "" }),
+                      });
+                      
+                      if (response.ok) {
+                        setProfileUrl("");
+                        setProfileUrlInput("");
+                        setPosts([]);
+                        setHasFetched(false);
+                        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+                        toast({
+                          title: "Profile URL Cleared",
+                          description: "You can now enter a new LinkedIn profile URL.",
+                        });
+                      } else {
+                        throw new Error("Failed to clear profile URL");
+                      }
+                    } catch (err: any) {
+                      toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: err.message || "Failed to clear profile URL",
+                      });
+                    }
+                  }}
+                  disabled={isLoading}
+                  data-testid="button-clear-profile-url"
+                >
+                  Clear
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Enter a LinkedIn profile URL (e.g., https://linkedin.com/in/username) or just the username (e.g., satyanadella)
+              </p>
+            </CardContent>
+          </Card>
         )}
 
         {error && (
