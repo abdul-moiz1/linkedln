@@ -13,6 +13,9 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - Added PDF carousel creation functionality
 - Integrated LinkedIn document upload for carousels
 - Added project draft saving functionality
+- **Dec 4**: Added professional hero background image with gradient overlays
+- **Dec 4**: Improved header to show user avatar/name when logged in (same layout as logged out)
+- **Dec 4**: Fixed LinkedIn posting error - now handles empty API responses correctly
 
 ## Architecture
 
