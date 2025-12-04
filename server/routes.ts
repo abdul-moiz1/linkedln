@@ -841,9 +841,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * API: Generate AI Images
    * 
-   * Generates images using OpenAI's DALL-E or Google's Gemini API based on text prompts.
+   * Generates images using OpenAI's DALL-E, Google's Gemini, or Stability AI based on text prompts.
    * Each message in the array becomes an image in the carousel.
-   * Provider can be "openai" or "gemini" (defaults to gemini if available, else openai)
+   * Provider can be "openai", "gemini", or "stability" (auto selects first available)
    */
   app.post("/api/images/generate", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -863,15 +863,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const geminiApiKey = process.env.GEMINI_API_KEY;
       const openaiApiKey = process.env.OPENAI_API_KEY;
+      const stabilityApiKey = process.env.STABILITY_API_KEY;
 
       let selectedProvider = provider;
       if (provider === "auto") {
-        selectedProvider = geminiApiKey ? "gemini" : openaiApiKey ? "openai" : null;
+        selectedProvider = geminiApiKey ? "gemini" : stabilityApiKey ? "stability" : openaiApiKey ? "openai" : null;
       }
 
-      if (!selectedProvider || (selectedProvider === "gemini" && !geminiApiKey) || (selectedProvider === "openai" && !openaiApiKey)) {
+      if (!selectedProvider || 
+          (selectedProvider === "gemini" && !geminiApiKey) || 
+          (selectedProvider === "openai" && !openaiApiKey) ||
+          (selectedProvider === "stability" && !stabilityApiKey)) {
         return res.status(503).json({ 
-          error: "No AI API key configured. Please add GEMINI_API_KEY or OPENAI_API_KEY to your secrets." 
+          error: "No AI API key configured. Please add GEMINI_API_KEY, STABILITY_API_KEY, or OPENAI_API_KEY to your secrets." 
         });
       }
 
@@ -922,6 +926,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           } catch (imgError: any) {
             console.error(`Gemini image generation failed for message ${i + 1}:`, imgError);
+            errors.push(`Slide ${i + 1}: ${imgError.message}`);
+          }
+        }
+      } else if (selectedProvider === "stability") {
+        for (let i = 0; i < messages.length; i++) {
+          try {
+            const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients. The image should be square format.`;
+            
+            const response = await fetch("https://api.stability.ai/v2beta/stable-image/generate/core", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${stabilityApiKey}`,
+                "Accept": "application/json",
+              },
+              body: (() => {
+                const formData = new FormData();
+                formData.append("prompt", prompt);
+                formData.append("output_format", "png");
+                formData.append("aspect_ratio", "1:1");
+                return formData;
+              })(),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({})) as any;
+              console.error(`Stability API error for slide ${i + 1}:`, errorData);
+              errors.push(`Slide ${i + 1}: ${errorData.message || `API error (${response.status})`}`);
+              continue;
+            }
+
+            const json = await response.json() as any;
+            
+            if (json.image) {
+              const base64Image = `data:image/png;base64,${json.image}`;
+              imageUrls.push(base64Image);
+            } else if (json.artifacts?.[0]?.base64) {
+              const base64Image = `data:image/png;base64,${json.artifacts[0].base64}`;
+              imageUrls.push(base64Image);
+            } else {
+              errors.push(`Slide ${i + 1}: No image in response`);
+            }
+          } catch (imgError: any) {
+            console.error(`Stability image generation failed for message ${i + 1}:`, imgError);
             errors.push(`Slide ${i + 1}: ${imgError.message}`);
           }
         }

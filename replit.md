@@ -30,7 +30,7 @@ A professional SaaS application that allows users to create AI-generated LinkedI
   - `GET /api/user` - Returns current user session data
   - `POST /api/logout` - Destroys user session
   - `POST /api/share` - Creates LinkedIn post
-  - `POST /api/images/generate` - Generates AI images using OpenAI
+  - `POST /api/images/generate` - Generates AI images using Gemini, Stability AI, or OpenAI
   - `POST /api/pdf/create` - Creates PDF from images
   - `POST /api/linkedin/upload` - Uploads carousel to LinkedIn
   - `POST /api/project/save` - Saves project drafts
@@ -50,7 +50,9 @@ Required secrets:
 - `LINKEDIN_CLIENT_SECRET` - LinkedIn app Client Secret
 - `BASE_URL` - Application base URL
 - `SESSION_SECRET` - Session encryption secret
-- `OPENAI_API_KEY` - OpenAI API key for image generation
+- `GEMINI_API_KEY` - Google Gemini API key for image generation (preferred)
+- `STABILITY_API_KEY` - Stability AI API key for image generation (alternative)
+- `OPENAI_API_KEY` - OpenAI API key for image generation (fallback)
 - `FIREBASE_PROJECT_ID` - Firebase project ID
 - `FIREBASE_CLIENT_EMAIL` - Firebase service account email
 - `FIREBASE_PRIVATE_KEY` - Firebase service account private key

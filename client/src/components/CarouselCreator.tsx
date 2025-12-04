@@ -22,7 +22,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 
 type CarouselStep = "input" | "preview" | "review";
-type AIProvider = "auto" | "gemini" | "openai";
+type AIProvider = "auto" | "gemini" | "openai" | "stability";
 
 interface SlideMessage {
   id: number;
@@ -81,7 +81,7 @@ export default function CarouselCreator() {
         setCurrentImageIndex(0);
         setUsedProvider(data.provider || "");
         setStep("preview");
-        const providerName = data.provider === "gemini" ? "Gemini" : data.provider === "openai" ? "OpenAI" : "AI";
+        const providerName = data.provider === "gemini" ? "Gemini" : data.provider === "openai" ? "OpenAI" : data.provider === "stability" ? "Stability AI" : "AI";
         toast({
           title: "Images Generated!",
           description: `Created ${data.generatedCount} slides using ${providerName}`,
@@ -301,6 +301,12 @@ export default function CarouselCreator() {
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-green-600" />
                         OpenAI DALL-E
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="stability" data-testid="select-option-stability">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-purple-600" />
+                        Stability AI
                       </div>
                     </SelectItem>
                   </SelectContent>
