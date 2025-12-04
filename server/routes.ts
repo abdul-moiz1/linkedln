@@ -254,13 +254,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * API: Get Current User Session
    * 
    * Returns the authenticated user's profile and access token.
+   * Also fetches profileUrl from Firestore if available.
    * Used by the frontend to display user information.
    */
-  app.get("/api/user", (req: Request, res: Response) => {
+  app.get("/api/user", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
     }
-    res.json(req.session.user);
+
+    // Try to fetch profileUrl from Firestore
+    let profileUrl: string | undefined;
+    try {
+      const { getUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      if (isFirebaseConfigured) {
+        const userId = req.session.user.profile.sub;
+        const userData = await getUser(userId);
+        if (userData && (userData as any).profileUrl) {
+          profileUrl = (userData as any).profileUrl;
+        }
+      }
+    } catch (firestoreError) {
+      console.warn("Failed to fetch user from Firestore:", firestoreError);
+    }
+
+    res.json({
+      ...req.session.user,
+      profileUrl,
+    });
   });
 
   /**
@@ -647,6 +667,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * Uses the configured Apify Task to fetch LinkedIn posts with engagement data.
    * Requires APIFY_TOKEN and APIFY_TASK_ID to be configured.
    * 
+   * Request body (optional):
+   * - userId: string - The user's LinkedIn ID (for caching)
+   * - profileUrl: string - The user's LinkedIn profile URL
+   * 
    * Returns posts with author info, stats, and images in LinkedIn-compatible format.
    */
   app.post("/api/posts/fetch", async (req: Request, res: Response) => {
@@ -664,8 +688,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
+    // Extract optional profileUrl and userId from request body
+    const { userId, profileUrl } = req.body || {};
+    
+    // If profileUrl is provided, try to save it to Firestore for the user
+    if (userId && profileUrl) {
+      try {
+        const { updateUserProfileUrl, isFirebaseConfigured } = await import("./lib/firebase-admin");
+        if (isFirebaseConfigured) {
+          await updateUserProfileUrl(userId, profileUrl);
+          console.log(`Updated profile URL for user ${userId}: ${profileUrl}`);
+        }
+      } catch (firestoreError) {
+        console.warn("Failed to save profile URL to Firestore:", firestoreError);
+        // Continue even if Firestore save fails
+      }
+    }
+
     try {
-      console.log(`Running Apify task: ${APIFY_TASK_ID}`);
+      console.log(`Running Apify task: ${APIFY_TASK_ID}${profileUrl ? ` for profile: ${profileUrl}` : ''}`);
       
       // Run the pre-configured Apify Task
       const apifyResponse = await fetch(

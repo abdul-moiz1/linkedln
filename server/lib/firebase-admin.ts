@@ -141,3 +141,12 @@ export async function getProject(projectId: string): Promise<Project | null> {
   if (!doc.exists) return null;
   return { id: doc.id, ...doc.data() } as Project;
 }
+
+export async function updateUserProfileUrl(userId: string, profileUrl: string): Promise<void> {
+  const db = getDb();
+  const userRef = db.collection("users").doc(userId);
+  await userRef.set({
+    profileUrl,
+    updatedAt: new Date(),
+  }, { merge: true });
+}

@@ -35,6 +35,7 @@ export type CreatePost = z.infer<typeof createPostSchema>;
 export interface SessionUser {
   profile: LinkedInUser;
   accessToken: string;
+  profileUrl?: string;
 }
 
 // LinkedIn Post from /rest/posts API

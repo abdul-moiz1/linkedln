@@ -1,16 +1,17 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ThumbsUp, MessageSquare, Repeat2, ExternalLink, RefreshCw, Loader2, Heart, Lightbulb, PartyPopper, Laugh, HandHeart, ArrowLeft } from "lucide-react";
+import { ThumbsUp, MessageSquare, Repeat2, ExternalLink, RefreshCw, Loader2, Heart, Lightbulb, PartyPopper, Laugh, HandHeart, ArrowLeft, Link } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { SessionUser } from "@shared/schema";
 
@@ -74,20 +75,37 @@ export default function PostsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
+  const [profileUrl, setProfileUrl] = useState("");
+  const [profileUrlInput, setProfileUrlInput] = useState("");
 
   const { data: user, isLoading: userLoading } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
   });
 
-  const fetchPosts = async () => {
+  // Check if user already has a profile URL saved and auto-fetch posts
+  useEffect(() => {
+    if (user && user.profileUrl) {
+      setProfileUrl(user.profileUrl);
+      fetchPosts(user.profileUrl);
+    }
+  }, [user]);
+
+  const fetchPosts = async (url?: string) => {
     setIsLoading(true);
     setError(null);
     
     try {
+      const userId = user?.profile?.sub;
+      const urlToUse = url || profileUrl;
+      
       const response = await fetch("/api/posts/fetch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({
+          userId,
+          profileUrl: urlToUse,
+        }),
       });
       
       const data = await response.json();
@@ -97,7 +115,9 @@ export default function PostsPage() {
         setHasFetched(true);
         toast({
           title: "Posts loaded",
-          description: `Found ${data.posts.length} posts`,
+          description: data.fromCache 
+            ? `Loaded ${data.posts.length} posts from cache` 
+            : `Fetched ${data.posts.length} new posts`,
         });
       } else {
         setError(data.error || data.message || "Failed to fetch posts");
@@ -119,13 +139,30 @@ export default function PostsPage() {
     }
   };
 
+  const handleSaveProfileUrl = () => {
+    if (!profileUrlInput.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a valid LinkedIn profile URL",
+      });
+      return;
+    }
+    setProfileUrl(profileUrlInput.trim());
+    fetchPosts(profileUrlInput.trim());
+  };
+
   const sortedPosts = [...posts].sort((a, b) => {
     switch (sortBy) {
       case "likes":
-        return b.stats.totalReactions - a.stats.totalReactions;
+        return b.stats.likes - a.stats.likes;
       case "viral":
-        const viralA = (a.stats.totalReactions * 2 + a.stats.comments * 3 + a.stats.reposts * 4);
-        const viralB = (b.stats.totalReactions * 2 + b.stats.comments * 3 + b.stats.reposts * 4);
+        // Viral formula: likes * 2 + comments * 3 + impressions * 0.1
+        // Note: impressions may not be available, using totalReactions as fallback
+        const impressionsA = (a as any).stats.impressions || a.stats.totalReactions;
+        const impressionsB = (b as any).stats.impressions || b.stats.totalReactions;
+        const viralA = (a.stats.likes * 2) + (a.stats.comments * 3) + (impressionsA * 0.1);
+        const viralB = (b.stats.likes * 2) + (b.stats.comments * 3) + (impressionsB * 0.1);
         return viralB - viralA;
       default:
         return b.postedAt - a.postedAt;
@@ -227,8 +264,8 @@ export default function PostsPage() {
               </SelectContent>
             </Select>
             <Button 
-              onClick={fetchPosts} 
-              disabled={isLoading}
+              onClick={() => fetchPosts()} 
+              disabled={isLoading || !profileUrl}
               data-testid="button-fetch-posts"
             >
               {isLoading ? (
@@ -245,6 +282,51 @@ export default function PostsPage() {
             </Button>
           </div>
         </div>
+
+        {!profileUrl && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Link className="w-5 h-5 text-muted-foreground" />
+                <h3 className="font-medium">Connect Your LinkedIn Profile</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Enter your LinkedIn profile URL to fetch and analyze your posts.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  type="text"
+                  placeholder="https://www.linkedin.com/in/your-username"
+                  value={profileUrlInput}
+                  onChange={(e) => setProfileUrlInput(e.target.value)}
+                  className="flex-1 min-w-[250px]"
+                  data-testid="input-profile-url"
+                />
+                <Button 
+                  onClick={handleSaveProfileUrl}
+                  disabled={isLoading || !profileUrlInput.trim()}
+                  data-testid="button-save-profile-url"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    "Save & Fetch Posts"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {profileUrl && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Link className="w-4 h-4" />
+            <span>Profile: {profileUrl}</span>
+          </div>
+        )}
 
         {error && (
           <Card className="bg-destructive/10 border-destructive/30">
@@ -488,7 +570,7 @@ export default function PostsPage() {
               <p className="text-muted-foreground text-center text-sm mb-6 max-w-sm">
                 Click the button below to fetch your LinkedIn posts with engagement analytics.
               </p>
-              <Button onClick={fetchPosts} disabled={isLoading} data-testid="button-fetch-posts-empty">
+              <Button onClick={() => fetchPosts()} disabled={isLoading || !profileUrl} data-testid="button-fetch-posts-empty">
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -1,0 +1,150 @@
+Update the My Posts page so it fetches data from the new backend route:
+
+POST /api/posts/fetch
+
+
+The frontend must support these features:
+
+✅ 1. Add state variables
+
+Create these React states:
+
+const [profileUrl, setProfileUrl] = useState("");
+const [posts, setPosts] = useState([]);
+const [loading, setLoading] = useState(false);
+const [filter, setFilter] = useState("recent");
+
+✅ 2. When page loads, check if user already has profile URL in Firestore
+
+Assume the backend sends user profile data along with the logged-in user object.
+
+If the user already has a stored profile URL:
+
+useEffect(() => {
+  if (user?.profileUrl) {
+    setProfileUrl(user.profileUrl);
+    fetchPosts(user.profileUrl);
+  }
+}, [user]);
+
+
+If not, show an input box so user can enter their LinkedIn URL:
+
+{!profileUrl && (
+  <div className="mb-6">
+    <input
+      type="text"
+      placeholder="Enter your LinkedIn profile URL"
+      className="border px-3 py-2 rounded w-full"
+      value={profileUrl}
+      onChange={(e) => setProfileUrl(e.target.value)}
+    />
+    <button
+      className="bg-blue-600 text-white px-4 py-2 rounded mt-2"
+      onClick={() => fetchPosts(profileUrl)}
+    >
+      Save & Fetch Posts
+    </button>
+  </div>
+)}
+
+✅ 3. Add the fetchPosts() function
+async function fetchPosts(url) {
+  try {
+    setLoading(true);
+
+    const res = await fetch("/api/posts/fetch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: user.id,      // your logged-in user UID
+        profileUrl: url
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setPosts(data.posts);
+      toast.success(data.fromCache ? "Loaded from cache" : "Fetched new posts");
+    } else {
+      toast.error("Failed to fetch posts");
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+✅ 4. Add a Refresh Button (forces new scrape + overwrites Firestore)
+<button
+  className="bg-gray-200 px-4 py-2 rounded ml-2"
+  onClick={() => fetchPosts(profileUrl)}
+>
+  Refresh Posts
+</button>
+
+✅ 5. Add Sorting Logic
+
+Sort posts based on the dropdown:
+
+const sortedPosts = [...posts].sort((a, b) => {
+  if (filter === "likes") return b.likes - a.likes;
+
+  if (filter === "viral") {
+    const viralA = (a.likes * 2) + (a.comments * 3) + (a.impressions * 0.1);
+    const viralB = (b.likes * 2) + (b.comments * 3) + (b.impressions * 0.1);
+    return viralB - viralA;
+  }
+
+  return b.createdAt - a.createdAt; // Most recent
+});
+
+
+Dropdown:
+
+<select
+  value={filter}
+  onChange={(e) => setFilter(e.target.value)}
+  className="border px-3 py-2 rounded"
+>
+  <option value="recent">Most Recent</option>
+  <option value="likes">Most Liked</option>
+  <option value="viral">Most Viral</option>
+</select>
+
+✅ 6. Display Posts
+
+Replace the empty state with a UI that matches your screenshot:
+
+{sortedPosts.length === 0 ? (
+  <p>No posts found.</p>
+) : (
+  <div className="space-y-6 mt-4">
+    {sortedPosts.map((post) => (
+      <div key={post.id} className="border rounded-lg p-4 shadow-sm">
+        
+        {post.image && (
+          <img src={post.image} alt="" className="rounded mb-4" />
+        )}
+
+        <p className="text-gray-800 text-sm mb-3">
+          {post.text.slice(0, 200)}...
+        </p>
+
+        <div className="flex gap-4 text-sm text-gray-500">
+          <span>👍 {post.likes}</span>
+          <span>💬 {post.comments}</span>
+          <span>👀 {post.impressions}</span>
+        </div>
+
+        <a
+          href={post.url}
+          target="_blank"
+          className="text-blue-600 underline text-sm mt-2 inline-block"
+        >
+          View on LinkedIn
+        </a>
+      </div>
+    ))}
+  </div>
+)}
