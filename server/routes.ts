@@ -932,41 +932,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (selectedProvider === "stability") {
         for (let i = 0; i < messages.length; i++) {
           try {
-            const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients. The image should be square format.`;
+            const prompt = `${messages[i]}, professional modern illustration, clean design, high quality`;
             
             const response = await fetch("https://api.stability.ai/v2beta/stable-image/generate/core", {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${stabilityApiKey}`,
-                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Accept": "image/*",
               },
-              body: (() => {
-                const formData = new FormData();
-                formData.append("prompt", prompt);
-                formData.append("output_format", "png");
-                formData.append("aspect_ratio", "1:1");
-                return formData;
-              })(),
+              body: JSON.stringify({
+                prompt: prompt
+              }),
             });
 
             if (!response.ok) {
-              const errorData = await response.json().catch(() => ({})) as any;
-              console.error(`Stability API error for slide ${i + 1}:`, errorData);
-              errors.push(`Slide ${i + 1}: ${errorData.message || `API error (${response.status})`}`);
+              const errorText = await response.text();
+              console.error(`Stability API error for slide ${i + 1}:`, errorText);
+              errors.push(`Slide ${i + 1}: API error (${response.status})`);
               continue;
             }
 
-            const json = await response.json() as any;
-            
-            if (json.image) {
-              const base64Image = `data:image/png;base64,${json.image}`;
-              imageUrls.push(base64Image);
-            } else if (json.artifacts?.[0]?.base64) {
-              const base64Image = `data:image/png;base64,${json.artifacts[0].base64}`;
-              imageUrls.push(base64Image);
-            } else {
-              errors.push(`Slide ${i + 1}: No image in response`);
-            }
+            const buffer = await response.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString("base64");
+            const base64Image = `data:image/png;base64,${base64}`;
+            imageUrls.push(base64Image);
           } catch (imgError: any) {
             console.error(`Stability image generation failed for message ${i + 1}:`, imgError);
             errors.push(`Slide ${i + 1}: ${imgError.message}`);
