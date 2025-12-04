@@ -932,18 +932,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (selectedProvider === "stability") {
         for (let i = 0; i < messages.length; i++) {
           try {
-            const prompt = `${messages[i]}, professional modern illustration, clean design, high quality`;
+            const prompt = `${messages[i]}, professional illustration, modern style`;
             
+            const formData = new FormData();
+            formData.append("prompt", prompt);
+            formData.append("output_format", "png");
+
             const response = await fetch("https://api.stability.ai/v2beta/stable-image/generate/core", {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${stabilityApiKey}`,
-                "Content-Type": "application/json",
                 "Accept": "image/*",
               },
-              body: JSON.stringify({
-                prompt: prompt
-              }),
+              body: formData,
             });
 
             if (!response.ok) {
