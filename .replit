@@ -64,3 +64,8 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_openai:1.0.0"]
+
+[userenv]
+
+[userenv.development]
+BASE_URL = "https://04999146-b1ae-47ed-8bb9-c08ff534647c-00-n5fc27xdgstp.spock.replit.dev"
