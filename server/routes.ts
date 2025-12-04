@@ -741,17 +741,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Running Apify task: ${APIFY_TASK_ID}${profileUrl ? ` for profile: ${profileUrl}` : ''}`);
       
       // Build input override if profileUrl is provided
-      // This overrides the task's default input with the user-provided profile URL
-      // Different Apify LinkedIn scrapers use different input field names:
-      // - "profileUrls" for harvestapi/linkedin-profile-posts, apimaestro/linkedin-profile-posts
-      // - "startUrls" for curious_coder/linkedin-post-search-scraper
-      // - "urls" for some other actors
-      // We provide all common field names to maximize compatibility
+      // The apimaestro/linkedin-profile-posts actor expects "username" field
+      // which accepts either a username (e.g., 'satyanadella') or a full URL
+      // (e.g., 'linkedin.com/in/satyanadella')
       const inputOverride = profileUrl ? {
-        profileUrls: [profileUrl],
-        startUrls: [profileUrl],
-        urls: [profileUrl],
-        profiles: [profileUrl],
+        username: profileUrl,
       } : undefined;
       
       if (inputOverride) {
@@ -797,7 +791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (profileUrl && (!apifyData || apifyData.length === 0)) {
         console.warn(`Warning: Zero posts returned despite providing profileUrl: ${profileUrl}`);
         console.warn("This may indicate the Apify task input format doesn't match the override.");
-        console.warn("Check your Apify task configuration to ensure it accepts startUrls, profileUrls, profiles, or urls input.");
+        console.warn("Check your Apify task configuration to ensure it accepts the 'username' input field.");
         
         // Return an actionable error to the user
         return res.status(200).json({
