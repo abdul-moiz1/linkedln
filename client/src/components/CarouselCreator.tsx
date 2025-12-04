@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Sparkles, 
@@ -16,10 +17,12 @@ import {
   ChevronLeft, 
   ChevronRight,
   Download,
+  Wand2,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 type CarouselStep = "input" | "preview" | "review";
+type AIProvider = "auto" | "gemini" | "openai";
 
 interface SlideMessage {
   id: number;
@@ -31,6 +34,7 @@ interface GenerateImagesResponse {
   imageUrls: string[];
   generatedCount: number;
   requestedCount: number;
+  provider?: string;
   errors?: string[];
 }
 
@@ -50,6 +54,7 @@ interface UploadResponse {
 export default function CarouselCreator() {
   const { toast } = useToast();
   const [step, setStep] = useState<CarouselStep>("input");
+  const [aiProvider, setAiProvider] = useState<AIProvider>("auto");
   const [slides, setSlides] = useState<SlideMessage[]>([
     { id: 1, text: "" },
     { id: 2, text: "" },
@@ -60,20 +65,26 @@ export default function CarouselCreator() {
   const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
   const [carouselTitle, setCarouselTitle] = useState("");
   const [caption, setCaption] = useState("");
+  const [usedProvider, setUsedProvider] = useState<string>("");
 
   const generateImagesMutation = useMutation({
     mutationFn: async (messages: string[]): Promise<GenerateImagesResponse> => {
-      const response = await apiRequest("POST", "/api/images/generate", { messages });
+      const response = await apiRequest("POST", "/api/images/generate", { 
+        messages,
+        provider: aiProvider 
+      });
       return response as unknown as GenerateImagesResponse;
     },
     onSuccess: (data) => {
       if (data.imageUrls && data.imageUrls.length > 0) {
         setGeneratedImages(data.imageUrls);
         setCurrentImageIndex(0);
+        setUsedProvider(data.provider || "");
         setStep("preview");
+        const providerName = data.provider === "gemini" ? "Gemini" : data.provider === "openai" ? "OpenAI" : "AI";
         toast({
           title: "Images Generated!",
-          description: `Created ${data.generatedCount} carousel slides`,
+          description: `Created ${data.generatedCount} slides using ${providerName}`,
         });
       } else {
         toast({
@@ -212,6 +223,7 @@ export default function CarouselCreator() {
     setPdfDataUrl(null);
     setCarouselTitle("");
     setCaption("");
+    setUsedProvider("");
   };
 
   const navigateImage = (direction: "prev" | "next") => {
@@ -252,18 +264,48 @@ export default function CarouselCreator() {
       <CardContent className="space-y-6">
         {step === "input" && (
           <>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="carousel-title" className="text-sm font-medium">Carousel Title</Label>
+                <Input
+                  id="carousel-title"
+                  placeholder="e.g., 5 Tips for Better Productivity"
+                  value={carouselTitle}
+                  onChange={(e) => setCarouselTitle(e.target.value)}
+                  maxLength={100}
+                  className="border-slate-200"
+                  data-testid="input-carousel-title"
+                />
               </div>
-              <Input
-                id="carousel-title"
-                placeholder="e.g., 5 Tips for Better Productivity"
-                value={carouselTitle}
-                onChange={(e) => setCarouselTitle(e.target.value)}
-                maxLength={100}
-                data-testid="input-carousel-title"
-              />
+
+              <div className="space-y-2">
+                <Label htmlFor="ai-provider" className="text-sm font-medium">AI Provider</Label>
+                <Select value={aiProvider} onValueChange={(v) => setAiProvider(v as AIProvider)}>
+                  <SelectTrigger id="ai-provider" className="border-slate-200" data-testid="select-ai-provider">
+                    <SelectValue placeholder="Select AI provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto" data-testid="select-option-auto">
+                      <div className="flex items-center gap-2">
+                        <Wand2 className="w-4 h-4 text-blue-600" />
+                        Auto (Best Available)
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="gemini" data-testid="select-option-gemini">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-blue-500" />
+                        Google Gemini
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="openai" data-testid="select-option-openai">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-green-600" />
+                        OpenAI DALL-E
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-4">

@@ -1,0 +1,251 @@
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SiLinkedin } from "react-icons/si";
+import { Sparkles, LogOut, User, List, Calendar, ChevronDown } from "lucide-react";
+import type { SessionUser } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+
+interface HeaderProps {
+  variant?: "home" | "app";
+}
+
+export default function Header({ variant = "home" }: HeaderProps) {
+  const [location, navigate] = useLocation();
+  
+  const { data: user, isLoading } = useQuery<SessionUser>({
+    queryKey: ["/api/user"],
+    retry: false,
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/logout");
+    },
+    onSuccess: () => {
+      window.location.href = "/";
+    },
+  });
+
+  const handleLinkedInLogin = () => {
+    window.location.href = "/auth/linkedin";
+  };
+
+  const initials = user?.profile?.name
+    ? user.profile.name.split(" ").map((n) => n[0]).join("").toUpperCase()
+    : user?.profile?.email?.[0]?.toUpperCase() || "U";
+
+  const isActive = (path: string) => location === path;
+
+  return (
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
+      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div 
+          className="flex items-center gap-2 cursor-pointer" 
+          onClick={() => navigate("/")}
+          data-testid="header-logo"
+        >
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-xl font-semibold text-slate-800">LinkedIn Carousel Maker</span>
+        </div>
+        
+        <nav className="hidden md:flex items-center gap-6">
+          {!user ? (
+            <>
+              <a 
+                href="#home" 
+                className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+                data-testid="nav-home"
+              >
+                Home
+              </a>
+              <a 
+                href="#how-it-works" 
+                className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+                data-testid="nav-how-it-works"
+              >
+                How It Works
+              </a>
+              <a 
+                href="#features" 
+                className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+                data-testid="nav-features"
+              >
+                Features
+              </a>
+              <Button 
+                onClick={handleLinkedInLogin}
+                variant="outline"
+                className="gap-2"
+                data-testid="button-login"
+              >
+                <SiLinkedin className="w-4 h-4" />
+                Login
+              </Button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate("/profile")}
+                className={`text-sm font-medium transition-colors ${
+                  isActive("/profile") 
+                    ? "text-blue-600" 
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                data-testid="nav-profile"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => navigate("/posts")}
+                className={`text-sm font-medium transition-colors ${
+                  isActive("/posts") 
+                    ? "text-blue-600" 
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                data-testid="nav-posts"
+              >
+                My Posts
+              </button>
+              <button
+                onClick={() => navigate("/scheduled")}
+                className={`text-sm font-medium transition-colors ${
+                  isActive("/scheduled") 
+                    ? "text-blue-600" 
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                data-testid="nav-scheduled"
+              >
+                Scheduled
+              </button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className="gap-2 pl-2 pr-3"
+                    data-testid="button-user-menu"
+                  >
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={user.profile?.picture} alt={user.profile?.name || "User"} />
+                      <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden lg:inline text-sm font-medium text-slate-700">
+                      {user.profile?.given_name || user.profile?.name?.split(" ")[0] || "User"}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem 
+                    onClick={() => navigate("/profile")}
+                    className="gap-2 cursor-pointer"
+                    data-testid="menu-profile"
+                  >
+                    <User className="w-4 h-4" />
+                    My Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => navigate("/posts")}
+                    className="gap-2 cursor-pointer"
+                    data-testid="menu-posts"
+                  >
+                    <List className="w-4 h-4" />
+                    My Posts
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => navigate("/scheduled")}
+                    className="gap-2 cursor-pointer"
+                    data-testid="menu-scheduled"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Scheduled Posts
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => logoutMutation.mutate()}
+                    className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                    data-testid="menu-logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </nav>
+
+        <div className="md:hidden">
+          {!user ? (
+            <Button 
+              onClick={handleLinkedInLogin}
+              variant="outline"
+              className="gap-2"
+              data-testid="button-login-mobile"
+            >
+              <SiLinkedin className="w-4 h-4" />
+              Login
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="button-mobile-menu">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={user.profile?.picture} alt={user.profile?.name || "User"} />
+                    <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  onClick={() => navigate("/profile")}
+                  className="gap-2 cursor-pointer"
+                >
+                  <User className="w-4 h-4" />
+                  Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => navigate("/posts")}
+                  className="gap-2 cursor-pointer"
+                >
+                  <List className="w-4 h-4" />
+                  My Posts
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => navigate("/scheduled")}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Scheduled Posts
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => logoutMutation.mutate()}
+                  className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}

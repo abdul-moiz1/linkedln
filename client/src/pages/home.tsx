@@ -12,6 +12,7 @@ import {
   Share2,
   Shield
 } from "lucide-react";
+import Header from "@/components/Header";
 
 export default function Home() {
   const handleLinkedInLogin = () => {
@@ -24,40 +25,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white font-sans">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-semibold text-slate-800">LinkedIn Carousel Maker</span>
-          </div>
-          
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#home" className="text-slate-600 hover:text-slate-900 transition-colors font-medium">Home</a>
-            <a href="#how-it-works" className="text-slate-600 hover:text-slate-900 transition-colors font-medium">How It Works</a>
-            <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors font-medium">Features</a>
-            <Button 
-              onClick={handleLinkedInLogin}
-              variant="outline"
-              className="gap-2"
-            >
-              <SiLinkedin className="w-4 h-4" />
-              Login
-            </Button>
-          </nav>
-
-          <Button 
-            onClick={handleLinkedInLogin}
-            variant="outline"
-            className="md:hidden gap-2"
-          >
-            <SiLinkedin className="w-4 h-4" />
-            Login
-          </Button>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section id="home" className="relative overflow-hidden py-20 lg:py-32">
@@ -81,6 +49,7 @@ export default function Home() {
               onClick={handleStartCreating}
               size="lg"
               className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-6"
+              data-testid="button-start-creating"
             >
               <Sparkles className="w-5 h-5" />
               Start Creating
@@ -91,6 +60,7 @@ export default function Home() {
               size="lg"
               variant="outline"
               className="gap-2 text-lg px-8 py-6 border-2 border-[#0A66C2] text-[#0A66C2] hover:bg-[#0A66C2] hover:text-white"
+              data-testid="button-linkedin-login"
             >
               <SiLinkedin className="w-5 h-5" />
               Sign in with LinkedIn
@@ -173,7 +143,7 @@ export default function Home() {
               {
                 icon: Sparkles,
                 title: "AI Image Generation",
-                description: "Powered by OpenAI's DALL-E to create stunning, unique visuals from your text"
+                description: "Powered by Gemini & OpenAI to create stunning, unique visuals from your text"
               },
               {
                 icon: FileImage,
@@ -233,6 +203,7 @@ export default function Home() {
               onClick={handleLinkedInLogin}
               size="lg"
               className="gap-3 bg-[#0A66C2] hover:bg-[#004182] text-lg px-10 py-6"
+              data-testid="button-connect-linkedin"
             >
               <SiLinkedin className="w-6 h-6" />
               Sign in with LinkedIn

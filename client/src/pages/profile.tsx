@@ -10,10 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { SiLinkedin } from "react-icons/si";
-import { Copy, LogOut, Send, Check, Loader2, List, Calendar, User2, Mail, Globe, Shield, Image as ImageIcon, Video, X } from "lucide-react";
+import { Copy, Send, Check, Loader2, List, Calendar, User2, Mail, Globe, Shield, Image as ImageIcon, Video, X } from "lucide-react";
 import type { SessionUser, CreatePost } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import CarouselCreator from "@/components/CarouselCreator";
+import Header from "@/components/Header";
 
 type MediaFile = {
   url: string;
@@ -29,22 +30,10 @@ export default function Profile() {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch current user session
   const { data: user, isLoading } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
   });
 
-  // Logout mutation
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest("POST", "/api/logout");
-    },
-    onSuccess: () => {
-      window.location.href = "/";
-    },
-  });
-
-  // Create post mutation
   const createPostMutation = useMutation({
     mutationFn: async (data: CreatePost) => {
       return await apiRequest("POST", "/api/share", data);
@@ -86,7 +75,7 @@ export default function Profile() {
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    const maxSize = file.type.startsWith("video/") ? 50 * 1024 * 1024 : 5 * 1024 * 1024; // 50MB for video, 5MB for image
+    const maxSize = file.type.startsWith("video/") ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
 
     if (file.size > maxSize) {
       toast({
@@ -108,7 +97,6 @@ export default function Profile() {
       return;
     }
 
-    // Convert to base64
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
@@ -144,10 +132,10 @@ export default function Profile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-white">
         <div className="text-center space-y-4">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
-          <p className="text-sm text-muted-foreground">Loading your profile...</p>
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto" />
+          <p className="text-sm text-slate-500">Loading your profile...</p>
         </div>
       </div>
     );
@@ -164,63 +152,36 @@ export default function Profile() {
     : profile.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
-        <div className="container max-w-6xl flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <SiLinkedin className="w-7 h-7 text-primary" />
-            <div>
-              <h1 className="text-lg font-semibold text-foreground">LinkedIn OAuth</h1>
-              <p className="text-xs text-muted-foreground">Profile Management</p>
-            </div>
-          </div>
-          <Button
-            onClick={() => logoutMutation.mutate()}
-            variant="outline"
-            disabled={logoutMutation.isPending}
-            data-testid="button-logout"
-          >
-            {logoutMutation.isPending ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <LogOut className="w-4 h-4 mr-2" />
-            )}
-            Sign Out
-          </Button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <Header variant="app" />
 
-      {/* Main Content */}
-      <main className="container max-w-6xl py-8 px-6 space-y-6">
-        {/* Profile Section */}
-        <Card data-testid="card-profile" className="overflow-hidden">
-          {/* Profile Header with Background */}
-          <div className="h-20 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5" />
+      <main className="container mx-auto max-w-6xl py-8 px-4 space-y-8">
+        {/* Profile Card */}
+        <Card data-testid="card-profile" className="overflow-hidden border-slate-200">
+          <div className="h-24 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500" />
           
           <CardContent className="pt-0 pb-8">
-            {/* Avatar and Basic Info */}
-            <div className="flex flex-wrap items-start gap-6 -mt-10 mb-6">
-              <Avatar className="w-28 h-28 border-4 border-card shadow-lg">
+            <div className="flex flex-wrap items-start gap-6 -mt-12 mb-6">
+              <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
                 <AvatarImage src={profile.picture} alt={profile.name || "User"} />
-                <AvatarFallback className="text-2xl font-semibold bg-primary text-primary-foreground">
+                <AvatarFallback className="text-2xl font-semibold bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1 min-w-0 pt-12">
+              <div className="flex-1 min-w-0 pt-14">
                 <div className="flex flex-wrap items-center gap-3 mb-2">
-                  <h2 className="text-3xl font-bold text-foreground" data-testid="text-profile-name">
+                  <h2 className="text-2xl font-bold text-slate-900" data-testid="text-profile-name">
                     {profile.name || "LinkedIn User"}
                   </h2>
                   {profile.email_verified && (
-                    <Badge variant="secondary" className="gap-1">
+                    <Badge className="gap-1 bg-green-100 text-green-700 hover:bg-green-100">
                       <Shield className="w-3 h-3" />
                       Verified
                     </Badge>
                   )}
                 </div>
                 {profile.email && (
-                  <div className="flex items-center gap-2 text-muted-foreground mb-4">
+                  <div className="flex items-center gap-2 text-slate-500">
                     <Mail className="w-4 h-4" />
                     <p data-testid="text-profile-email">{profile.email}</p>
                   </div>
@@ -228,201 +189,131 @@ export default function Profile() {
               </div>
             </div>
 
-            <Separator className="my-6" />
-
-            {/* Profile Details Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl">
               {profile.given_name && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <User2 className="w-4 h-4" />
-                    <Label className="text-xs uppercase tracking-wide font-medium">
-                      First Name
-                    </Label>
-                  </div>
-                  <p className="text-base font-medium pl-6" data-testid="text-given-name">
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">First Name</p>
+                  <p className="text-sm font-medium text-slate-900" data-testid="text-given-name">
                     {profile.given_name}
                   </p>
                 </div>
               )}
               {profile.family_name && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <User2 className="w-4 h-4" />
-                    <Label className="text-xs uppercase tracking-wide font-medium">
-                      Last Name
-                    </Label>
-                  </div>
-                  <p className="text-base font-medium pl-6" data-testid="text-family-name">
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Last Name</p>
+                  <p className="text-sm font-medium text-slate-900" data-testid="text-family-name">
                     {profile.family_name}
                   </p>
                 </div>
               )}
               {profile.locale && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Globe className="w-4 h-4" />
-                    <Label className="text-xs uppercase tracking-wide font-medium">
-                      Locale
-                    </Label>
-                  </div>
-                  <p className="text-base font-medium pl-6" data-testid="text-locale">
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Locale</p>
+                  <p className="text-sm font-medium text-slate-900" data-testid="text-locale">
                     {typeof profile.locale === 'string' 
                       ? profile.locale 
                       : `${profile.locale.language}_${profile.locale.country}`}
                   </p>
                 </div>
               )}
-              <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <SiLinkedin className="w-4 h-4" />
-                  <Label className="text-xs uppercase tracking-wide font-medium">
-                    LinkedIn ID
-                  </Label>
-                </div>
-                <p className="font-mono text-sm pl-6 text-muted-foreground" data-testid="text-linkedin-id">
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">LinkedIn ID</p>
+                <p className="text-xs font-mono text-slate-600 truncate" data-testid="text-linkedin-id">
                   {profile.sub}
                 </p>
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
-            {/* Access Token Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">
-                  Access Token <span className="text-muted-foreground text-xs">(for development)</span>
-                </Label>
-                <Button
-                  onClick={handleCopyToken}
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-copy-token"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4 mr-2" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Token
-                    </>
-                  )}
-                </Button>
-              </div>
-              <div className="bg-muted/50 rounded-md p-4 border">
-                <code className="text-xs font-mono break-all block text-muted-foreground" data-testid="text-access-token">
-                  {accessToken}
-                </code>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Quick Actions */}
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-xl font-semibold mb-1">Quick Actions</h3>
-            <p className="text-sm text-muted-foreground">Manage your LinkedIn content</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card 
-              className="hover-elevate cursor-pointer transition-all" 
-              onClick={() => navigate("/posts")}
-              data-testid="card-quick-action-posts"
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-lg bg-primary/10 text-primary">
-                    <List className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-lg mb-1">My Posts</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      View all your LinkedIn posts with analytics including likes, comments, and engagement metrics
-                    </p>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card 
+            className="border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group" 
+            onClick={() => navigate("/posts")}
+            data-testid="card-quick-action-posts"
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center group-hover:from-blue-200 group-hover:to-indigo-200 transition-colors">
+                  <List className="w-6 h-6 text-blue-600" />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <h4 className="font-semibold text-slate-900">My Posts</h4>
+                  <p className="text-sm text-slate-500">View your posts with analytics</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card 
-              className="hover-elevate cursor-pointer transition-all" 
-              onClick={() => navigate("/scheduled")}
-              data-testid="card-quick-action-scheduled"
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-lg bg-primary/10 text-primary">
-                    <Calendar className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-lg mb-1">Scheduled Posts</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Schedule posts for future dates and manage your content calendar efficiently
-                    </p>
-                  </div>
+          <Card 
+            className="border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group" 
+            onClick={() => navigate("/scheduled")}
+            data-testid="card-quick-action-scheduled"
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center group-hover:from-blue-200 group-hover:to-indigo-200 transition-colors">
+                  <Calendar className="w-6 h-6 text-blue-600" />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                <div>
+                  <h4 className="font-semibold text-slate-900">Scheduled Posts</h4>
+                  <p className="text-sm text-slate-500">Manage your content calendar</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* AI Carousel Creator */}
         <CarouselCreator />
 
-        {/* Post Creation Section */}
-        <Card data-testid="card-post-creation">
+        {/* Simple Post Creation */}
+        <Card data-testid="card-post-creation" className="border-slate-200">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Send className="w-5 h-5 text-primary" />
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                <Send className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <CardTitle className="text-xl">Share on LinkedIn</CardTitle>
-                <CardDescription>
-                  Create and publish content directly to your LinkedIn profile
+                <CardTitle className="text-lg">Share on LinkedIn</CardTitle>
+                <CardDescription className="text-slate-500">
+                  Create and publish a text post directly to your profile
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              <Label htmlFor="post-content" className="text-sm font-medium">What would you like to share?</Label>
               <Textarea
                 id="post-content"
                 placeholder="Share your thoughts, insights, or updates with your network..."
                 value={postText}
                 onChange={(e) => setPostText(e.target.value)}
-                className="min-h-36 resize-none text-base"
+                className="min-h-32 resize-none border-slate-200 focus:border-blue-300"
                 maxLength={3000}
                 data-testid="input-post-content"
               />
               
-              {/* Media Preview */}
               {mediaFiles.length > 0 && (
                 <div className="grid grid-cols-2 gap-3">
                   {mediaFiles.map((media, index) => (
-                    <div key={index} className="relative rounded-md overflow-hidden border bg-muted">
+                    <div key={index} className="relative rounded-lg overflow-hidden border border-slate-200">
                       {media.type === "IMAGE" ? (
                         <img 
                           src={media.url} 
                           alt={media.filename}
-                          className="w-full h-48 object-cover"
+                          className="w-full h-40 object-cover"
                         />
                       ) : (
-                        <div className="w-full h-48 flex items-center justify-center bg-muted/50">
-                          <Video className="w-12 h-12 text-muted-foreground" />
+                        <div className="w-full h-40 flex items-center justify-center bg-slate-50">
+                          <Video className="w-10 h-10 text-slate-400" />
                         </div>
                       )}
                       <Button
                         variant="destructive"
                         size="icon"
-                        className="absolute top-2 right-2 h-7 w-7 shadow-md"
+                        className="absolute top-2 right-2 h-7 w-7"
                         onClick={() => removeMedia(index)}
                         data-testid={`button-remove-media-${index}`}
                       >
@@ -436,7 +327,6 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Media Upload Buttons */}
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   ref={fileInputRef}
@@ -452,6 +342,7 @@ export default function Profile() {
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={mediaFiles.length >= 4}
+                  className="border-slate-200"
                   data-testid="button-add-image"
                 >
                   <ImageIcon className="w-4 h-4 mr-2" />
@@ -463,26 +354,22 @@ export default function Profile() {
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={mediaFiles.length >= 1}
+                  className="border-slate-200"
                   data-testid="button-add-video"
                 >
                   <Video className="w-4 h-4 mr-2" />
                   Add Video
                 </Button>
-                {mediaFiles.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {mediaFiles.length} file{mediaFiles.length > 1 ? 's' : ''} attached
-                  </p>
-                )}
               </div>
 
               <div className="flex flex-wrap justify-between items-center gap-2">
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-slate-500">
                   {postText.length} / 3,000 characters
                 </p>
                 <Button
                   onClick={handleCreatePost}
                   disabled={createPostMutation.isPending || !postText.trim()}
-                  size="default"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                   data-testid="button-submit-post"
                 >
                   {createPostMutation.isPending ? (
@@ -499,17 +386,43 @@ export default function Profile() {
                 </Button>
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="bg-accent/50 rounded-lg p-4 border border-accent">
-              <div className="flex gap-3">
-                <Shield className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Publishing to LinkedIn</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    This will create a real post on your LinkedIn profile. Ensure your app has the "Share on LinkedIn" product enabled in your LinkedIn App settings.
-                  </p>
-                </div>
+        {/* Developer Token Section */}
+        <Card className="border-slate-200" data-testid="card-developer">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Developer Access</CardTitle>
+            <CardDescription className="text-slate-500">
+              Access token for development and testing purposes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 bg-slate-50 rounded-lg p-3 border border-slate-200">
+                <code className="text-xs font-mono text-slate-600 break-all" data-testid="text-access-token">
+                  {accessToken}
+                </code>
               </div>
+              <Button
+                onClick={handleCopyToken}
+                variant="outline"
+                size="sm"
+                className="shrink-0 border-slate-200"
+                data-testid="button-copy-token"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>

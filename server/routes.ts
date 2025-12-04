@@ -841,8 +841,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * API: Generate AI Images
    * 
-   * Generates images using OpenAI's DALL-E API based on text prompts.
+   * Generates images using OpenAI's DALL-E or Google's Gemini API based on text prompts.
    * Each message in the array becomes an image in the carousel.
+   * Provider can be "openai" or "gemini" (defaults to gemini if available, else openai)
    */
   app.post("/api/images/generate", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -850,7 +851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { messages } = req.body;
+      const { messages, provider = "auto" } = req.body;
       
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -860,37 +861,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Maximum 5 messages allowed" });
       }
 
+      const geminiApiKey = process.env.GEMINI_API_KEY;
       const openaiApiKey = process.env.OPENAI_API_KEY;
-      if (!openaiApiKey) {
-        return res.status(503).json({ 
-          error: "OpenAI API key not configured. Please add OPENAI_API_KEY to your secrets." 
-        });
+
+      let selectedProvider = provider;
+      if (provider === "auto") {
+        selectedProvider = geminiApiKey ? "gemini" : openaiApiKey ? "openai" : null;
       }
 
-      const { OpenAI } = await import("openai");
-      const openai = new OpenAI({ apiKey: openaiApiKey });
+      if (!selectedProvider || (selectedProvider === "gemini" && !geminiApiKey) || (selectedProvider === "openai" && !openaiApiKey)) {
+        return res.status(503).json({ 
+          error: "No AI API key configured. Please add GEMINI_API_KEY or OPENAI_API_KEY to your secrets." 
+        });
+      }
 
       const imageUrls: string[] = [];
       const errors: string[] = [];
 
-      for (let i = 0; i < messages.length; i++) {
-        try {
-          const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients.`;
-          
-          const response = await openai.images.generate({
-            model: "dall-e-3",
-            prompt: prompt,
-            n: 1,
-            size: "1024x1024",
-            quality: "standard",
-          });
+      if (selectedProvider === "gemini") {
+        const { GoogleGenAI, Modality } = await import("@google/genai");
+        const ai = new GoogleGenAI({ apiKey: geminiApiKey! });
 
-          if (response.data && response.data[0]?.url) {
-            imageUrls.push(response.data[0].url);
+        for (let i = 0; i < messages.length; i++) {
+          try {
+            const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients. The image should be square format.`;
+            
+            const response = await ai.models.generateContent({
+              model: "gemini-2.0-flash-preview-image-generation",
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              config: {
+                responseModalities: [Modality.TEXT, Modality.IMAGE],
+              },
+            });
+
+            const candidates = response.candidates;
+            if (candidates && candidates.length > 0) {
+              const content = candidates[0].content;
+              if (content && content.parts) {
+                for (const part of content.parts) {
+                  if (part.inlineData && part.inlineData.data) {
+                    const base64Image = `data:image/png;base64,${part.inlineData.data}`;
+                    imageUrls.push(base64Image);
+                    break;
+                  }
+                }
+              }
+            }
+          } catch (imgError: any) {
+            console.error(`Gemini image generation failed for message ${i + 1}:`, imgError);
+            errors.push(`Slide ${i + 1}: ${imgError.message}`);
           }
-        } catch (imgError: any) {
-          console.error(`Image generation failed for message ${i + 1}:`, imgError);
-          errors.push(`Slide ${i + 1}: ${imgError.message}`);
+        }
+      } else {
+        const { OpenAI } = await import("openai");
+        const openai = new OpenAI({ apiKey: openaiApiKey! });
+
+        for (let i = 0; i < messages.length; i++) {
+          try {
+            const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients.`;
+            
+            const response = await openai.images.generate({
+              model: "dall-e-3",
+              prompt: prompt,
+              n: 1,
+              size: "1024x1024",
+              quality: "standard",
+            });
+
+            if (response.data && response.data[0]?.url) {
+              imageUrls.push(response.data[0].url);
+            }
+          } catch (imgError: any) {
+            console.error(`OpenAI image generation failed for message ${i + 1}:`, imgError);
+            errors.push(`Slide ${i + 1}: ${imgError.message}`);
+          }
         }
       }
 
@@ -906,6 +950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imageUrls,
         generatedCount: imageUrls.length,
         requestedCount: messages.length,
+        provider: selectedProvider,
         errors: errors.length > 0 ? errors : undefined
       });
     } catch (error: any) {
