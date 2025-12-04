@@ -1,24 +1,25 @@
-# LinkedIn OAuth2 Demo Application
+# LinkedIn Carousel Maker
 
 ## Project Overview
-A comprehensive demonstration of LinkedIn OAuth2 authentication using OpenID Connect. This application showcases the complete OAuth2 authorization code flow, profile data retrieval, and LinkedIn post sharing functionality.
+A professional SaaS application that allows users to create AI-generated LinkedIn carousels. Users can enter text messages, have AI generate images, convert them to a PDF carousel, and upload directly to LinkedIn.
 
-**Current State**: Fully functional LinkedIn OAuth2 demo with session-based authentication.
+**Current State**: Full-stack application with Firebase/Firestore integration.
 
-## Recent Changes (November 18, 2025)
-- Implemented complete LinkedIn OAuth2 flow with CSRF protection
-- Built beautiful UI with React, TypeScript, and Tailwind CSS
-- Added comprehensive code comments explaining every OAuth2 step
-- Integrated LinkedIn /v2/userinfo (OpenID Connect) for profile data
-- Implemented LinkedIn post sharing via /v2/ugcPosts API
-- Set up Express session management for user authentication state
+## Recent Changes (December 2024)
+- Transformed from OAuth demo to full LinkedIn Carousel Maker SaaS
+- Created professional landing page with hero, how-it-works, features sections
+- Added Firebase/Firestore integration for data persistence
+- Implemented AI image generation using OpenAI DALL-E
+- Added PDF carousel creation functionality
+- Integrated LinkedIn document upload for carousels
+- Added project draft saving functionality
 
 ## Architecture
 
 ### Frontend (React + TypeScript)
-- **Home Page** (`/`): Login with LinkedIn button, initiates OAuth2 flow
-- **Profile Page** (`/profile`): Displays user info, access token, and post creation form
-- **Design System**: Clean, professional UI using shadcn/ui components
+- **Home Page** (`/`): Professional SaaS landing page with login options
+- **Profile Page** (`/profile`): User dashboard after login
+- **Design System**: Clean, modern UI using shadcn/ui components with Tailwind CSS
 - **State Management**: TanStack Query for API calls and caching
 
 ### Backend (Express + Node.js)
@@ -28,25 +29,31 @@ A comprehensive demonstration of LinkedIn OAuth2 authentication using OpenID Con
 - **API Routes**:
   - `GET /api/user` - Returns current user session data
   - `POST /api/logout` - Destroys user session
-  - `POST /api/share` - Creates LinkedIn post using user's access token
+  - `POST /api/share` - Creates LinkedIn post
+  - `POST /api/images/generate` - Generates AI images using OpenAI
+  - `POST /api/pdf/create` - Creates PDF from images
+  - `POST /api/linkedin/upload` - Uploads carousel to LinkedIn
+  - `POST /api/project/save` - Saves project drafts
+  - `GET /api/projects` - Gets user projects
+  - `GET /api/project/:projectId` - Gets single project
 - **Session Management**: Express-session with in-memory storage
 
-### OAuth2 Flow Steps
-1. User clicks "Login with LinkedIn"
-2. Redirect to LinkedIn authorization page (with state for CSRF protection)
-3. User grants permissions
-4. LinkedIn redirects to callback with authorization code
-5. Exchange code for access token
-6. Fetch user profile from /v2/userinfo
-7. Store user data in session
-8. Display profile and enable post creation
+### Database (Firebase/Firestore)
+Collections:
+- `users` - LinkedIn user profiles and tokens
+- `projects` - Carousel projects and drafts
+- `sessions` - User sessions
 
 ## Environment Variables
-Required secrets (configured via Replit Secrets):
+Required secrets:
 - `LINKEDIN_CLIENT_ID` - LinkedIn app Client ID
 - `LINKEDIN_CLIENT_SECRET` - LinkedIn app Client Secret
-- `BASE_URL` - Application base URL (e.g., https://your-app.replit.dev)
-- `SESSION_SECRET` - Secret for session encryption (auto-generated)
+- `BASE_URL` - Application base URL
+- `SESSION_SECRET` - Session encryption secret
+- `OPENAI_API_KEY` - OpenAI API key for image generation
+- `FIREBASE_PROJECT_ID` - Firebase project ID
+- `FIREBASE_CLIENT_EMAIL` - Firebase service account email
+- `FIREBASE_PRIVATE_KEY` - Firebase service account private key
 
 ## LinkedIn API Configuration
 **Redirect URI**: `{BASE_URL}/auth/linkedin/callback`
@@ -57,46 +64,38 @@ Required secrets (configured via Replit Secrets):
 - `email` - User email address
 - `w_member_social` - Permission to post on user's behalf
 
-**API Endpoints Used**:
-- Authorization: `https://www.linkedin.com/oauth/v2/authorization`
-- Token Exchange: `https://www.linkedin.com/oauth/v2/accessToken`
-- User Profile: `https://api.linkedin.com/v2/userinfo`
-- Post Sharing: `https://api.linkedin.com/v2/ugcPosts`
-
 ## Project Structure
 ```
 ├── client/
 │   └── src/
 │       ├── pages/
-│       │   ├── home.tsx         # Login page
-│       │   └── profile.tsx      # Profile & post creation
+│       │   ├── home.tsx         # SaaS landing page
+│       │   └── profile.tsx      # User dashboard
 │       ├── components/ui/       # shadcn/ui components
+│       ├── lib/
+│       │   └── firebase.ts      # Firebase client config
 │       └── App.tsx              # Router configuration
 ├── server/
-│   ├── index.ts                 # Express server with session setup
-│   └── routes.ts                # OAuth2 & API routes (heavily commented)
+│   ├── index.ts                 # Express server setup
+│   ├── routes.ts                # All API routes
+│   └── lib/
+│       └── firebase-admin.ts    # Firebase Admin SDK
 ├── shared/
 │   └── schema.ts                # TypeScript types & Zod schemas
-└── design_guidelines.md         # UI/UX design specifications
+└── design_guidelines.md         # UI/UX specifications
 ```
 
-## Running the Application
-1. Configure environment variables in Replit Secrets
-2. Add redirect URI to LinkedIn app settings
-3. Start the application (runs automatically via workflow)
-4. Access at the Replit dev URL shown in preview
+## How It Works
+1. User signs in with LinkedIn OAuth2
+2. User enters 4-5 text messages for carousel slides
+3. AI generates professional images from text
+4. Images are combined into a PDF carousel
+5. User previews and uploads directly to LinkedIn
+6. Projects can be saved as drafts for later
 
 ## Security Features
 - CSRF protection using state parameter
 - HttpOnly session cookies
 - Secure cookies in production (HTTPS)
 - Environment-based secret management
-- Session expiration (24 hours)
-
-## Next Steps
-Future enhancements could include:
-- Token refresh logic for expired access tokens
-- Persistent database storage for user sessions
-- Enhanced error handling for API rate limits
-- Image upload support for LinkedIn posts
-- Display LinkedIn post history and analytics
+- Firebase Admin SDK for secure backend operations

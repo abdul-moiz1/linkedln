@@ -209,18 +209,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profile = linkedInUserSchema.parse(profileData);
 
       /**
-       * STEP 5: Store User Data in Session
+       * STEP 5: Store User Data in Session and Firestore
        * 
        * Save the user's profile and access token in the session.
        * This allows us to:
        * 1. Display user information on the profile page
        * 2. Use the access token for API calls (like creating posts)
        * 3. Maintain authentication state across requests
+       * 
+       * Also persist to Firestore if configured for data durability.
        */
       req.session.user = {
         profile,
         accessToken,
       };
+
+      // Try to persist user to Firestore (optional - will fail gracefully if not configured)
+      try {
+        const { saveUser } = await import("./lib/firebase-admin");
+        await saveUser({
+          linkedinId: profile.sub,
+          email: profile.email || "",
+          name: profile.name || "",
+          profilePicture: profile.picture,
+          accessToken,
+          tokenExpiresAt: new Date(Date.now() + (tokenData.expires_in || 3600) * 1000),
+        });
+      } catch (firestoreError) {
+        // Firestore is optional - continue even if it fails
+        console.warn("Firestore save failed (Firebase may not be configured):", firestoreError);
+      }
 
       // Redirect to the profile page where user can see their data
       res.redirect("/profile");
@@ -815,6 +833,401 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.status(500).json({ error: error.message || "Failed to delete scheduled post" });
+    }
+  });
+
+  /**
+   * API: Generate AI Images
+   * 
+   * Generates images using OpenAI's DALL-E API based on text prompts.
+   * Each message in the array becomes an image in the carousel.
+   */
+  app.post("/api/images/generate", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { messages } = req.body;
+      
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: "Messages array is required" });
+      }
+
+      if (messages.length > 5) {
+        return res.status(400).json({ error: "Maximum 5 messages allowed" });
+      }
+
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+      if (!openaiApiKey) {
+        return res.status(503).json({ 
+          error: "OpenAI API key not configured. Please add OPENAI_API_KEY to your secrets." 
+        });
+      }
+
+      const { OpenAI } = await import("openai");
+      const openai = new OpenAI({ apiKey: openaiApiKey });
+
+      const imageUrls: string[] = [];
+      const errors: string[] = [];
+
+      for (let i = 0; i < messages.length; i++) {
+        try {
+          const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients.`;
+          
+          const response = await openai.images.generate({
+            model: "dall-e-3",
+            prompt: prompt,
+            n: 1,
+            size: "1024x1024",
+            quality: "standard",
+          });
+
+          if (response.data && response.data[0]?.url) {
+            imageUrls.push(response.data[0].url);
+          }
+        } catch (imgError: any) {
+          console.error(`Image generation failed for message ${i + 1}:`, imgError);
+          errors.push(`Slide ${i + 1}: ${imgError.message}`);
+        }
+      }
+
+      if (imageUrls.length === 0) {
+        return res.status(500).json({ 
+          error: "All image generations failed",
+          details: errors 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        imageUrls,
+        generatedCount: imageUrls.length,
+        requestedCount: messages.length,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error: any) {
+      console.error("Image generation error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate images" });
+    }
+  });
+
+  /**
+   * API: Create PDF from Images
+   * 
+   * Converts an array of image URLs into a multi-page PDF document.
+   * Each image becomes a page in the carousel PDF.
+   */
+  app.post("/api/pdf/create", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { imageUrls, title } = req.body;
+
+      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+        return res.status(400).json({ error: "Image URLs array is required" });
+      }
+
+      const PDFDocument = (await import("pdfkit")).default;
+      
+      const chunks: Buffer[] = [];
+      const doc = new PDFDocument({
+        size: [1080, 1080],
+        margin: 0,
+      });
+
+      doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+
+      const pdfPromise = new Promise<Buffer>((resolve, reject) => {
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", reject);
+      });
+
+      for (let i = 0; i < imageUrls.length; i++) {
+        if (i > 0) {
+          doc.addPage();
+        }
+
+        try {
+          const imgResponse = await fetch(imageUrls[i]);
+          const imgBuffer = Buffer.from(await imgResponse.arrayBuffer());
+          doc.image(imgBuffer, 0, 0, { width: 1080, height: 1080 });
+        } catch (imgError: any) {
+          console.error(`Failed to fetch image ${i + 1}:`, imgError);
+          doc.rect(0, 0, 1080, 1080).fill("#f0f0f0");
+          doc.fill("#666").fontSize(24).text(`Image ${i + 1} failed to load`, 100, 500);
+        }
+      }
+
+      doc.end();
+      const pdfBuffer = await pdfPromise;
+      const pdfBase64 = pdfBuffer.toString("base64");
+      const pdfDataUrl = `data:application/pdf;base64,${pdfBase64}`;
+
+      res.json({
+        success: true,
+        pdfUrl: pdfDataUrl,
+        pageCount: imageUrls.length,
+        title: title || "LinkedIn Carousel",
+      });
+    } catch (error: any) {
+      console.error("PDF creation error:", error);
+      res.status(500).json({ error: error.message || "Failed to create PDF" });
+    }
+  });
+
+  /**
+   * API: Upload Carousel to LinkedIn
+   * 
+   * Uploads a PDF carousel as a document post to LinkedIn.
+   * Uses LinkedIn's document upload API for carousel-style posts.
+   */
+  app.post("/api/linkedin/upload", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { pdfBase64, caption, title } = req.body;
+
+      if (!pdfBase64) {
+        return res.status(400).json({ error: "PDF data is required" });
+      }
+
+      const { accessToken, profile } = req.session.user;
+      const personId = profile.sub.replace(/^linkedin-person-/, '');
+      const authorUrn = `urn:li:person:${personId}`;
+
+      const base64Data = pdfBase64.includes(",") ? pdfBase64.split(",")[1] : pdfBase64;
+      const pdfBuffer = Buffer.from(base64Data, "base64");
+
+      const registerPayload = {
+        registerUploadRequest: {
+          recipes: ["urn:li:digitalmediaRecipe:feedshare-document"],
+          owner: authorUrn,
+          serviceRelationships: [{
+            relationshipType: "OWNER",
+            identifier: "urn:li:userGeneratedContent"
+          }]
+        }
+      };
+
+      const registerResponse = await fetch("https://api.linkedin.com/v2/assets?action=registerUpload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(registerPayload),
+      });
+
+      if (!registerResponse.ok) {
+        const errorText = await registerResponse.text();
+        console.error("Document registration failed:", errorText);
+        return res.status(500).json({ 
+          error: "Failed to register document upload",
+          details: errorText 
+        });
+      }
+
+      const registerData = await registerResponse.json();
+      const uploadUrl = registerData.value.uploadMechanism["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"].uploadUrl;
+      const asset = registerData.value.asset;
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/pdf",
+        },
+        body: pdfBuffer,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error("Document upload failed:", errorText);
+        return res.status(500).json({ 
+          error: "Failed to upload document",
+          details: errorText 
+        });
+      }
+
+      let localeData = { country: "US", language: "en" };
+      if (typeof profile.locale === 'object' && profile.locale !== null) {
+        localeData = {
+          country: profile.locale.country || "US",
+          language: profile.locale.language || "en",
+        };
+      }
+
+      const postPayload = {
+        author: authorUrn,
+        lifecycleState: "PUBLISHED",
+        specificContent: {
+          "com.linkedin.ugc.ShareContent": {
+            shareCommentary: {
+              text: caption || "Check out my new carousel!",
+              locale: localeData,
+            },
+            shareMediaCategory: "DOCUMENT",
+            media: [{
+              status: "READY",
+              media: asset,
+              title: {
+                text: title || "LinkedIn Carousel",
+                locale: localeData,
+              },
+            }],
+          },
+        },
+        visibility: {
+          "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
+        },
+      };
+
+      const shareResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "X-Restli-Protocol-Version": "2.0.0",
+        },
+        body: JSON.stringify(postPayload),
+      });
+
+      if (!shareResponse.ok) {
+        const errorText = await shareResponse.text();
+        console.error("Document post failed:", errorText);
+        return res.status(shareResponse.status).json({ 
+          error: "Failed to post carousel to LinkedIn",
+          details: errorText 
+        });
+      }
+
+      const shareData = await shareResponse.json();
+      res.json({ 
+        success: true, 
+        postId: shareData.id,
+        message: "Carousel posted successfully to LinkedIn" 
+      });
+    } catch (error: any) {
+      console.error("LinkedIn upload error:", error);
+      res.status(500).json({ error: error.message || "Failed to upload carousel" });
+    }
+  });
+
+  /**
+   * API: Save Project Draft
+   * 
+   * Saves a carousel project to Firestore for later editing.
+   * Projects include messages, generated images, and PDF data.
+   */
+  app.post("/api/project/save", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { projectId, title, messages, imageUrls, pdfUrl, status } = req.body;
+      const { profile } = req.session.user;
+      const userId = profile.sub;
+
+      const { saveProject, updateProject } = await import("./lib/firebase-admin");
+
+      if (projectId) {
+        await updateProject(projectId, {
+          title,
+          messages,
+          imageUrls,
+          pdfUrl,
+          status,
+        });
+        res.json({ success: true, projectId, message: "Project updated" });
+      } else {
+        const project = await saveProject({
+          userId,
+          title: title || "Untitled Carousel",
+          messages: messages || [],
+          imageUrls: imageUrls || [],
+          pdfUrl,
+          status: status || "draft",
+        });
+        res.json({ success: true, projectId: project.id, message: "Project saved" });
+      }
+    } catch (error: any) {
+      console.error("Project save error:", error);
+      if (error.message?.includes("Firebase") || error.message?.includes("firestore")) {
+        return res.status(503).json({ 
+          error: "Firebase not configured. Please add Firebase credentials to your secrets." 
+        });
+      }
+      res.status(500).json({ error: error.message || "Failed to save project" });
+    }
+  });
+
+  /**
+   * API: Get User Projects
+   * 
+   * Retrieves all carousel projects for the authenticated user.
+   */
+  app.get("/api/projects", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { profile } = req.session.user;
+      const userId = profile.sub;
+
+      const { getUserProjects } = await import("./lib/firebase-admin");
+      const projects = await getUserProjects(userId);
+
+      res.json(projects);
+    } catch (error: any) {
+      console.error("Get projects error:", error);
+      if (error.message?.includes("Firebase") || error.message?.includes("firestore")) {
+        return res.status(503).json({ 
+          error: "Firebase not configured. Please add Firebase credentials to your secrets." 
+        });
+      }
+      res.status(500).json({ error: error.message || "Failed to fetch projects" });
+    }
+  });
+
+  /**
+   * API: Get Single Project
+   * 
+   * Retrieves a specific carousel project by ID.
+   */
+  app.get("/api/project/:projectId", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { projectId } = req.params;
+      const { getProject } = await import("./lib/firebase-admin");
+      const project = await getProject(projectId);
+
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      if (project.userId !== req.session.user.profile.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      res.json(project);
+    } catch (error: any) {
+      console.error("Get project error:", error);
+      if (error.message?.includes("Firebase") || error.message?.includes("firestore")) {
+        return res.status(503).json({ 
+          error: "Firebase not configured. Please add Firebase credentials to your secrets." 
+        });
+      }
+      res.status(500).json({ error: error.message || "Failed to fetch project" });
     }
   });
 
