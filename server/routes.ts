@@ -31,7 +31,7 @@ function getDb() {
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
 const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
-const REDIRECT_URI = `${BASE_URL}/auth/linkedin/callback`;
+const REDIRECT_URI = `${BASE_URL}/api/auth/linkedin/callback`;
 
 // LinkedIn API endpoints
 const LINKEDIN_AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization";
@@ -86,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               <ol>
                 <li>Go to <a href="https://www.linkedin.com/developers/apps" target="_blank">LinkedIn Developers</a> and create a new app</li>
                 <li>In your app settings, add this OAuth redirect URL:<br>
-                    <code>${BASE_URL}/auth/linkedin/callback</code></li>
+                    <code>${REDIRECT_URI}</code></li>
                 <li>Request these scopes: <code>openid</code>, <code>profile</code>, <code>email</code>, <code>w_member_social</code></li>
                 <li>Add the credentials to your Replit Secrets:
                   <ul>
@@ -130,7 +130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * - code: Authorization code to exchange for access token
    * - state: CSRF protection token (must match what we sent)
    */
-  app.get("/auth/linkedin/callback", async (req: Request, res: Response) => {
+  app.get("/api/auth/linkedin/callback", async (req: Request, res: Response) => {
     const { code, state } = req.query;
 
     // Verify state parameter to prevent CSRF attacks
