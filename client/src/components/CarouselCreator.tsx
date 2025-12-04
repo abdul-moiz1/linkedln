@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +18,12 @@ import {
   ChevronRight,
   Download,
   Wand2,
+  RotateCcw,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+
+const STORAGE_KEY = "carousel_generated_images";
+const STORAGE_TITLE_KEY = "carousel_title";
 
 type CarouselStep = "input" | "preview" | "review";
 type AIProvider = "auto" | "gemini" | "openai" | "stability";
@@ -66,6 +70,74 @@ export default function CarouselCreator() {
   const [carouselTitle, setCarouselTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [usedProvider, setUsedProvider] = useState<string>("");
+  const [hasCachedImages, setHasCachedImages] = useState(false);
+
+  const saveToLocalStorage = useCallback((images: string[], title: string) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(images));
+      localStorage.setItem(STORAGE_TITLE_KEY, title);
+    } catch (e) {
+      console.warn("Failed to save images to localStorage:", e);
+    }
+  }, []);
+
+  const loadFromLocalStorage = useCallback(() => {
+    try {
+      const savedImages = localStorage.getItem(STORAGE_KEY);
+      const savedTitle = localStorage.getItem(STORAGE_TITLE_KEY);
+      if (savedImages) {
+        const images = JSON.parse(savedImages) as string[];
+        if (images.length > 0) {
+          return { images, title: savedTitle || "" };
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load images from localStorage:", e);
+    }
+    return null;
+  }, []);
+
+  const clearLocalStorage = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_TITLE_KEY);
+    } catch (e) {
+      console.warn("Failed to clear localStorage:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    const cached = loadFromLocalStorage();
+    if (cached && cached.images.length > 0) {
+      setHasCachedImages(true);
+    }
+  }, [loadFromLocalStorage]);
+
+  const restoreCachedImages = useCallback(() => {
+    const cached = loadFromLocalStorage();
+    if (cached && cached.images.length > 0) {
+      setGeneratedImages(cached.images);
+      setCarouselTitle(cached.title);
+      setCurrentImageIndex(0);
+      setStep("preview");
+      setHasCachedImages(false);
+      toast({
+        title: "Images Restored",
+        description: `Recovered ${cached.images.length} previously generated images`,
+      });
+    }
+  }, [loadFromLocalStorage, toast]);
+
+  const downloadAllImages = useCallback((images: string[], title: string) => {
+    images.forEach((imageUrl, index) => {
+      const link = document.createElement("a");
+      link.href = imageUrl;
+      link.download = `${title || "slide"}_${index + 1}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  }, []);
 
   const generateImagesMutation = useMutation({
     mutationFn: async (messages: string[]): Promise<GenerateImagesResponse> => {
@@ -81,10 +153,16 @@ export default function CarouselCreator() {
         setCurrentImageIndex(0);
         setUsedProvider(data.provider || "");
         setStep("preview");
+        
+        saveToLocalStorage(data.imageUrls, carouselTitle);
+        setHasCachedImages(false);
+        
+        downloadAllImages(data.imageUrls, carouselTitle);
+        
         const providerName = data.provider === "gemini" ? "Gemini" : data.provider === "openai" ? "OpenAI" : data.provider === "stability" ? "Stability AI" : "AI";
         toast({
-          title: "Images Generated!",
-          description: `Created ${data.generatedCount} slides using ${providerName}`,
+          title: "Images Generated & Downloaded!",
+          description: `Created ${data.generatedCount} slides using ${providerName}. Images saved to your downloads.`,
         });
       } else {
         toast({
@@ -224,6 +302,8 @@ export default function CarouselCreator() {
     setCarouselTitle("");
     setCaption("");
     setUsedProvider("");
+    clearLocalStorage();
+    setHasCachedImages(false);
   };
 
   const navigateImage = (direction: "prev" | "next") => {
@@ -264,6 +344,34 @@ export default function CarouselCreator() {
       <CardContent className="space-y-6">
         {step === "input" && (
           <>
+            {hasCachedImages && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <RotateCcw className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                        Previously generated images found
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        You have unsaved images from a previous session
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={restoreCachedImages}
+                    className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300"
+                    data-testid="button-restore-cached"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    Restore
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="carousel-title" className="text-sm font-medium">Carousel Title</Label>
@@ -469,14 +577,25 @@ export default function CarouselCreator() {
               )}
             </div>
 
-            <div className="flex justify-between gap-3">
-              <Button 
-                variant="outline" 
-                onClick={handleReset} 
-                data-testid="button-start-over-preview"
-              >
-                Start Over
-              </Button>
+            <div className="flex justify-between gap-3 flex-wrap">
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleReset} 
+                  data-testid="button-start-over-preview"
+                >
+                  Start Over
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => downloadAllImages(generatedImages, carouselTitle)}
+                  disabled={generatedImages.length === 0}
+                  data-testid="button-download-all-images"
+                >
+                  <Download className="w-4 h-4 mr-1" />
+                  Download All
+                </Button>
+              </div>
               <Button
                 onClick={handleCreatePdf}
                 disabled={isLoading || generatedImages.length === 0}
