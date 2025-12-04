@@ -38,6 +38,10 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Fixed Apify integration - now correctly sends `username` field (not arrays) to apimaestro/linkedin-profile-posts actor
 - **Dec 4**: Added PATCH /api/user/profile-url endpoint to persist profile URL changes to Firestore
 - **Dec 4**: Added ability to edit/clear profile URL from Posts page with proper backend persistence
+- **Dec 4**: Fixed image display - added getImageUrl helper to extract URLs from Apify image objects (which can be strings or objects)
+- **Dec 4**: Redesigned Posts page with two-column layout: LinkedIn-style user card sidebar (left) and posts feed (right)
+- **Dec 4**: Simplified Posts page header - minimal inline controls, removed bulky profile URL card
+- **Dec 4**: Added user stats card showing total posts, reactions, and comments with LinkedIn profile link
 
 ## Architecture
 
