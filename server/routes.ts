@@ -570,7 +570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            "LinkedIn-Version": "202501",
+            "Linkedin-Version": "202501",
             "X-Restli-Protocol-Version": "2.0.0",
             "X-RestLi-Method": "FINDER",
           },
@@ -682,7 +682,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          "LinkedIn-Version": "202301",
+          "Linkedin-Version": "202501",
           "X-Restli-Protocol-Version": "2.0.0",
           "Content-Type": "application/json",
         },
@@ -1080,7 +1080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * API: Upload Carousel to LinkedIn
    * 
    * Uploads a PDF carousel as a document post to LinkedIn.
-   * Uses LinkedIn's document upload API for carousel-style posts.
+   * Uses LinkedIn's new Documents API (2024+) for carousel-style posts.
    */
   app.post("/api/linkedin/upload", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -1101,45 +1101,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const base64Data = pdfBase64.includes(",") ? pdfBase64.split(",")[1] : pdfBase64;
       const pdfBuffer = Buffer.from(base64Data, "base64");
 
-      const registerPayload = {
-        registerUploadRequest: {
-          recipes: ["urn:li:digitalmediaRecipe:feedshare-document"],
-          owner: authorUrn,
-          serviceRelationships: [{
-            relationshipType: "OWNER",
-            identifier: "urn:li:userGeneratedContent"
-          }]
+      const linkedInVersion = "202501";
+
+      const initializePayload = {
+        initializeUploadRequest: {
+          owner: authorUrn
         }
       };
 
-      const registerResponse = await fetch("https://api.linkedin.com/v2/assets?action=registerUpload", {
+      console.log("Initializing document upload for:", authorUrn);
+
+      const initResponse = await fetch("https://api.linkedin.com/rest/documents?action=initializeUpload", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
+          "Linkedin-Version": linkedInVersion,
+          "X-Restli-Protocol-Version": "2.0.0",
         },
-        body: JSON.stringify(registerPayload),
+        body: JSON.stringify(initializePayload),
       });
 
-      if (!registerResponse.ok) {
-        const errorText = await registerResponse.text();
-        console.error("Document registration failed:", errorText);
+      if (!initResponse.ok) {
+        const errorText = await initResponse.text();
+        console.error("Document initialization failed:", errorText);
         return res.status(500).json({ 
-          error: "Failed to register document upload",
+          error: "Failed to initialize document upload",
           details: errorText 
         });
       }
 
-      const registerData = await registerResponse.json();
-      const uploadUrl = registerData.value.uploadMechanism["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"].uploadUrl;
-      const asset = registerData.value.asset;
+      const initData = await initResponse.json();
+      console.log("Document initialized:", JSON.stringify(initData, null, 2));
+      
+      const uploadUrl = initData.value.uploadUrl;
+      const documentUrn = initData.value.document;
+
+      console.log("Uploading document to:", uploadUrl);
 
       const uploadResponse = await fetch(uploadUrl, {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/pdf",
-        },
         body: pdfBuffer,
       });
 
@@ -1152,44 +1153,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      let localeData = { country: "US", language: "en" };
-      if (typeof profile.locale === 'object' && profile.locale !== null) {
-        localeData = {
-          country: profile.locale.country || "US",
-          language: profile.locale.language || "en",
-        };
+      console.log("Document uploaded successfully, waiting for processing...");
+
+      const waitForDocument = async (urn: string, maxAttempts = 10): Promise<boolean> => {
+        for (let i = 0; i < maxAttempts; i++) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const statusResponse = await fetch(`https://api.linkedin.com/rest/documents/${encodeURIComponent(urn)}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Linkedin-Version": linkedInVersion,
+              "X-Restli-Protocol-Version": "2.0.0",
+            },
+          });
+
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log(`Document status (attempt ${i + 1}):`, statusData.status);
+            if (statusData.status === "AVAILABLE") {
+              return true;
+            }
+            if (statusData.status === "PROCESSING_FAILED") {
+              return false;
+            }
+          }
+        }
+        return false;
+      };
+
+      const isReady = await waitForDocument(documentUrn);
+      if (!isReady) {
+        console.warn("Document may still be processing, attempting to create post anyway...");
       }
 
       const postPayload = {
         author: authorUrn,
+        commentary: caption || "Check out my new carousel!",
+        visibility: "PUBLIC",
+        distribution: {
+          feedDistribution: "MAIN_FEED",
+          targetEntities: [],
+          thirdPartyDistributionChannels: []
+        },
+        content: {
+          media: {
+            title: title || "LinkedIn Carousel",
+            id: documentUrn
+          }
+        },
         lifecycleState: "PUBLISHED",
-        specificContent: {
-          "com.linkedin.ugc.ShareContent": {
-            shareCommentary: {
-              text: caption || "Check out my new carousel!",
-              locale: localeData,
-            },
-            shareMediaCategory: "DOCUMENT",
-            media: [{
-              status: "READY",
-              media: asset,
-              title: {
-                text: title || "LinkedIn Carousel",
-                locale: localeData,
-              },
-            }],
-          },
-        },
-        visibility: {
-          "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
-        },
+        isReshareDisabledByAuthor: false
       };
 
-      const shareResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+      console.log("Creating post with document:", documentUrn);
+
+      const shareResponse = await fetch("https://api.linkedin.com/rest/posts", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
+          "Linkedin-Version": linkedInVersion,
           "X-Restli-Protocol-Version": "2.0.0",
         },
         body: JSON.stringify(postPayload),
@@ -1207,7 +1231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const shareData = await shareResponse.json();
       res.json({ 
         success: true, 
-        postId: shareData.id,
+        postId: shareData.id || shareData.urn,
         message: "Carousel posted successfully to LinkedIn" 
       });
     } catch (error: any) {
