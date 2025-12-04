@@ -879,36 +879,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const errors: string[] = [];
 
       if (selectedProvider === "gemini") {
-        const { GoogleGenAI, Modality } = await import("@google/genai");
+        const { GoogleGenAI } = await import("@google/genai");
         const ai = new GoogleGenAI({ apiKey: geminiApiKey! });
 
         for (let i = 0; i < messages.length; i++) {
           try {
             const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients. The image should be square format.`;
             
-            const response = await ai.models.generateContent({
-              model: "gemini-2.0-flash-preview-image-generation",
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            const response = await ai.models.generateImages({
+              model: "imagen-3.0-generate-002",
+              prompt: prompt,
               config: {
-                responseModalities: [Modality.TEXT, Modality.IMAGE],
+                numberOfImages: 1,
+                aspectRatio: "1:1",
+                outputMimeType: "image/png",
               },
             });
 
-            const candidates = response.candidates;
-            if (candidates && candidates.length > 0) {
-              const content = candidates[0].content;
-              if (content && content.parts) {
-                for (const part of content.parts) {
-                  if (part.inlineData && part.inlineData.data) {
-                    const base64Image = `data:image/png;base64,${part.inlineData.data}`;
-                    imageUrls.push(base64Image);
-                    break;
-                  }
-                }
-              }
+            if ((response as any)?.raiFilteredReason) {
+              console.warn(`Content filtered for slide ${i + 1}: ${(response as any).raiFilteredReason}`);
+              errors.push(`Slide ${i + 1}: Content was filtered by safety policies`);
+              continue;
+            }
+
+            const generatedImages = response?.generatedImages;
+            if (!generatedImages || generatedImages.length === 0) {
+              errors.push(`Slide ${i + 1}: No image generated`);
+              continue;
+            }
+
+            const generatedImage = generatedImages[0];
+            const imageObj = generatedImage?.image as any;
+            const imageData = imageObj?.imageBytes || imageObj?.data;
+            
+            if (imageData) {
+              const base64Image = `data:image/png;base64,${imageData}`;
+              imageUrls.push(base64Image);
+            } else {
+              errors.push(`Slide ${i + 1}: Image data not available`);
             }
           } catch (imgError: any) {
-            console.error(`Gemini image generation failed for message ${i + 1}:`, imgError);
+            console.error(`Gemini/Imagen image generation failed for message ${i + 1}:`, imgError);
             errors.push(`Slide ${i + 1}: ${imgError.message}`);
           }
         }
