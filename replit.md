@@ -25,6 +25,7 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Fixed profile URL issue - added dialog for users to enter their LinkedIn profile URL (Apify needs public URL, not OpenID sub)
 - **Dec 4**: Reverted Apify integration to use Task API with APIFY_TASK_ID for user's pre-configured scraper
 - **Dec 4**: Redesigned Posts page with LinkedIn-style cards (profile picture, author info, reaction icons, engagement stats)
+- **Dec 4**: Fixed repost functionality to properly extract and use LinkedIn URNs (activity_urn, share_urn, ugcPost_urn) instead of URLs
 
 ## Architecture
 
