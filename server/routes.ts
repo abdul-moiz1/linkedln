@@ -642,6 +642,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * API: Fetch LinkedIn Posts via Apify Scraper
+   * 
+   * Uses Apify's LinkedIn Post Scraper to fetch the user's LinkedIn posts
+   * with engagement data (likes, comments, impressions).
+   * 
+   * This is an alternative to the LinkedIn API that provides more comprehensive
+   * post data including views/impressions which LinkedIn API doesn't provide
+   * for personal accounts.
+   */
+  app.post("/api/posts/fetch", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const APIFY_TASK_ID = process.env.APIFY_TASK_ID;
+    const APIFY_TOKEN = process.env.APIFY_TOKEN;
+
+    if (!APIFY_TASK_ID || !APIFY_TOKEN) {
+      return res.status(503).json({ 
+        error: "Apify integration not configured",
+        message: "Please configure APIFY_TASK_ID and APIFY_TOKEN in your environment secrets"
+      });
+    }
+
+    try {
+      const { profileUrl } = req.body;
+
+      if (!profileUrl) {
+        return res.status(400).json({ error: "Profile URL is required" });
+      }
+
+      // Call Apify Task to scrape LinkedIn posts
+      const apifyResponse = await fetch(
+        `https://api.apify.com/v2/actor-tasks/${APIFY_TASK_ID}/run-sync?token=${APIFY_TOKEN}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            startUrls: [{ url: profileUrl }]
+          }),
+        }
+      );
+
+      if (!apifyResponse.ok) {
+        const errorText = await apifyResponse.text();
+        console.error("Apify request failed:", errorText);
+        return res.status(apifyResponse.status).json({ 
+          error: "Failed to fetch posts from Apify",
+          details: errorText 
+        });
+      }
+
+      const apifyData = await apifyResponse.json();
+      
+      // Normalize each post into our structure
+      const normalizedPosts = (apifyData || []).map((post: any) => ({
+        id: post.url || post.id || Math.random().toString(36),
+        text: post.text || post.content || "",
+        image: post.media?.[0] || post.imageUrl || null,
+        url: post.url || post.postUrl || "",
+        createdAt: post.publishedAt ? new Date(post.publishedAt).getTime() : Date.now(),
+        likes: post.likes || post.numLikes || 0,
+        comments: post.comments || post.numComments || 0,
+        impressions: post.impressions || post.views || 0,
+      }));
+
+      res.json({
+        success: true,
+        posts: normalizedPosts
+      });
+    } catch (error: any) {
+      console.error("Apify fetch error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch posts via Apify" });
+    }
+  });
+
+  /**
    * API: Repost (Reshare) a LinkedIn Post
    * 
    * Creates a reshare of an existing LinkedIn post.

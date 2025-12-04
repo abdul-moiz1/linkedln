@@ -10,7 +10,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { SiLinkedin } from "react-icons/si";
-import { Copy, Send, Check, Loader2, List, Calendar, User2, Mail, Globe, Shield, Image as ImageIcon, Video, X } from "lucide-react";
+import { Copy, Send, Check, Loader2, List, Calendar, User2, Mail, Globe, Shield, Image as ImageIcon, Video, X, ChevronDown, Smile, Plus, Clock } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { SessionUser, CreatePost } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import CarouselCreator from "@/components/CarouselCreator";
@@ -28,6 +29,7 @@ export default function Profile() {
   const [postText, setPostText] = useState("");
   const [copied, setCopied] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [visibility, setVisibility] = useState<"anyone" | "connections">("anyone");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: user, isLoading } = useQuery<SessionUser>({
@@ -268,34 +270,77 @@ export default function Profile() {
         {/* AI Carousel Creator */}
         <CarouselCreator />
 
-        {/* Simple Post Creation */}
-        <Card data-testid="card-post-creation" className="border-slate-200">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
-                <Send className="w-5 h-5 text-blue-600" />
+        {/* LinkedIn-Style Post Creation */}
+        <Card data-testid="card-post-creation" className="border-slate-200 shadow-sm">
+          <CardContent className="p-0">
+            {/* Header with Avatar and Visibility */}
+            <div className="flex items-start justify-between p-4 pb-0">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-12 h-12 border-2 border-slate-100">
+                  <AvatarImage src={profile.picture} alt={profile.name || "User"} />
+                  <AvatarFallback className="text-sm font-semibold bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold text-slate-900" data-testid="text-post-author">
+                    {profile.name || "LinkedIn User"}
+                  </h3>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-auto p-0 text-sm text-slate-600 font-normal gap-1"
+                        data-testid="button-visibility-dropdown"
+                      >
+                        {visibility === "anyone" ? "Post to Anyone" : "Connections only"}
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => setVisibility("anyone")} data-testid="menu-item-anyone">
+                        <Globe className="w-4 h-4 mr-2" />
+                        Anyone
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setVisibility("connections")} data-testid="menu-item-connections">
+                        <User2 className="w-4 h-4 mr-2" />
+                        Connections only
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-lg">Share on LinkedIn</CardTitle>
-                <CardDescription className="text-slate-500">
-                  Create and publish a text post directly to your profile
-                </CardDescription>
-              </div>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="text-slate-400"
+                onClick={() => {
+                  setPostText("");
+                  setMediaFiles([]);
+                }}
+                data-testid="button-clear-post"
+              >
+                <X className="w-5 h-5" />
+              </Button>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
+
+            {/* Text Area */}
+            <div className="px-4 py-3">
               <Textarea
                 id="post-content"
-                placeholder="Share your thoughts, insights, or updates with your network..."
+                placeholder="Share your thoughts..."
                 value={postText}
                 onChange={(e) => setPostText(e.target.value)}
-                className="min-h-32 resize-none border-slate-200 focus:border-blue-300"
+                className="min-h-[180px] resize-none border-0 text-base focus-visible:ring-0 placeholder:text-slate-400"
                 maxLength={3000}
                 data-testid="input-post-content"
               />
-              
-              {mediaFiles.length > 0 && (
+            </div>
+
+            {/* Media Preview */}
+            {mediaFiles.length > 0 && (
+              <div className="px-4 pb-3">
                 <div className="grid grid-cols-2 gap-3">
                   {mediaFiles.map((media, index) => (
                     <div key={index} className="relative rounded-lg overflow-hidden border border-slate-200">
@@ -313,7 +358,7 @@ export default function Profile() {
                       <Button
                         variant="destructive"
                         size="icon"
-                        className="absolute top-2 right-2 h-7 w-7"
+                        className="absolute top-2 right-2"
                         onClick={() => removeMedia(index)}
                         data-testid={`button-remove-media-${index}`}
                       >
@@ -325,9 +370,24 @@ export default function Profile() {
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              <div className="flex flex-wrap items-center gap-2">
+            {/* Bottom Toolbar */}
+            <div className="border-t border-slate-100">
+              {/* First Row: Emoji and Character Count */}
+              <div className="flex items-center gap-2 px-4 py-2">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="text-slate-500"
+                  data-testid="button-emoji"
+                >
+                  <Smile className="w-5 h-5" />
+                </Button>
+                <span className="text-sm text-slate-400" data-testid="text-char-count">
+                  {postText.length}/3000
+                </span>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -336,52 +396,51 @@ export default function Profile() {
                   className="hidden"
                   data-testid="input-file-upload"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="text-slate-500"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={mediaFiles.length >= 4}
-                  className="border-slate-200"
                   data-testid="button-add-image"
                 >
-                  <ImageIcon className="w-4 h-4 mr-2" />
-                  Add Image
+                  <ImageIcon className="w-5 h-5" />
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={mediaFiles.length >= 1}
-                  className="border-slate-200"
-                  data-testid="button-add-video"
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="text-slate-500"
+                  disabled={mediaFiles.length >= 4}
+                  data-testid="button-add-more"
                 >
-                  <Video className="w-4 h-4 mr-2" />
-                  Add Video
+                  <Plus className="w-5 h-5" />
                 </Button>
               </div>
 
-              <div className="flex flex-wrap justify-between items-center gap-2">
-                <p className="text-xs text-slate-500">
-                  {postText.length} / 3,000 characters
-                </p>
+              {/* Second Row: Schedule and Post Button */}
+              <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-slate-100">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="text-slate-500"
+                  onClick={() => navigate("/scheduled")}
+                  data-testid="button-schedule"
+                >
+                  <Clock className="w-5 h-5" />
+                </Button>
                 <Button
                   onClick={handleCreatePost}
                   disabled={createPostMutation.isPending || !postText.trim()}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  className="rounded-full px-6 bg-blue-600 hover:bg-blue-700"
                   data-testid="button-submit-post"
                 >
                   {createPostMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Publishing...
+                      Posting...
                     </>
                   ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      Publish Post
-                    </>
+                    "Post"
                   )}
                 </Button>
               </div>
