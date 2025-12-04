@@ -35,6 +35,9 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Added Firestore caching for LinkedIn posts (24-hour TTL) to reduce Apify scraping calls
 - **Dec 4**: Fixed Apify input format to include profileUrls/startUrls/urls/profiles for maximum actor compatibility
 - **Dec 4**: Added /api/posts/clear-cache endpoint and forceRefresh parameter to bypass cache
+- **Dec 4**: Fixed Apify integration - now correctly sends `username` field (not arrays) to apimaestro/linkedin-profile-posts actor
+- **Dec 4**: Added PATCH /api/user/profile-url endpoint to persist profile URL changes to Firestore
+- **Dec 4**: Added ability to edit/clear profile URL from Posts page with proper backend persistence
 
 ## Architecture
 
@@ -49,7 +52,8 @@ A professional SaaS application that allows users to create AI-generated LinkedI
   - `GET /auth/linkedin` - Initiates authorization flow
   - `GET /auth/linkedin/callback` - Handles callback, exchanges code for token
 - **API Routes**:
-  - `GET /api/user` - Returns current user session data
+  - `GET /api/user` - Returns current user session data (includes profileUrl from Firestore)
+  - `PATCH /api/user/profile-url` - Updates or clears user's LinkedIn profile URL in Firestore
   - `POST /api/logout` - Destroys user session
   - `POST /api/share` - Creates LinkedIn post
   - `POST /api/images/generate` - Generates AI images using Gemini, Stability AI, or OpenAI
@@ -58,7 +62,7 @@ A professional SaaS application that allows users to create AI-generated LinkedI
   - `POST /api/project/save` - Saves project drafts
   - `GET /api/projects` - Gets user projects
   - `GET /api/project/:projectId` - Gets single project
-  - `POST /api/posts/fetch` - Fetches LinkedIn posts via Apify scraper (with Firestore caching)
+  - `POST /api/posts/fetch` - Fetches LinkedIn posts via Apify scraper (sends `username` field)
   - `POST /api/posts/clear-cache` - Clears cached posts for the user
 - **Session Management**: Express-session with in-memory storage
 
