@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ThumbsUp, MessageSquare, Repeat2, ExternalLink, RefreshCw, Loader2, Heart, Lightbulb, PartyPopper, Laugh, HandHeart, ArrowLeft, Link } from "lucide-react";
+import { ThumbsUp, MessageSquare, Repeat2, ExternalLink, RefreshCw, Loader2, Heart, Lightbulb, PartyPopper, Laugh, HandHeart, ArrowLeft, Link, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { SessionUser } from "@shared/schema";
 
@@ -89,10 +89,12 @@ export default function PostsPage() {
   
   const [posts, setPosts] = useState<ApifyPost[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRescraping, setIsRescraping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
   const [profileUrl, setProfileUrl] = useState("");
   const [profileUrlInput, setProfileUrlInput] = useState("");
+  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
 
   const { data: user, isLoading: userLoading } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
@@ -106,8 +108,12 @@ export default function PostsPage() {
     }
   }, [user]);
 
-  const fetchPosts = async (url?: string) => {
-    setIsLoading(true);
+  const fetchPosts = async (url?: string, forceRefresh: boolean = false) => {
+    if (forceRefresh) {
+      setIsRescraping(true);
+    } else {
+      setIsLoading(true);
+    }
     setError(null);
     
     try {
@@ -121,6 +127,7 @@ export default function PostsPage() {
         body: JSON.stringify({
           userId,
           profileUrl: urlToUse,
+          forceRefresh,
         }),
       });
       
@@ -129,6 +136,7 @@ export default function PostsPage() {
       if (data.success) {
         setPosts(data.posts);
         setHasFetched(true);
+        setExpandedPosts(new Set()); // Clear expanded state when posts change
         
         // Check if there's a warning (e.g., zero posts due to possible config mismatch)
         if (data.warning) {
@@ -139,10 +147,10 @@ export default function PostsPage() {
           });
         } else {
           toast({
-            title: "Posts loaded",
-            description: data.fromCache 
+            title: forceRefresh ? "Posts re-scraped" : "Posts loaded",
+            description: data.cached 
               ? `Loaded ${data.posts.length} posts from cache` 
-              : `Fetched ${data.posts.length} new posts`,
+              : `Fetched ${data.posts.length} fresh posts from LinkedIn`,
           });
         }
       } else {
@@ -162,7 +170,20 @@ export default function PostsPage() {
       });
     } finally {
       setIsLoading(false);
+      setIsRescraping(false);
     }
+  };
+
+  const togglePostExpanded = (postId: string) => {
+    setExpandedPosts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
   };
 
   const handleSaveProfileUrl = () => {
@@ -370,15 +391,30 @@ export default function PostsPage() {
                   </SelectContent>
                 </Select>
                 <Button 
-                  onClick={() => fetchPosts()} 
-                  disabled={isLoading || !profileUrl}
+                  onClick={() => fetchPosts(undefined, false)} 
+                  disabled={isLoading || isRescraping || !profileUrl}
                   size="sm"
-                  data-testid="button-fetch-posts"
+                  variant="outline"
+                  title="Refresh from cache"
+                  data-testid="button-refresh-cache"
                 >
                   {isLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <RefreshCw className="w-4 h-4" />
+                  )}
+                </Button>
+                <Button 
+                  onClick={() => fetchPosts(undefined, true)} 
+                  disabled={isLoading || isRescraping || !profileUrl}
+                  size="sm"
+                  title="Re-scrape from LinkedIn"
+                  data-testid="button-rescrape"
+                >
+                  {isRescraping ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
                   )}
                 </Button>
               </div>
@@ -592,14 +628,41 @@ export default function PostsPage() {
                     </div>
                   </div>
 
-                  {post.text && (
-                    <p className="text-sm whitespace-pre-wrap" data-testid={`text-post-content-${index}`}>
-                      {post.text.length > 300 
-                        ? `${post.text.slice(0, 300)}...` 
-                        : post.text
-                      }
-                    </p>
-                  )}
+                  {post.text && (() => {
+                    const postKey = post.id || `post-${index}`;
+                    const isExpanded = expandedPosts.has(postKey);
+                    const isLongText = post.text.length > 300;
+                    
+                    return (
+                      <div className="space-y-1" data-testid={`text-post-content-${index}`}>
+                        <p className="text-sm whitespace-pre-wrap">
+                          {isLongText && !isExpanded
+                            ? post.text.slice(0, 300)
+                            : post.text
+                          }
+                        </p>
+                        {isLongText && (
+                          <button
+                            onClick={() => togglePostExpanded(postKey)}
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                            data-testid={`button-expand-post-${index}`}
+                          >
+                            {isExpanded ? (
+                              <>
+                                <ChevronUp className="w-4 h-4" />
+                                Show less
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-4 h-4" />
+                                ...see more
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {post.resharedPost && (
                     <div className="border rounded-lg p-3 bg-muted/50 space-y-2">
