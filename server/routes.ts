@@ -266,15 +266,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let profileUrl: string | undefined;
     try {
       const { getUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      const userId = req.session.user.profile.sub;
+      console.log(`Fetching user data from Firestore for ${userId}, Firebase configured: ${isFirebaseConfigured}`);
       if (isFirebaseConfigured) {
-        const userId = req.session.user.profile.sub;
         const userData = await getUser(userId);
+        console.log(`Firestore user data:`, userData ? JSON.stringify(userData) : 'not found');
         if (userData && (userData as any).profileUrl) {
           profileUrl = (userData as any).profileUrl;
+          console.log(`Found stored profileUrl: ${profileUrl}`);
         }
       }
     } catch (firestoreError) {
-      console.warn("Failed to fetch user from Firestore:", firestoreError);
+      console.error("Failed to fetch user from Firestore:", firestoreError);
     }
 
     res.json({
@@ -695,20 +698,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (userId && profileUrl) {
       try {
         const { updateUserProfileUrl, isFirebaseConfigured } = await import("./lib/firebase-admin");
+        console.log(`Firebase configured: ${isFirebaseConfigured}, attempting to save profileUrl for user: ${userId}`);
         if (isFirebaseConfigured) {
           await updateUserProfileUrl(userId, profileUrl);
-          console.log(`Updated profile URL for user ${userId}: ${profileUrl}`);
+          console.log(`Successfully saved profile URL for user ${userId}: ${profileUrl}`);
+        } else {
+          console.warn("Firebase is not configured - profile URL will not be persisted");
         }
       } catch (firestoreError) {
-        console.warn("Failed to save profile URL to Firestore:", firestoreError);
+        console.error("Failed to save profile URL to Firestore:", firestoreError);
         // Continue even if Firestore save fails
       }
+    } else {
+      console.log(`Skipping profile URL save - userId: ${userId}, profileUrl: ${profileUrl ? 'provided' : 'missing'}`);
     }
 
     try {
       console.log(`Running Apify task: ${APIFY_TASK_ID}${profileUrl ? ` for profile: ${profileUrl}` : ''}`);
       
-      // Run the pre-configured Apify Task
+      // Build input override if profileUrl is provided
+      // This overrides the task's default input with the user-provided profile URL
+      // Include multiple common input formats for compatibility with different LinkedIn scrapers
+      const inputOverride = profileUrl ? {
+        startUrls: [{ url: profileUrl }],
+        profileUrls: [profileUrl],
+        profiles: [profileUrl],
+        urls: [profileUrl],
+      } : undefined;
+      
+      if (inputOverride) {
+        console.log("Apify input override:", JSON.stringify(inputOverride));
+      }
+      
+      // Run the pre-configured Apify Task with optional input override
       const apifyResponse = await fetch(
         `https://api.apify.com/v2/actor-tasks/${APIFY_TASK_ID}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
         {
@@ -716,6 +738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           headers: {
             "Content-Type": "application/json",
           },
+          body: inputOverride ? JSON.stringify(inputOverride) : undefined,
         }
       );
 
@@ -740,6 +763,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const apifyData = await apifyResponse.json();
       
       console.log(`Received ${apifyData?.length || 0} posts from Apify`);
+      
+      // Sanity check: if we provided a profileUrl but got zero posts, 
+      // the input override might not match the actor's expected schema
+      if (profileUrl && (!apifyData || apifyData.length === 0)) {
+        console.warn(`Warning: Zero posts returned despite providing profileUrl: ${profileUrl}`);
+        console.warn("This may indicate the Apify task input format doesn't match the override.");
+        console.warn("Check your Apify task configuration to ensure it accepts startUrls, profileUrls, profiles, or urls input.");
+        
+        // Return an actionable error to the user
+        return res.status(200).json({
+          success: true,
+          posts: [],
+          warning: "No posts found for the provided profile URL. This could mean: (1) the profile has no public posts, (2) the profile URL is incorrect, or (3) the Apify task configuration may need to be updated to use the provided URL. Please verify the profile URL and try again."
+        });
+      }
       
       // Normalize each post to match actual Apify response structure
       const normalizedPosts = (apifyData || []).map((post: any) => {

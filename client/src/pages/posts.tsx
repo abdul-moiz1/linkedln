@@ -113,12 +113,22 @@ export default function PostsPage() {
       if (data.success) {
         setPosts(data.posts);
         setHasFetched(true);
-        toast({
-          title: "Posts loaded",
-          description: data.fromCache 
-            ? `Loaded ${data.posts.length} posts from cache` 
-            : `Fetched ${data.posts.length} new posts`,
-        });
+        
+        // Check if there's a warning (e.g., zero posts due to possible config mismatch)
+        if (data.warning) {
+          toast({
+            variant: "destructive",
+            title: "Warning",
+            description: data.warning,
+          });
+        } else {
+          toast({
+            title: "Posts loaded",
+            description: data.fromCache 
+              ? `Loaded ${data.posts.length} posts from cache` 
+              : `Fetched ${data.posts.length} new posts`,
+          });
+        }
       } else {
         setError(data.error || data.message || "Failed to fetch posts");
         toast({
