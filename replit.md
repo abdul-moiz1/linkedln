@@ -42,6 +42,9 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Redesigned Posts page with two-column layout: LinkedIn-style user card sidebar (left) and posts feed (right)
 - **Dec 4**: Simplified Posts page header - minimal inline controls, removed bulky profile URL card
 - **Dec 4**: Added user stats card showing total posts, reactions, and comments with LinkedIn profile link
+- **Dec 4**: Added expandable post text with "...see more" / "Show less" toggle for long posts (>300 chars)
+- **Dec 4**: Split refresh into two buttons: Cache Refresh (quick, from Firebase) and Re-scrape (full Apify scrape)
+- **Dec 4**: Clear expanded post state when posts are refreshed
 
 ## Architecture
 
