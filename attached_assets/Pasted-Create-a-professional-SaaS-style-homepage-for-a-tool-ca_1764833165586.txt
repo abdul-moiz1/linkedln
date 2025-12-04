@@ -1,0 +1,186 @@
+Create a professional SaaS-style homepage for a tool called LinkedIn Carousel Maker.
+This project uses React + Tailwind on the front-end, and Node.js with Firestore (Firebase) as the ONLY database.
+Do not use MongoDB, Prisma, SQL, or local files.
+
+This tool allows users to:
+
+Enter 4–5 short text inputs
+
+Generate AI images using the OpenAI API
+
+Convert those images into a multi-page PDF
+
+Preview the PDF
+
+Log in with LinkedIn OAuth
+
+Upload the PDF as a carousel to LinkedIn
+
+Store user and project data in Firestore only
+
+🏠 Homepage Requirements
+1. Header
+
+Logo placeholder on the left
+
+Menu: Home | How It Works | Pricing | Login
+
+Modern, clean navbar with subtle shadow
+
+2. Hero Section
+
+Large title: Create LinkedIn Carousels in Minutes
+
+Subtitle:
+“Turn your ideas into AI-generated images and post them to LinkedIn with one click.”
+
+Buttons:
+
+Start Creating
+
+Sign in with LinkedIn (LinkedIn blue, includes icon)
+
+Add a soft gradient or abstract illustration behind the hero text
+
+3. “How It Works” Section
+
+Four steps with icons:
+
+User writes 4–5 messages
+
+AI generates images
+
+Images convert into a PDF carousel
+
+User uploads directly to LinkedIn
+
+4. Features Grid
+
+Four cards with clean icons:
+
+AI image generation
+
+PDF carousel builder
+
+One-click LinkedIn upload
+
+Draft saving with Firestore
+
+Cards must have rounded corners, soft borders, and hover effects.
+
+5. LinkedIn Login Callout
+
+A centered info block explaining:
+“Connect your LinkedIn account securely to publish carousels directly.”
+
+Show the LinkedIn login button again.
+
+6. Footer
+
+Minimal footer with:
+
+Copyright
+
+Privacy Policy
+
+Terms
+
+Contact
+
+🎨 Styling Requirements
+
+Use Tailwind
+
+Modern and clean
+
+No demo-like UI
+
+Use spacing well
+
+Crisp layout
+
+Responsive
+
+No heavy animations
+
+Use Inter or Poppins font
+
+⚙ Technical Requirements
+Frontend
+
+React + Tailwind
+
+Provide full JSX page code
+
+Include placeholder functions:
+
+handleGenerateImages()
+
+handleCreatePdf()
+
+handleLinkedInLogin()
+
+handleUploadToLinkedIn()
+
+Backend (Node.js)
+
+Create files with placeholder implementations:
+
+/api/auth/linkedin → LinkedIn OAuth start + callback
+
+/api/auth/saveTokens → Save LinkedIn tokens to Firestore
+
+/api/images/generate → OpenAI image generation
+
+/api/pdf/create → Create PDF from image URLs
+
+/api/linkedin/upload → Upload PDF to LinkedIn
+
+/api/project/save → Save user drafts to Firestore
+
+Firestore
+
+Use Firestore as the ONLY storage.
+Create Firestore collections:
+
+users
+
+projects
+
+sessions
+
+Provide sample Firestore utility:
+
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+
+export const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+
+
+No other DBs. No local JSON files.
+
+Environment Variables
+
+Use:
+
+OPENAI_API_KEY
+LINKEDIN_CLIENT_ID
+LINKEDIN_CLIENT_SECRET
+FIREBASE_PRIVATE_KEY
+FIREBASE_PROJECT_ID
+FIREBASE_CLIENT_EMAIL
+
+Output Requirements
+
+Provide complete React homepage page component
+
+Provide all Tailwind classes
+
+Provide Node.js backend folder structure
+
+Provide sample Firestore helper code
+
+Provide LinkedIn OAuth route placeholders
+
+Provide dummy API handlers (formatted, ready to fill)
