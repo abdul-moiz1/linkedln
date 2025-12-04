@@ -68,4 +68,6 @@ integrations = ["javascript_openai:1.0.0"]
 [userenv]
 
 [userenv.development]
-BASE_URL = "https://04999146-b1ae-47ed-8bb9-c08ff534647c-00-n5fc27xdgstp.spock.replit.dev"
+
+[userenv.shared]
+BASE_URL = "https://8c8b2a37-162d-4c09-9684-46f1373b3a28-00-3tsjxi04trqca.janeway.replit.dev"
