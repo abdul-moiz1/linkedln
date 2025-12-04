@@ -1,0 +1,164 @@
+Update my project so AI image generation works correctly with Google Gemini.
+The current implementation is failing because it calls the deprecated or unavailable model models/imagen-3.0-generate-002.
+Remove all Imagen model references and replace them with the correct Gemini image generation endpoint using gemini-2.0-flash.
+
+1. BACKEND UPDATES
+
+Create or update the backend route at:
+
+/api/images/generate.js
+(or the existing route in my project that handles image creation)
+
+The route must:
+
+Accept POST body:
+
+{ "slides": ["text1", "text2", ...] }
+
+
+Use the correct Gemini API endpoint:
+
+https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateImage
+
+
+Use request body format required by Gemini:
+
+{
+  "prompt": {
+    "text": "<slide text>"
+  }
+}
+
+
+Loop through all slide messages, generate one image per slide
+
+Extract base64 from:
+json.candidates[0].image.base64
+
+Return:
+
+{
+  "success": true,
+  "images": ["base64img1", "base64img2"]
+}
+
+
+Add clean error handling
+
+Backend Code (Replit should implement THIS)
+import express from "express";
+import fetch from "node-fetch";
+
+const router = express.Router();
+
+router.post("/generate", async (req, res) => {
+  try {
+    const { slides } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!slides || slides.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Slides array is required"
+      });
+    }
+
+    const images = [];
+
+    for (const text of slides) {
+      const url =
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateImage?key=" +
+        apiKey;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: { text }
+        }),
+      });
+
+      const json = await response.json();
+
+      if (!json.candidates?.[0]?.image?.base64) {
+        console.error("Gemini error:", json);
+        throw new Error("Image generation failed for: " + text);
+      }
+
+      images.push(json.candidates[0].image.base64);
+    }
+
+    res.json({ success: true, images });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+export default router;
+
+2. FRONTEND UPDATES
+
+Update the frontend to call this new working route:
+
+Replace old API call with this:
+const generateImages = async (slides) => {
+  const response = await fetch("/api/images/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ slides }),
+  });
+
+  const data = await response.json();
+  return data;
+};
+
+
+If any frontend code references:
+
+imagen
+
+models/imagen-3.0-generate
+
+predict
+
+v1beta1
+
+→ Remove it completely.
+
+3. REMOVE ALL OLD IMAGE CODE
+
+Delete or replace:
+
+❌ imagen-3.0-generate-002
+❌ generateImage using incorrect payload
+❌ Any call to predict API for images
+❌ Any model ID beginning with models/imagen-
+
+4. VALIDATION
+
+After the update, when the user enters slide text and clicks Generate Images:
+
+The backend should call Gemini and return base64 images
+
+The frontend should receive them
+
+No 404 errors
+
+No “model not found” errors
+
+No “predict unsupported” messages
+
+5. DO NOT CHANGE ANYTHING ELSE
+
+Keep:
+
+Firestore integration
+
+LinkedIn OAuth
+
+PDF creation logic
+
+UI components
+
+Only update the image generation system.

@@ -879,47 +879,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const errors: string[] = [];
 
       if (selectedProvider === "gemini") {
-        const { GoogleGenAI } = await import("@google/genai");
-        const ai = new GoogleGenAI({ apiKey: geminiApiKey! });
-
         for (let i = 0; i < messages.length; i++) {
           try {
             const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients. The image should be square format.`;
             
-            const response = await ai.models.generateImages({
-              model: "imagen-3.0-generate-002",
-              prompt: prompt,
-              config: {
-                numberOfImages: 1,
-                aspectRatio: "1:1",
-                outputMimeType: "image/png",
-              },
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
+            
+            const response = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                  responseModalities: ["TEXT", "IMAGE"]
+                }
+              }),
             });
 
-            if ((response as any)?.raiFilteredReason) {
-              console.warn(`Content filtered for slide ${i + 1}: ${(response as any).raiFilteredReason}`);
-              errors.push(`Slide ${i + 1}: Content was filtered by safety policies`);
+            const json = await response.json() as any;
+
+            if (json.error) {
+              console.error(`Gemini API error for slide ${i + 1}:`, json.error);
+              errors.push(`Slide ${i + 1}: ${json.error.message || 'API error'}`);
               continue;
             }
 
-            const generatedImages = response?.generatedImages;
-            if (!generatedImages || generatedImages.length === 0) {
-              errors.push(`Slide ${i + 1}: No image generated`);
+            const candidate = json.candidates?.[0];
+            if (!candidate) {
+              errors.push(`Slide ${i + 1}: No response from Gemini`);
               continue;
             }
 
-            const generatedImage = generatedImages[0];
-            const imageObj = generatedImage?.image as any;
-            const imageData = imageObj?.imageBytes || imageObj?.data;
-            
-            if (imageData) {
-              const base64Image = `data:image/png;base64,${imageData}`;
+            const imagePart = candidate.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+            if (imagePart?.inlineData?.data) {
+              const mimeType = imagePart.inlineData.mimeType || 'image/png';
+              const base64Image = `data:${mimeType};base64,${imagePart.inlineData.data}`;
               imageUrls.push(base64Image);
             } else {
-              errors.push(`Slide ${i + 1}: Image data not available`);
+              errors.push(`Slide ${i + 1}: No image in response`);
             }
           } catch (imgError: any) {
-            console.error(`Gemini/Imagen image generation failed for message ${i + 1}:`, imgError);
+            console.error(`Gemini image generation failed for message ${i + 1}:`, imgError);
             errors.push(`Slide ${i + 1}: ${imgError.message}`);
           }
         }
