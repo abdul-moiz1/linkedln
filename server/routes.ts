@@ -642,13 +642,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * API: Fetch LinkedIn Posts via Apify Scraper
+   * API: Fetch LinkedIn Posts via Apify Task
    * 
-   * Uses Apify's LinkedIn Post Scraper Actor directly to fetch the user's LinkedIn posts
-   * with engagement data (likes, comments, impressions).
+   * Uses the configured Apify Task to fetch LinkedIn posts with engagement data.
+   * Requires APIFY_TOKEN and APIFY_TASK_ID to be configured.
    * 
-   * Only requires APIFY_TOKEN - no task configuration needed.
-   * Uses the Actor API directly: curious_coder~linkedin-post-search
+   * Returns posts with author info, stats, and images in LinkedIn-compatible format.
    */
   app.post("/api/posts/fetch", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -656,39 +655,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const APIFY_TOKEN = process.env.APIFY_TOKEN;
+    const APIFY_TASK_ID = process.env.APIFY_TASK_ID;
 
-    if (!APIFY_TOKEN) {
+    if (!APIFY_TOKEN || !APIFY_TASK_ID) {
       return res.status(503).json({ 
         error: "Apify integration not configured",
-        message: "Please configure APIFY_TOKEN in your environment secrets"
+        message: "Please configure APIFY_TOKEN and APIFY_TASK_ID in your environment secrets"
       });
     }
 
     try {
-      const { profileUrl } = req.body;
-
-      if (!profileUrl) {
-        return res.status(400).json({ error: "Profile URL is required" });
-      }
-
-      // Use Apify Actor API directly (no task needed)
-      // Actor: apimaestro~linkedin-profile-posts - scrapes all posts from a profile URL
-      // No cookies/login required (uses tilde ~ format for Apify API)
-      const actorId = "apimaestro~linkedin-profile-posts";
+      console.log(`Running Apify task: ${APIFY_TASK_ID}`);
       
-      console.log(`Fetching LinkedIn posts for: ${profileUrl}`);
-      
+      // Run the pre-configured Apify Task
       const apifyResponse = await fetch(
-        `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
+        `https://api.apify.com/v2/actor-tasks/${APIFY_TASK_ID}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            profileUrl: profileUrl,
-            totalPostsToScrape: 50
-          }),
         }
       );
 
@@ -696,7 +682,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const errorText = await apifyResponse.text();
         console.error("Apify request failed:", errorText);
         
-        // Parse error for better messaging
         let errorMessage = "Failed to fetch posts from Apify";
         try {
           const errorData = JSON.parse(errorText);
@@ -715,21 +700,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Received ${apifyData?.length || 0} posts from Apify`);
       
-      // Normalize each post into our structure
-      const normalizedPosts = (apifyData || []).map((post: any) => ({
-        id: post.url || post.urn || post.id || Math.random().toString(36),
-        text: post.text || post.content || post.commentary || "",
-        image: post.images?.[0] || post.media?.[0] || post.imageUrl || null,
-        url: post.url || post.postUrl || "",
-        createdAt: post.postedAt 
-          ? new Date(post.postedAt).getTime() 
-          : post.publishedAt 
-            ? new Date(post.publishedAt).getTime() 
+      // Normalize each post to match actual Apify response structure
+      const normalizedPosts = (apifyData || []).map((post: any) => {
+        // Build proper URN for LinkedIn API if available
+        const activityUrn = post.urn?.activity_urn;
+        const shareUrn = post.urn?.share_urn;
+        const ugcPostUrn = post.urn?.ugcPost_urn;
+        
+        // LinkedIn repost API needs a proper URN format
+        // Priority: ugcPost > share > activity
+        const linkedInUrn = ugcPostUrn 
+          ? `urn:li:ugcPost:${ugcPostUrn}` 
+          : shareUrn 
+            ? `urn:li:share:${shareUrn}`
+            : activityUrn 
+              ? `urn:li:activity:${activityUrn}`
+              : null;
+        
+        return {
+        id: linkedInUrn || post.url || Math.random().toString(36),
+        urn: linkedInUrn,
+        text: post.text || "",
+        url: post.url || "",
+        postType: post.post_type || "post",
+        postedAt: post.posted_at?.timestamp 
+          ? post.posted_at.timestamp
+          : post.posted_at?.date 
+            ? new Date(post.posted_at.date).getTime()
             : Date.now(),
-        likes: post.numLikes || post.likes || post.likeCount || 0,
-        comments: post.numComments || post.comments || post.commentCount || 0,
-        impressions: post.numImpressions || post.impressions || post.views || 0,
-      }));
+        postedAtRelative: post.posted_at?.relative || "",
+        // Author information
+        author: post.author ? {
+          firstName: post.author.first_name || "",
+          lastName: post.author.last_name || "",
+          fullName: `${post.author.first_name || ""} ${post.author.last_name || ""}`.trim(),
+          headline: post.author.headline || "",
+          username: post.author.username || "",
+          profileUrl: post.author.profile_url || "",
+          profilePicture: post.author.profile_picture || null,
+        } : null,
+        // Stats/engagement
+        stats: post.stats ? {
+          totalReactions: post.stats.total_reactions || 0,
+          likes: post.stats.like || 0,
+          support: post.stats.support || 0,
+          love: post.stats.love || 0,
+          insight: post.stats.insight || 0,
+          celebrate: post.stats.celebrate || 0,
+          funny: post.stats.funny || 0,
+          comments: post.stats.comments || 0,
+          reposts: post.stats.reposts || 0,
+        } : {
+          totalReactions: 0,
+          likes: 0,
+          support: 0,
+          love: 0,
+          insight: 0,
+          celebrate: 0,
+          funny: 0,
+          comments: 0,
+          reposts: 0,
+        },
+        // Images/media
+        images: post.images || post.media || [],
+        // Reshared post info
+        resharedPost: post.reshared_post ? {
+          text: post.reshared_post.text || "",
+          postedAt: post.reshared_post.posted_at?.timestamp || null,
+          author: post.reshared_post.author ? {
+            firstName: post.reshared_post.author.first_name || "",
+            lastName: post.reshared_post.author.last_name || "",
+            fullName: `${post.reshared_post.author.first_name || ""} ${post.reshared_post.author.last_name || ""}`.trim(),
+            headline: post.reshared_post.author.headline || "",
+            profilePicture: post.reshared_post.author.profile_picture || null,
+          } : null,
+        } : null,
+      };
+      });
 
       res.json({
         success: true,
