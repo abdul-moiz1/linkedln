@@ -6,11 +6,13 @@ import {
   FileImage, 
   Upload, 
   Save, 
-  MessageSquare,
-  Image,
-  FileText,
-  Share2,
-  Shield
+  Shield,
+  Wand2,
+  Layers,
+  Send,
+  PenLine,
+  Mail,
+  Twitter
 } from "lucide-react";
 import Header from "@/components/Header";
 
@@ -56,10 +58,10 @@ export default function Home() {
             <Button 
               onClick={handleStartCreating}
               size="lg"
-              className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-6"
+              className="group gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-6 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 hover:scale-105"
               data-testid="button-start-creating"
             >
-              <Sparkles className="w-5 h-5" />
+              <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
               Start Creating
             </Button>
           </div>
@@ -67,9 +69,12 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 bg-white">
+      <section id="how-it-works" className="py-24 bg-gradient-to-b from-white to-slate-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-blue-100 text-blue-700 text-sm font-medium mb-4">
+              Simple Process
+            </span>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">How It Works</h2>
             <p className="text-lg text-slate-600 max-w-xl mx-auto">
               Create stunning LinkedIn carousels in four simple steps
@@ -80,44 +85,54 @@ export default function Home() {
             {[
               {
                 step: "1",
-                icon: MessageSquare,
+                icon: PenLine,
                 title: "Write Your Messages",
-                description: "Enter 4-5 short text inputs that tell your story or share your insights"
+                description: "Enter 4-5 short text inputs that tell your story or share your insights",
+                gradient: "from-blue-500 to-blue-600"
               },
               {
                 step: "2",
-                icon: Image,
+                icon: Wand2,
                 title: "AI Generates Images",
-                description: "Our AI creates beautiful, professional images from your text"
+                description: "Our AI creates beautiful, professional images from your text",
+                gradient: "from-violet-500 to-purple-600"
               },
               {
                 step: "3",
-                icon: FileText,
+                icon: Layers,
                 title: "Convert to PDF",
-                description: "Images are automatically combined into a carousel-ready PDF"
+                description: "Images are automatically combined into a carousel-ready PDF",
+                gradient: "from-indigo-500 to-blue-600"
               },
               {
                 step: "4",
-                icon: Share2,
+                icon: Send,
                 title: "Upload to LinkedIn",
-                description: "Publish directly to your LinkedIn profile with one click"
+                description: "Publish directly to your LinkedIn profile with one click",
+                gradient: "from-blue-600 to-indigo-600"
               }
             ].map((item, index) => (
-              <div key={index} className="relative">
-                <div className="text-center">
+              <div key={index} className="relative group">
+                <div className="text-center p-6 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all duration-300 hover:-translate-y-2">
                   <div className="relative inline-block mb-6">
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
-                      <item.icon className="w-10 h-10 text-blue-600" />
+                    <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${item.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                      <item.icon className="w-10 h-10 text-white" />
                     </div>
-                    <span className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white text-sm font-bold flex items-center justify-center">
+                    <span className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border-2 border-blue-600 text-blue-600 text-sm font-bold flex items-center justify-center shadow-md">
                       {item.step}
                     </span>
                   </div>
-                  <h3 className="text-xl font-semibold text-slate-900 mb-3">{item.title}</h3>
+                  <h3 className="text-xl font-semibold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors">{item.title}</h3>
                   <p className="text-slate-600 leading-relaxed">{item.description}</p>
                 </div>
                 {index < 3 && (
-                  <div className="hidden lg:block absolute top-10 left-full w-full h-0.5 bg-gradient-to-r from-blue-200 to-transparent -translate-x-1/2" />
+                  <div className="hidden lg:flex absolute top-1/2 -right-4 transform -translate-y-1/2 z-10">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-200 to-indigo-200 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
                 )}
               </div>
             ))}
@@ -126,9 +141,12 @@ export default function Home() {
       </section>
 
       {/* Features Grid */}
-      <section id="features" className="py-20 bg-slate-50">
+      <section id="features" className="py-24 bg-slate-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-indigo-100 text-indigo-700 text-sm font-medium mb-4">
+              Features
+            </span>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Powerful Features</h2>
             <p className="text-lg text-slate-600 max-w-xl mx-auto">
               Everything you need to create engaging LinkedIn content
@@ -140,35 +158,39 @@ export default function Home() {
               {
                 icon: Sparkles,
                 title: "AI Image Generation",
-                description: "Powered by Gemini & OpenAI to create stunning, unique visuals from your text"
+                description: "Powered by Gemini & OpenAI to create stunning, unique visuals from your text",
+                iconBg: "from-violet-500 to-purple-600"
               },
               {
                 icon: FileImage,
                 title: "PDF Carousel Builder",
-                description: "Automatically converts your images into a perfectly formatted carousel document"
+                description: "Automatically converts your images into a perfectly formatted carousel document",
+                iconBg: "from-blue-500 to-indigo-600"
               },
               {
                 icon: Upload,
                 title: "One-Click LinkedIn Upload",
-                description: "Publish your carousel directly to LinkedIn without leaving the app"
+                description: "Publish your carousel directly to LinkedIn without leaving the app",
+                iconBg: "from-indigo-500 to-blue-600"
               },
               {
                 icon: Save,
                 title: "Draft Saving",
-                description: "Save your work in progress and come back to finish it anytime"
+                description: "Save your work in progress and come back to finish it anytime",
+                iconBg: "from-blue-600 to-violet-600"
               }
             ].map((feature, index) => (
               <Card 
                 key={index} 
-                className="group border-2 border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 bg-white"
+                className="group border border-slate-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 bg-white hover:-translate-y-1 overflow-visible"
               >
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center shrink-0 group-hover:from-blue-200 group-hover:to-indigo-200 transition-colors">
-                      <feature.icon className="w-7 h-7 text-blue-600" />
+                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.iconBg} flex items-center justify-center shrink-0 shadow-lg group-hover:scale-110 group-hover:shadow-xl transition-all duration-300`}>
+                      <feature.icon className="w-7 h-7 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-900 mb-2">{feature.title}</h3>
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">{feature.title}</h3>
                       <p className="text-slate-600 leading-relaxed">{feature.description}</p>
                     </div>
                   </div>
@@ -180,18 +202,23 @@ export default function Home() {
       </section>
 
       {/* LinkedIn Login Callout */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-24 bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/30 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-1/4 right-0 w-72 h-72 bg-blue-300 rounded-full filter blur-3xl" />
+          <div className="absolute bottom-1/4 left-0 w-72 h-72 bg-indigo-300 rounded-full filter blur-3xl" />
+        </div>
+        
+        <div className="container relative mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#0A66C2]/10 mb-6">
-              <Shield className="w-8 h-8 text-[#0A66C2]" />
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0A66C2] to-[#004182] mb-8 shadow-xl shadow-blue-500/25">
+              <Shield className="w-10 h-10 text-white" />
             </div>
             
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
               Connect Your LinkedIn Account
             </h2>
             
-            <p className="text-lg text-slate-600 mb-8 max-w-xl mx-auto leading-relaxed">
+            <p className="text-lg text-slate-600 mb-10 max-w-xl mx-auto leading-relaxed">
               Connect your LinkedIn account securely to publish carousels directly. 
               We use OAuth2 for secure authentication and never store your password.
             </p>
@@ -199,39 +226,91 @@ export default function Home() {
             <Button 
               onClick={handleLinkedInLogin}
               size="lg"
-              className="gap-3 bg-[#0A66C2] hover:bg-[#004182] text-lg px-10 py-6"
+              className="group gap-3 bg-[#0A66C2] hover:bg-[#004182] text-lg px-10 py-6 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 hover:scale-105"
               data-testid="button-connect-linkedin"
             >
-              <SiLinkedin className="w-6 h-6" />
+              <SiLinkedin className="w-6 h-6 group-hover:scale-110 transition-transform" />
               Sign in with LinkedIn
             </Button>
             
-            <p className="mt-4 text-sm text-slate-500">
+            <div className="mt-6 flex items-center justify-center gap-2 text-sm text-slate-500">
+              <Shield className="w-4 h-4" />
               Your data is encrypted and protected
-            </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-10 bg-slate-900 text-slate-400">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
+      <footer className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-400 overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500 rounded-full filter blur-3xl" />
+        </div>
+        
+        <div className="container relative mx-auto px-4 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-xl font-semibold text-white">LinkedIn Carousel Maker</span>
               </div>
-              <span className="text-white font-medium">LinkedIn Carousel Maker</span>
+              <p className="text-slate-400 leading-relaxed max-w-sm mb-6">
+                Create stunning AI-generated carousels and share them directly to LinkedIn. 
+                Grow your professional presence effortlessly.
+              </p>
+              <div className="flex items-center gap-3">
+                <a 
+                  href="#" 
+                  className="w-10 h-10 rounded-lg bg-slate-800 hover:bg-blue-600 flex items-center justify-center transition-colors duration-300"
+                  aria-label="LinkedIn"
+                >
+                  <SiLinkedin className="w-5 h-5 text-slate-400 hover:text-white" />
+                </a>
+                <a 
+                  href="#" 
+                  className="w-10 h-10 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors duration-300"
+                  aria-label="Twitter"
+                >
+                  <Twitter className="w-5 h-5 text-slate-400" />
+                </a>
+                <a 
+                  href="#" 
+                  className="w-10 h-10 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors duration-300"
+                  aria-label="Email"
+                >
+                  <Mail className="w-5 h-5 text-slate-400" />
+                </a>
+              </div>
             </div>
             
-            <nav className="flex items-center gap-6 text-sm">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-white transition-colors">Contact</a>
-            </nav>
+            <div>
+              <h4 className="text-white font-semibold mb-4">Product</h4>
+              <ul className="space-y-3">
+                <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
+                <li><a href="#how-it-works" className="hover:text-white transition-colors">How It Works</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
+              </ul>
+            </div>
             
-            <p className="text-sm">
+            <div>
+              <h4 className="text-white font-semibold mb-4">Legal</h4>
+              <ul className="space-y-3">
+                <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="pt-8 border-t border-slate-700/50 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-slate-500">
               &copy; {new Date().getFullYear()} LinkedIn Carousel Maker. All rights reserved.
+            </p>
+            <p className="text-sm text-slate-500">
+              Made with <span className="text-red-400">love</span> for content creators
             </p>
           </div>
         </div>

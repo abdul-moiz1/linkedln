@@ -61,25 +61,25 @@ export default function Header({ variant = "home" }: HeaderProps) {
         
         <nav className="hidden md:flex items-center gap-6">
           <a 
-            href={user ? "/profile" : "#home"} 
-            className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+            href="#home" 
+            className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
             data-testid="nav-home"
           >
-            {user ? "Dashboard" : "Home"}
+            Home
           </a>
           <a 
-            href={user ? "/posts" : "#how-it-works"} 
-            className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+            href="#how-it-works" 
+            className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
             data-testid="nav-how-it-works"
           >
-            {user ? "My Posts" : "How It Works"}
+            How It Works
           </a>
           <a 
-            href={user ? "/scheduled" : "#features"} 
-            className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+            href="#features" 
+            className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
             data-testid="nav-features"
           >
-            {user ? "Scheduled" : "Features"}
+            Features
           </a>
           
           {!user ? (
