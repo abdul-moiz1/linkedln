@@ -479,7 +479,7 @@ export default function PostsPage() {
                 {apifyError}
               </p>
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                Make sure APIFY_TASK_ID and APIFY_TOKEN are configured in your environment secrets.
+                Make sure APIFY_TOKEN is configured in your environment secrets.
               </p>
             </CardContent>
           </Card>

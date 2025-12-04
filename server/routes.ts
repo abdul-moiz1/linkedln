@@ -644,25 +644,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * API: Fetch LinkedIn Posts via Apify Scraper
    * 
-   * Uses Apify's LinkedIn Post Scraper to fetch the user's LinkedIn posts
+   * Uses Apify's LinkedIn Post Scraper Actor directly to fetch the user's LinkedIn posts
    * with engagement data (likes, comments, impressions).
    * 
-   * This is an alternative to the LinkedIn API that provides more comprehensive
-   * post data including views/impressions which LinkedIn API doesn't provide
-   * for personal accounts.
+   * Only requires APIFY_TOKEN - no task configuration needed.
+   * Uses the Actor API directly: curious_coder~linkedin-post-search
    */
   app.post("/api/posts/fetch", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const APIFY_TASK_ID = process.env.APIFY_TASK_ID;
     const APIFY_TOKEN = process.env.APIFY_TOKEN;
 
-    if (!APIFY_TASK_ID || !APIFY_TOKEN) {
+    if (!APIFY_TOKEN) {
       return res.status(503).json({ 
         error: "Apify integration not configured",
-        message: "Please configure APIFY_TASK_ID and APIFY_TOKEN in your environment secrets"
+        message: "Please configure APIFY_TOKEN in your environment secrets"
       });
     }
 
@@ -673,16 +671,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Profile URL is required" });
       }
 
-      // Call Apify Task to scrape LinkedIn posts
+      // Use Apify Actor API directly (no task needed)
+      // Actor: apimaestro~linkedin-profile-posts - scrapes all posts from a profile URL
+      // No cookies/login required (uses tilde ~ format for Apify API)
+      const actorId = "apimaestro~linkedin-profile-posts";
+      
+      console.log(`Fetching LinkedIn posts for: ${profileUrl}`);
+      
       const apifyResponse = await fetch(
-        `https://api.apify.com/v2/actor-tasks/${APIFY_TASK_ID}/run-sync?token=${APIFY_TOKEN}`,
+        `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            startUrls: [{ url: profileUrl }]
+            profileUrl: profileUrl,
+            totalPostsToScrape: 50
           }),
         }
       );
@@ -690,24 +695,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!apifyResponse.ok) {
         const errorText = await apifyResponse.text();
         console.error("Apify request failed:", errorText);
+        
+        // Parse error for better messaging
+        let errorMessage = "Failed to fetch posts from Apify";
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error?.message) {
+            errorMessage = errorData.error.message;
+          }
+        } catch (e) {}
+        
         return res.status(apifyResponse.status).json({ 
-          error: "Failed to fetch posts from Apify",
+          error: errorMessage,
           details: errorText 
         });
       }
 
       const apifyData = await apifyResponse.json();
       
+      console.log(`Received ${apifyData?.length || 0} posts from Apify`);
+      
       // Normalize each post into our structure
       const normalizedPosts = (apifyData || []).map((post: any) => ({
-        id: post.url || post.id || Math.random().toString(36),
-        text: post.text || post.content || "",
-        image: post.media?.[0] || post.imageUrl || null,
+        id: post.url || post.urn || post.id || Math.random().toString(36),
+        text: post.text || post.content || post.commentary || "",
+        image: post.images?.[0] || post.media?.[0] || post.imageUrl || null,
         url: post.url || post.postUrl || "",
-        createdAt: post.publishedAt ? new Date(post.publishedAt).getTime() : Date.now(),
-        likes: post.likes || post.numLikes || 0,
-        comments: post.comments || post.numComments || 0,
-        impressions: post.impressions || post.views || 0,
+        createdAt: post.postedAt 
+          ? new Date(post.postedAt).getTime() 
+          : post.publishedAt 
+            ? new Date(post.publishedAt).getTime() 
+            : Date.now(),
+        likes: post.numLikes || post.likes || post.likeCount || 0,
+        comments: post.numComments || post.comments || post.commentCount || 0,
+        impressions: post.numImpressions || post.impressions || post.views || 0,
       }));
 
       res.json({
