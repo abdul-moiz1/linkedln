@@ -25,6 +25,7 @@ import Header from "@/components/Header";
 import type { SessionUser } from "@shared/schema";
 
 const DRAFT_STORAGE_KEY = "carousel_draft";
+const SESSION_STORAGE_KEY = "carousel_session";
 
 interface ProcessedSlide {
   number: number;
@@ -60,10 +61,38 @@ export default function Preview() {
   });
 
   useEffect(() => {
+    // Try sessionStorage first (has full images from same-session navigation)
+    const sessionData = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (sessionData) {
+      try {
+        const parsed: CarouselDraft = JSON.parse(sessionData);
+        // Check if we have images
+        const hasImages = parsed.processedSlides.some(slide => slide.base64Image);
+        if (hasImages) {
+          setDraft(parsed);
+          setCaption(parsed.title ? `Check out my ${parsed.title}!` : "");
+          return;
+        }
+      } catch {
+        // Fall through to localStorage
+      }
+    }
+    
+    // Fall back to localStorage (might not have images)
     const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
     if (savedDraft) {
       try {
         const parsed: CarouselDraft = JSON.parse(savedDraft);
+        const hasImages = parsed.processedSlides.some(slide => slide.base64Image);
+        if (!hasImages) {
+          toast({
+            title: "Images Missing",
+            description: "Please go back and regenerate your images",
+            variant: "destructive",
+          });
+          navigate("/create");
+          return;
+        }
         setDraft(parsed);
         setCaption(parsed.title ? `Check out my ${parsed.title}!` : "");
       } catch {
