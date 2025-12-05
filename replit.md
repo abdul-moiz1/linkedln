@@ -62,6 +62,11 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 5**: Created dedicated login page at `/login` with LinkedIn OAuth
 - **Dec 5**: Implemented login-first flow - "Start Creating" button redirects to login, carousel creation requires auth
 - **Dec 5**: Updated user flow: Homepage → Login → Create → Preview → Post
+- **Dec 5**: Simplified authentication - Removed LinkedIn login from login/signup pages (LinkedIn OAuth only needed when posting carousels)
+- **Dec 5**: Created separate `/signup` page with Name, Email, Password, Confirm Password fields
+- **Dec 5**: Redesigned login page with Google login and email/password only (no LinkedIn)
+- **Dec 5**: Added "Forgot password?" functionality using Firebase password reset
+- **Dec 5**: Fixed Firebase environment variables configuration for proper authentication
 
 ## Architecture
 
@@ -112,6 +117,14 @@ Required secrets:
 - `APIFY_TOKEN` - Apify API token for LinkedIn post scraping
 - `APIFY_TASK_ID` - Apify task ID for the LinkedIn scraper task
 
+Frontend Firebase credentials (VITE_ prefixed for client-side access):
+- `VITE_FIREBASE_API_KEY` - Firebase web API key
+- `VITE_FIREBASE_AUTH_DOMAIN` - Firebase auth domain
+- `VITE_FIREBASE_PROJECT_ID` - Firebase project ID
+- `VITE_FIREBASE_STORAGE_BUCKET` - Firebase storage bucket
+- `VITE_FIREBASE_MESSAGING_SENDER_ID` - Firebase messaging sender ID
+- `VITE_FIREBASE_APP_ID` - Firebase app ID
+
 ## LinkedIn API Configuration
 **Redirect URI**: `{BASE_URL}/auth/linkedin/callback`
 
@@ -127,7 +140,8 @@ Required secrets:
 │   └── src/
 │       ├── pages/
 │       │   ├── home.tsx         # SaaS landing page
-│       │   ├── login.tsx        # Login page with LinkedIn OAuth
+│       │   ├── login.tsx        # Login page (Google + Email/Password)
+│       │   ├── signup.tsx       # Sign up page (Name, Email, Password)
 │       │   ├── create.tsx       # Carousel creation wizard
 │       │   ├── preview.tsx      # Carousel preview before posting
 │       │   └── profile.tsx      # User dashboard
@@ -147,12 +161,13 @@ Required secrets:
 ```
 
 ## How It Works
-1. User signs in with LinkedIn OAuth2
+1. User signs in with Google or Email/Password (Firebase Auth)
 2. User enters 4-5 text messages for carousel slides
 3. AI generates professional images from text
 4. Images are combined into a PDF carousel
-5. User previews and uploads directly to LinkedIn
-6. Projects can be saved as drafts for later
+5. User previews and connects LinkedIn OAuth (only when posting)
+6. User uploads carousel directly to LinkedIn
+7. Projects can be saved as drafts for later
 
 ## Security Features
 - CSRF protection using state parameter
