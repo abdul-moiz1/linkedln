@@ -670,37 +670,102 @@ export default function CarouselCreator() {
               </div>
             )}
 
-            <div className="space-y-4">
-              <Label className="text-sm font-medium">Select Carousel Style</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                {carouselTypes.map((type) => (
-                  <div
-                    key={type.id}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all hover-elevate ${
-                      selectedCarouselType === type.id
-                        ? "ring-2 ring-primary border-primary bg-primary/5"
-                        : "hover:border-primary/50"
-                    }`}
-                    onClick={() => handleSelectCarouselType(type.id)}
-                    data-testid={`card-carousel-type-${type.id}`}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="carousel-type" className="text-sm font-medium">Carousel Style</Label>
+                  <Select 
+                    value={selectedCarouselType} 
+                    onValueChange={(value) => setSelectedCarouselType(value)}
                   >
-                    <div className="flex flex-col items-center text-center gap-2">
-                      <Layers className="w-6 h-6 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium text-sm">{type.name}</p>
-                        <p className="text-xs text-muted-foreground">{type.slideCount.min}-{type.slideCount.max} slides</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    <SelectTrigger id="carousel-type" className="border-slate-200" data-testid="select-carousel-type">
+                      <SelectValue placeholder="Select a carousel style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {carouselTypes.map((type) => (
+                        <SelectItem 
+                          key={type.id} 
+                          value={type.id}
+                          data-testid={`select-option-type-${type.id}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-muted-foreground" />
+                            <span>{type.name}</span>
+                            <span className="text-xs text-muted-foreground">({type.slideCount.min}-{type.slideCount.max} slides)</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedCarouselType && (
+                    <p className="text-xs text-muted-foreground">
+                      {carouselTypes.find(t => t.id === selectedCarouselType)?.description}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai-provider-select" className="text-sm font-medium">AI Provider (for images)</Label>
+                  <Select value={aiProvider} onValueChange={(v) => setAiProvider(v as AIProvider)}>
+                    <SelectTrigger id="ai-provider-select" className="border-slate-200" data-testid="select-ai-provider-type">
+                      <SelectValue placeholder="Select AI provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto" data-testid="select-option-ai-auto">
+                        <div className="flex items-center gap-2">
+                          <Wand2 className="w-4 h-4 text-blue-600" />
+                          <span>Auto (Best Available)</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="gemini" data-testid="select-option-ai-gemini">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-blue-500" />
+                          <span>Google Gemini</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="openai" data-testid="select-option-ai-openai">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-green-600" />
+                          <span>OpenAI DALL-E</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="stability" data-testid="select-option-ai-stability">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-purple-600" />
+                          <span>Stability AI</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {aiProvider === "auto" && "Automatically selects the best available AI"}
+                    {aiProvider === "gemini" && "Google's Gemini for high-quality images"}
+                    {aiProvider === "openai" && "OpenAI DALL-E 3 for creative images"}
+                    {aiProvider === "stability" && "Stability AI for artistic images"}
+                  </p>
+                </div>
               </div>
+
+              <Button
+                onClick={() => {
+                  if (selectedCarouselType) {
+                    handleSelectCarouselType(selectedCarouselType);
+                  }
+                }}
+                disabled={!selectedCarouselType}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                data-testid="button-continue-to-input"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Continue
+              </Button>
             </div>
           </>
         )}
 
         {step === "input" && (
           <>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
               <Button
                 variant="ghost"
                 size="sm"
@@ -708,61 +773,29 @@ export default function CarouselCreator() {
                 data-testid="button-back-to-type"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
-                Change Style
+                Back
               </Button>
               <Badge variant="secondary">
                 {carouselTypes.find(t => t.id === selectedCarouselType)?.name || selectedCarouselType}
               </Badge>
+              <Badge variant="outline" className="text-muted-foreground">
+                {aiProvider === "auto" ? "Auto AI" : 
+                 aiProvider === "gemini" ? "Gemini" :
+                 aiProvider === "openai" ? "DALL-E" : "Stability AI"}
+              </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="carousel-title" className="text-sm font-medium">Carousel Title</Label>
-                <Input
-                  id="carousel-title"
-                  placeholder="e.g., 5 Tips for Better Productivity"
-                  value={carouselTitle}
-                  onChange={(e) => setCarouselTitle(e.target.value)}
-                  maxLength={100}
-                  className="border-slate-200"
-                  data-testid="input-carousel-title"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ai-provider" className="text-sm font-medium">AI Provider (for images)</Label>
-                <Select value={aiProvider} onValueChange={(v) => setAiProvider(v as AIProvider)}>
-                  <SelectTrigger id="ai-provider" className="border-slate-200" data-testid="select-ai-provider">
-                    <SelectValue placeholder="Select AI provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto" data-testid="select-option-auto">
-                      <div className="flex items-center gap-2">
-                        <Wand2 className="w-4 h-4 text-blue-600" />
-                        Auto (Best Available)
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="gemini" data-testid="select-option-gemini">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-blue-500" />
-                        Google Gemini
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="openai" data-testid="select-option-openai">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-green-600" />
-                        OpenAI DALL-E
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="stability" data-testid="select-option-stability">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-purple-600" />
-                        Stability AI
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2 mb-4">
+              <Label htmlFor="carousel-title" className="text-sm font-medium">Carousel Title</Label>
+              <Input
+                id="carousel-title"
+                placeholder="e.g., 5 Tips for Better Productivity"
+                value={carouselTitle}
+                onChange={(e) => setCarouselTitle(e.target.value)}
+                maxLength={100}
+                className="border-slate-200"
+                data-testid="input-carousel-title"
+              />
             </div>
 
             <div className="space-y-4">
