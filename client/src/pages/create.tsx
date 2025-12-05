@@ -114,20 +114,43 @@ export default function Create() {
   }, []);
 
   const saveDraft = () => {
-    const draft: CarouselDraft = {
-      title: carouselTitle,
-      carouselType: selectedCarouselType,
-      aiProvider,
-      slides,
-      processedSlides,
-      step,
-      savedAt: Date.now(),
-    };
-    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
-    toast({
-      title: "Draft Saved",
-      description: "Your carousel has been saved locally",
-    });
+    try {
+      // Exclude base64 images from localStorage to avoid quota exceeded errors
+      const slidesWithoutImages = processedSlides.map(slide => ({
+        ...slide,
+        base64Image: undefined, // Remove large image data
+      }));
+      
+      const draft: CarouselDraft = {
+        title: carouselTitle,
+        carouselType: selectedCarouselType,
+        aiProvider,
+        slides,
+        processedSlides: slidesWithoutImages,
+        step,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      toast({
+        title: "Draft Saved",
+        description: "Your carousel text and settings have been saved locally. Images will need to be regenerated when you restore.",
+      });
+    } catch (error) {
+      // Handle quota exceeded or other storage errors
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        toast({
+          title: "Storage Full",
+          description: "Unable to save draft. Please clear some browser storage or export your carousel.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Save Failed",
+          description: "Could not save your draft. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   const loadDraft = () => {
@@ -140,12 +163,24 @@ export default function Create() {
         setAiProvider(draft.aiProvider);
         setSlides(draft.slides);
         setProcessedSlides(draft.processedSlides);
-        setStep(draft.step);
         setHasDraft(false);
-        toast({
-          title: "Draft Restored",
-          description: "Your previous work has been loaded",
-        });
+        
+        // Check if we need to regenerate images
+        const hasImages = draft.processedSlides.some(slide => slide.base64Image);
+        if (draft.step === "images" && !hasImages) {
+          // Images were stripped from storage, go back to processing step
+          setStep("processing");
+          toast({
+            title: "Draft Restored",
+            description: "Your text and settings have been loaded. Please regenerate images.",
+          });
+        } else {
+          setStep(draft.step);
+          toast({
+            title: "Draft Restored",
+            description: "Your previous work has been loaded",
+          });
+        }
       } catch {
         toast({
           title: "Error",
