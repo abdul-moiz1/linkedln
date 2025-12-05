@@ -49,6 +49,13 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 5**: Added AI provider selection dropdown in the type-select step with options: Auto, Gemini, OpenAI DALL-E, Stability AI
 - **Dec 5**: Simplified input step by showing selected options as badges instead of duplicate dropdowns
 - **Dec 5**: Improved carousel creation flow with cleaner two-column layout for selections
+- **Dec 5**: Implemented guest-first flow - users can create carousels without logging in
+- **Dec 5**: Created `/create` page for carousel creation with localStorage draft saving
+- **Dec 5**: Created `/preview` page for LinkedIn-style preview before posting
+- **Dec 5**: Made `/api/carousel/process`, `/api/images/generate`, `/api/pdf/create` guest-friendly (no auth required)
+- **Dec 5**: LinkedIn OAuth only required when posting - triggered from preview page "Post to LinkedIn" button
+- **Dec 5**: Added "Create" navigation link in header for easy access to carousel creation
+- **Dec 5**: Fixed PDF creation to handle both base64 data URLs and remote URLs
 
 ## Architecture
 
