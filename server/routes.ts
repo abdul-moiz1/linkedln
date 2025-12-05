@@ -1393,6 +1393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         pdfUrl: pdfDataUrl,
+        pdfBase64: pdfDataUrl,
         pageCount: imageUrls.length,
         title: title || "LinkedIn Carousel",
       });
@@ -1689,6 +1690,616 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.status(500).json({ error: error.message || "Failed to fetch project" });
+    }
+  });
+
+  // ============================================
+  // CAROUSEL API ENDPOINTS (with Base64 persistence)
+  // ============================================
+
+  /**
+   * API: Get Carousel Types
+   * Returns all available carousel type options
+   */
+  app.get("/api/carousel/types", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { CAROUSEL_TYPES } = await import("./lib/firebase-admin");
+      res.json({ carouselTypes: CAROUSEL_TYPES });
+    } catch (error: any) {
+      console.error("Get carousel types error:", error);
+      res.status(500).json({ error: "Failed to get carousel types" });
+    }
+  });
+
+  /**
+   * API: Process Text with AI
+   * Takes raw text + carousel type and returns refined LinkedIn-ready text with image prompts
+   */
+  app.post("/api/carousel/process", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { rawTexts, carouselType, title } = req.body;
+
+      if (!rawTexts || !Array.isArray(rawTexts) || rawTexts.length === 0) {
+        return res.status(400).json({ error: "Raw texts array is required" });
+      }
+
+      if (!carouselType) {
+        return res.status(400).json({ error: "Carousel type is required" });
+      }
+
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+
+      if (!geminiApiKey && !openaiApiKey) {
+        return res.status(503).json({ 
+          error: "No AI API key configured. Please add GEMINI_API_KEY or OPENAI_API_KEY to your secrets." 
+        });
+      }
+
+      // Build the AI prompt for processing text
+      const systemPrompt = `You are a LinkedIn-Style Carousel Generator. Your job is to take raw text and transform it into professional, engaging LinkedIn carousel slides.
+
+CAROUSEL TYPE: ${carouselType}
+
+RULES:
+1. Rewrite each piece of raw text into clean, simple, human wording suitable for LinkedIn
+2. Keep the text short and visual - suitable for carousel slides
+3. Don't change the core meaning
+4. For each slide, determine the best layout:
+   - "title_top": For slides with a main headline
+   - "big_text_center": For impactful statements or quotes
+   - "points_center": For lists or bullet points
+   - "footer_cta": For call-to-action slides
+   - "split_image_text": For balanced content
+
+For each slide, also generate an image prompt that describes:
+- Background style (gradient, solid, abstract)
+- Color palette (professional, matching the tone)
+- Typography placement areas
+- Overall mood and aesthetic
+
+Return your response as a valid JSON array with this structure:
+[
+  {
+    "number": 1,
+    "finalText": "The refined, LinkedIn-ready text",
+    "imagePrompt": "Professional LinkedIn carousel slide background. Clean gradient from [color] to [color]. Space for bold centered text. Modern, minimalist aesthetic. No text in the image, only background design.",
+    "layout": "big_text_center"
+  }
+]`;
+
+      const userPrompt = `Process these ${rawTexts.length} slide texts for a "${carouselType}" style LinkedIn carousel titled "${title || 'LinkedIn Carousel'}":
+
+${rawTexts.map((text: string, i: number) => `Slide ${i + 1}: "${text}"`).join('\n')}
+
+Return ONLY the JSON array, no other text.`;
+
+      let slides: any[] = [];
+
+      if (geminiApiKey) {
+        // Use Gemini for text processing
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topP: 0.9,
+            }
+          }),
+        });
+
+        const json = await response.json() as any;
+
+        if (json.error) {
+          console.error("Gemini API error:", json.error);
+          throw new Error(json.error.message || "Gemini API error");
+        }
+
+        const textContent = json.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!textContent) {
+          throw new Error("No response from Gemini");
+        }
+
+        // Parse JSON from the response
+        const jsonMatch = textContent.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          slides = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error("Failed to parse AI response as JSON");
+        }
+      } else if (openaiApiKey) {
+        // Use OpenAI for text processing
+        const { OpenAI } = await import("openai");
+        const openai = new OpenAI({ apiKey: openaiApiKey });
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.7,
+          response_format: { type: "json_object" }
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content) {
+          throw new Error("No response from OpenAI");
+        }
+
+        const parsed = JSON.parse(content);
+        slides = parsed.slides || parsed;
+      }
+
+      // Ensure each slide has required fields
+      const processedSlides = slides.map((slide: any, index: number) => ({
+        number: slide.number || index + 1,
+        rawText: rawTexts[index] || "",
+        finalText: slide.finalText || rawTexts[index] || "",
+        imagePrompt: slide.imagePrompt || `Professional LinkedIn carousel slide ${index + 1}. Clean modern design with space for text.`,
+        layout: slide.layout || "big_text_center",
+      }));
+
+      res.json({
+        success: true,
+        carouselType,
+        slides: processedSlides,
+      });
+    } catch (error: any) {
+      console.error("Process text error:", error);
+      res.status(500).json({ error: error.message || "Failed to process text" });
+    }
+  });
+
+  /**
+   * API: Create New Carousel
+   * Creates a new carousel in Firestore
+   */
+  app.post("/api/carousel", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { title, carouselType, slides } = req.body;
+      const userId = req.session.user.profile.sub;
+
+      const { createCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.status(503).json({ 
+          error: "Firebase not configured. Please add Firebase credentials to your secrets." 
+        });
+      }
+
+      const carousel = await createCarousel({
+        userId,
+        title: title || "Untitled Carousel",
+        carouselType: carouselType || "story-flow",
+        slides: slides || [],
+        status: "draft",
+      });
+
+      res.json({ success: true, carousel });
+    } catch (error: any) {
+      console.error("Create carousel error:", error);
+      res.status(500).json({ error: error.message || "Failed to create carousel" });
+    }
+  });
+
+  /**
+   * API: Get User's Carousels
+   * Returns all carousels for the authenticated user
+   */
+  app.get("/api/carousels", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const userId = req.session.user.profile.sub;
+      const { getUserCarousels, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.json({ carousels: [] });
+      }
+
+      const carousels = await getUserCarousels(userId);
+      res.json({ carousels });
+    } catch (error: any) {
+      console.error("Get carousels error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch carousels" });
+    }
+  });
+
+  /**
+   * API: Get Single Carousel
+   */
+  app.get("/api/carousel/:carouselId", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { carouselId } = req.params;
+      const { getCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.status(503).json({ 
+          error: "Firebase not configured." 
+        });
+      }
+
+      const carousel = await getCarousel(carouselId);
+
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+
+      if (carousel.userId !== req.session.user.profile.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      res.json(carousel);
+    } catch (error: any) {
+      console.error("Get carousel error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch carousel" });
+    }
+  });
+
+  /**
+   * API: Update Carousel
+   */
+  app.patch("/api/carousel/:carouselId", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { carouselId } = req.params;
+      const updates = req.body;
+      const { getCarousel, updateCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.status(503).json({ 
+          error: "Firebase not configured." 
+        });
+      }
+
+      // Verify ownership
+      const carousel = await getCarousel(carouselId);
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+      if (carousel.userId !== req.session.user.profile.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await updateCarousel(carouselId, updates);
+      const updated = await getCarousel(carouselId);
+
+      res.json({ success: true, carousel: updated });
+    } catch (error: any) {
+      console.error("Update carousel error:", error);
+      res.status(500).json({ error: error.message || "Failed to update carousel" });
+    }
+  });
+
+  /**
+   * API: Delete Carousel
+   */
+  app.delete("/api/carousel/:carouselId", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { carouselId } = req.params;
+      const { getCarousel, deleteCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.status(503).json({ 
+          error: "Firebase not configured." 
+        });
+      }
+
+      // Verify ownership
+      const carousel = await getCarousel(carouselId);
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+      if (carousel.userId !== req.session.user.profile.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await deleteCarousel(carouselId);
+      res.json({ success: true, message: "Carousel deleted" });
+    } catch (error: any) {
+      console.error("Delete carousel error:", error);
+      res.status(500).json({ error: error.message || "Failed to delete carousel" });
+    }
+  });
+
+  /**
+   * API: Generate Images for Carousel with Base64 Storage
+   * Generates images and stores them as Base64 in Firestore
+   */
+  app.post("/api/carousel/:carouselId/generate-images", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { carouselId } = req.params;
+      const { provider = "auto" } = req.body;
+      
+      const { 
+        getCarousel, 
+        updateCarousel, 
+        isFirebaseConfigured 
+      } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.status(503).json({ error: "Firebase not configured." });
+      }
+
+      // Get the carousel
+      const carousel = await getCarousel(carouselId);
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+      if (carousel.userId !== req.session.user.profile.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Update status to processing
+      await updateCarousel(carouselId, { status: "processing" });
+
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+      const stabilityApiKey = process.env.STABILITY_API_KEY;
+
+      let selectedProvider = provider;
+      if (provider === "auto") {
+        selectedProvider = geminiApiKey ? "gemini" : stabilityApiKey ? "stability" : openaiApiKey ? "openai" : null;
+      }
+
+      if (!selectedProvider) {
+        await updateCarousel(carouselId, { status: "draft" });
+        return res.status(503).json({ 
+          error: "No AI API key configured. Please add GEMINI_API_KEY, STABILITY_API_KEY, or OPENAI_API_KEY." 
+        });
+      }
+
+      const updatedSlides = [...carousel.slides];
+      const errors: string[] = [];
+
+      for (let i = 0; i < carousel.slides.length; i++) {
+        const slide = carousel.slides[i];
+        
+        // Skip if already has a Base64 image
+        if (slide.base64Image) {
+          continue;
+        }
+
+        try {
+          const prompt = slide.imagePrompt || `Professional LinkedIn carousel slide. Clean modern design with space for text: "${slide.finalText}"`;
+
+          if (selectedProvider === "gemini") {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
+            
+            const response = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                  responseModalities: ["TEXT", "IMAGE"]
+                }
+              }),
+            });
+
+            const json = await response.json() as any;
+
+            if (json.error) {
+              errors.push(`Slide ${i + 1}: ${json.error.message || 'Gemini API error'}`);
+              continue;
+            }
+
+            const imagePart = json.candidates?.[0]?.content?.parts?.find(
+              (p: any) => p.inlineData?.mimeType?.startsWith('image/')
+            );
+            
+            if (imagePart?.inlineData?.data) {
+              const mimeType = imagePart.inlineData.mimeType || 'image/png';
+              updatedSlides[i] = {
+                ...updatedSlides[i],
+                base64Image: `data:${mimeType};base64,${imagePart.inlineData.data}`
+              };
+            } else {
+              errors.push(`Slide ${i + 1}: No image in Gemini response`);
+            }
+          } else if (selectedProvider === "stability") {
+            const formData = new FormData();
+            formData.append("prompt", prompt);
+            formData.append("output_format", "png");
+
+            const response = await fetch("https://api.stability.ai/v2beta/stable-image/generate/core", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${stabilityApiKey}`,
+                "Accept": "image/*",
+              },
+              body: formData,
+            });
+
+            if (!response.ok) {
+              errors.push(`Slide ${i + 1}: Stability API error (${response.status})`);
+              continue;
+            }
+
+            const buffer = await response.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString("base64");
+            updatedSlides[i] = {
+              ...updatedSlides[i],
+              base64Image: `data:image/png;base64,${base64}`
+            };
+          } else if (selectedProvider === "openai") {
+            const { OpenAI } = await import("openai");
+            const openai = new OpenAI({ apiKey: openaiApiKey! });
+
+            const response = await openai.images.generate({
+              model: "dall-e-3",
+              prompt: prompt,
+              n: 1,
+              size: "1024x1024",
+              quality: "standard",
+              response_format: "b64_json",
+            });
+
+            if (response.data?.[0]?.b64_json) {
+              updatedSlides[i] = {
+                ...updatedSlides[i],
+                base64Image: `data:image/png;base64,${response.data[0].b64_json}`
+              };
+            } else {
+              errors.push(`Slide ${i + 1}: No image from OpenAI`);
+            }
+          }
+        } catch (imgError: any) {
+          console.error(`Image generation failed for slide ${i + 1}:`, imgError);
+          errors.push(`Slide ${i + 1}: ${imgError.message}`);
+        }
+      }
+
+      // Save updated slides to Firestore
+      const hasAllImages = updatedSlides.every(s => s.base64Image);
+      await updateCarousel(carouselId, { 
+        slides: updatedSlides,
+        status: hasAllImages ? "images_generated" : "draft"
+      });
+
+      const updatedCarousel = await getCarousel(carouselId);
+
+      res.json({
+        success: true,
+        carousel: updatedCarousel,
+        generatedCount: updatedSlides.filter(s => s.base64Image).length,
+        totalSlides: updatedSlides.length,
+        provider: selectedProvider,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error: any) {
+      console.error("Generate carousel images error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate images" });
+    }
+  });
+
+  /**
+   * API: Create and Save PDF for Carousel
+   * Creates PDF from Base64 images and saves it to Firestore
+   */
+  app.post("/api/carousel/:carouselId/create-pdf", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { carouselId } = req.params;
+      
+      const { 
+        getCarousel, 
+        saveCarouselPdf, 
+        isFirebaseConfigured 
+      } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.status(503).json({ error: "Firebase not configured." });
+      }
+
+      const carousel = await getCarousel(carouselId);
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+      if (carousel.userId !== req.session.user.profile.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Check if all slides have images
+      const slidesWithImages = carousel.slides.filter(s => s.base64Image);
+      if (slidesWithImages.length === 0) {
+        return res.status(400).json({ error: "No images to create PDF from" });
+      }
+
+      const PDFDocument = (await import("pdfkit")).default;
+      
+      const chunks: Buffer[] = [];
+      const doc = new PDFDocument({
+        size: [1080, 1080],
+        margin: 0,
+      });
+
+      doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+
+      const pdfPromise = new Promise<Buffer>((resolve, reject) => {
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", reject);
+      });
+
+      for (let i = 0; i < slidesWithImages.length; i++) {
+        if (i > 0) {
+          doc.addPage();
+        }
+
+        const slide = slidesWithImages[i];
+        if (slide.base64Image) {
+          try {
+            // Extract base64 data from data URL
+            const base64Data = slide.base64Image.split(",")[1];
+            const imgBuffer = Buffer.from(base64Data, "base64");
+            doc.image(imgBuffer, 0, 0, { width: 1080, height: 1080 });
+          } catch (imgError: any) {
+            console.error(`Failed to add image ${i + 1} to PDF:`, imgError);
+            doc.rect(0, 0, 1080, 1080).fill("#f0f0f0");
+            doc.fill("#666").fontSize(24).text(`Slide ${i + 1}`, 100, 500);
+          }
+        }
+      }
+
+      doc.end();
+      const pdfBuffer = await pdfPromise;
+      const pdfBase64 = `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
+
+      // Save PDF to Firestore
+      await saveCarouselPdf(carouselId, pdfBase64);
+
+      const updatedCarousel = await getCarousel(carouselId);
+
+      res.json({
+        success: true,
+        carousel: updatedCarousel,
+        pdfBase64,
+        pageCount: slidesWithImages.length,
+      });
+    } catch (error: any) {
+      console.error("Create carousel PDF error:", error);
+      res.status(500).json({ error: error.message || "Failed to create PDF" });
     }
   });
 

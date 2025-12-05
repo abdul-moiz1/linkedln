@@ -65,6 +65,66 @@ export interface Project {
   updatedAt: Date;
 }
 
+// Carousel Types for LinkedIn-style carousels
+export type CarouselType = 
+  | "story-flow"
+  | "educational"
+  | "before-after"
+  | "checklist"
+  | "quote"
+  | "stats-data"
+  | "portfolio"
+  | "comparison"
+  | "achievement"
+  | "framework";
+
+export interface CarouselTypeInfo {
+  id: CarouselType;
+  name: string;
+  description: string;
+  slideCount: { min: number; max: number };
+}
+
+export const CAROUSEL_TYPES: CarouselTypeInfo[] = [
+  { id: "story-flow", name: "Story-Flow", description: "Tell a narrative across slides", slideCount: { min: 3, max: 5 } },
+  { id: "educational", name: "Educational", description: "Teach concepts step by step", slideCount: { min: 3, max: 5 } },
+  { id: "before-after", name: "Before/After", description: "Show transformation or comparison", slideCount: { min: 2, max: 4 } },
+  { id: "checklist", name: "Checklist", description: "Present actionable items", slideCount: { min: 3, max: 5 } },
+  { id: "quote", name: "Quote", description: "Feature impactful quotes", slideCount: { min: 2, max: 4 } },
+  { id: "stats-data", name: "Stats/Data", description: "Present key statistics", slideCount: { min: 3, max: 5 } },
+  { id: "portfolio", name: "Portfolio", description: "Showcase work examples", slideCount: { min: 3, max: 5 } },
+  { id: "comparison", name: "Comparison", description: "Compare options or choices", slideCount: { min: 2, max: 4 } },
+  { id: "achievement", name: "Achievement", description: "Highlight accomplishments", slideCount: { min: 2, max: 5 } },
+  { id: "framework", name: "Framework", description: "Present a methodology or process", slideCount: { min: 3, max: 5 } },
+];
+
+// Layout types for slides
+export type SlideLayout = "title_top" | "big_text_center" | "points_center" | "footer_cta" | "split_image_text";
+
+// Individual slide in a carousel
+export interface CarouselSlide {
+  number: number;
+  rawText: string;
+  finalText: string;
+  imagePrompt: string;
+  layout: SlideLayout;
+  base64Image?: string; // data:image/png;base64,...
+}
+
+// Carousel document structure for Firestore
+export interface Carousel {
+  id: string;
+  userId: string;
+  title: string;
+  carouselType: CarouselType;
+  slides: CarouselSlide[];
+  pdfBase64?: string; // data:application/pdf;base64,...
+  status: "draft" | "processing" | "images_generated" | "pdf_created" | "published";
+  linkedinPostId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Session {
   id: string;
   userId: string;
@@ -214,4 +274,110 @@ export async function clearCachedPosts(userId: string): Promise<void> {
   const cacheRef = db.collection("posts_cache").doc(userId);
   await cacheRef.delete();
   console.log(`Cleared posts cache for user ${userId}`);
+}
+
+// ============================================
+// CAROUSEL CRUD OPERATIONS
+// ============================================
+
+/**
+ * Create a new carousel
+ */
+export async function createCarousel(carouselData: Omit<Carousel, "id" | "createdAt" | "updatedAt">): Promise<Carousel> {
+  const db = getDb();
+  const now = new Date();
+  const carouselRef = db.collection("carousels").doc();
+  
+  const carousel: Omit<Carousel, "id"> = {
+    ...carouselData,
+    createdAt: now,
+    updatedAt: now,
+  };
+  
+  await carouselRef.set(carousel);
+  
+  return { id: carouselRef.id, ...carousel };
+}
+
+/**
+ * Get a carousel by ID
+ */
+export async function getCarousel(carouselId: string): Promise<Carousel | null> {
+  const db = getDb();
+  const doc = await db.collection("carousels").doc(carouselId).get();
+  if (!doc.exists) return null;
+  return { id: doc.id, ...doc.data() } as Carousel;
+}
+
+/**
+ * Get all carousels for a user
+ */
+export async function getUserCarousels(userId: string): Promise<Carousel[]> {
+  const db = getDb();
+  const snapshot = await db.collection("carousels")
+    .where("userId", "==", userId)
+    .orderBy("updatedAt", "desc")
+    .get();
+  
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Carousel));
+}
+
+/**
+ * Update a carousel
+ */
+export async function updateCarousel(carouselId: string, updates: Partial<Carousel>): Promise<void> {
+  const db = getDb();
+  const carouselRef = db.collection("carousels").doc(carouselId);
+  await carouselRef.update({
+    ...updates,
+    updatedAt: new Date(),
+  });
+}
+
+/**
+ * Update a specific slide in a carousel (used for storing Base64 images)
+ */
+export async function updateCarouselSlide(
+  carouselId: string, 
+  slideNumber: number, 
+  slideData: Partial<CarouselSlide>
+): Promise<void> {
+  const db = getDb();
+  const carouselRef = db.collection("carousels").doc(carouselId);
+  const doc = await carouselRef.get();
+  
+  if (!doc.exists) {
+    throw new Error("Carousel not found");
+  }
+  
+  const carousel = doc.data() as Carousel;
+  const updatedSlides = carousel.slides.map(slide => 
+    slide.number === slideNumber ? { ...slide, ...slideData } : slide
+  );
+  
+  await carouselRef.update({
+    slides: updatedSlides,
+    updatedAt: new Date(),
+  });
+}
+
+/**
+ * Save Base64 PDF to carousel
+ */
+export async function saveCarouselPdf(carouselId: string, pdfBase64: string): Promise<void> {
+  const db = getDb();
+  const carouselRef = db.collection("carousels").doc(carouselId);
+  await carouselRef.update({
+    pdfBase64,
+    status: "pdf_created",
+    updatedAt: new Date(),
+  });
+}
+
+/**
+ * Delete a carousel
+ */
+export async function deleteCarousel(carouselId: string): Promise<void> {
+  const db = getDb();
+  await db.collection("carousels").doc(carouselId).delete();
 }
