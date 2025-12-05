@@ -95,6 +95,18 @@ export default function Signup() {
         });
       }
 
+      const idToken = await userCredential.user.getIdToken();
+      const response = await fetch("/api/auth/firebase/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to verify authentication with server");
+      }
+
       toast({
         title: "Account created!",
         description: "Welcome aboard. Let's create your first carousel!",

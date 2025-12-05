@@ -51,7 +51,20 @@ export default function Login() {
       const { auth } = await import("@/lib/firebase");
       const { signInWithPopup, GoogleAuthProvider } = await import("firebase/auth");
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      
+      const idToken = await userCredential.user.getIdToken();
+      const response = await fetch("/api/auth/firebase/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to verify authentication with server");
+      }
+      
       toast({
         title: "Welcome!",
         description: "You're now signed in. Let's create a carousel!",
@@ -93,7 +106,20 @@ export default function Login() {
     try {
       const { auth } = await import("@/lib/firebase");
       const { signInWithEmailAndPassword } = await import("firebase/auth");
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      const idToken = await userCredential.user.getIdToken();
+      const response = await fetch("/api/auth/firebase/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to verify authentication with server");
+      }
+      
       toast({
         title: "Welcome back!",
         description: "You're now signed in.",
