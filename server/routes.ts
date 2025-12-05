@@ -46,6 +46,9 @@ declare module "express-session" {
   interface SessionData {
     user?: SessionUser;
     oauth_state?: string;
+    guestId?: string; // For guest carousel tracking
+    authType?: "linkedin" | "firebase"; // Track auth method
+    firebaseUid?: string; // Firebase user ID
   }
 }
 
@@ -223,6 +226,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         profile,
         accessToken,
       };
+      req.session.authType = "linkedin"; // Set auth type for LinkedIn OAuth
+
+      // Migrate any guest carousels if guestId exists
+      if (req.session.guestId) {
+        try {
+          const { migrateGuestCarousels, isFirebaseConfigured } = await import("./lib/firebase-admin");
+          if (isFirebaseConfigured) {
+            await migrateGuestCarousels(req.session.guestId, profile.sub);
+            delete req.session.guestId;
+          }
+        } catch (migrateError) {
+          console.warn("Could not migrate guest carousels:", migrateError);
+        }
+      }
 
       // Try to persist user to Firestore (optional - will fail gracefully if not configured)
       try {
@@ -337,6 +354,315 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ success: true });
     });
+  });
+
+  // ============================================
+  // FIREBASE AUTH ENDPOINTS (Email/Google Login)
+  // ============================================
+
+  /**
+   * API: Verify Firebase Auth Token
+   * 
+   * Verifies a Firebase ID token from frontend (email/password or Google sign-in)
+   * and creates a session for the user.
+   */
+  app.post("/api/auth/firebase/verify", async (req: Request, res: Response) => {
+    try {
+      const { idToken } = req.body;
+      
+      if (!idToken) {
+        return res.status(400).json({ error: "ID token is required" });
+      }
+
+      const { adminAuth, isFirebaseConfigured, saveUser } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured || !adminAuth) {
+        return res.status(503).json({ 
+          error: "Firebase Auth not configured. Please add Firebase credentials to your secrets." 
+        });
+      }
+
+      // Verify the ID token
+      const decodedToken = await adminAuth.verifyIdToken(idToken);
+      const { uid, email, name, picture, email_verified } = decodedToken;
+
+      // Create session user from Firebase auth
+      req.session.user = {
+        profile: {
+          sub: `firebase-${uid}`,
+          name: name || email?.split('@')[0] || 'User',
+          email: email,
+          email_verified: email_verified,
+          picture: picture,
+        },
+        accessToken: idToken, // Store the Firebase token for API calls
+      };
+      req.session.authType = "firebase";
+      req.session.firebaseUid = uid;
+
+      // Save user to Firestore
+      try {
+        await saveUser({
+          linkedinId: `firebase-${uid}`,
+          email: email || "",
+          name: name || email?.split('@')[0] || "User",
+          profilePicture: picture,
+          accessToken: idToken,
+          tokenExpiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour
+        });
+      } catch (saveError) {
+        console.warn("Could not save Firebase user to Firestore:", saveError);
+      }
+
+      // Migrate any guest carousels if guestId exists
+      if (req.session.guestId) {
+        try {
+          const { migrateGuestCarousels } = await import("./lib/firebase-admin");
+          await migrateGuestCarousels(req.session.guestId, `firebase-${uid}`);
+          delete req.session.guestId;
+        } catch (migrateError) {
+          console.warn("Could not migrate guest carousels:", migrateError);
+        }
+      }
+
+      res.json({
+        success: true,
+        user: {
+          uid,
+          email,
+          name: name || email?.split('@')[0],
+          picture,
+          authType: "firebase"
+        }
+      });
+    } catch (error: any) {
+      console.error("Firebase auth verification error:", error);
+      res.status(401).json({ error: "Invalid or expired token" });
+    }
+  });
+
+  /**
+   * API: Check Auth Status
+   * Returns whether user is authenticated and what type of auth they used
+   */
+  app.get("/api/auth/status", (req: Request, res: Response) => {
+    const isAuthenticated = !!req.session.user;
+    const hasLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";
+    
+    res.json({
+      isAuthenticated,
+      authType: req.session.authType || null,
+      hasLinkedInAuth,
+      canDownload: isAuthenticated,
+      canPostToLinkedIn: hasLinkedInAuth,
+      loginRequired: {
+        download: !isAuthenticated,
+        linkedinPost: !hasLinkedInAuth
+      }
+    });
+  });
+
+  // ============================================
+  // GUEST CAROUSEL ENDPOINTS (No Auth Required)
+  // ============================================
+
+  /**
+   * API: Create Guest Carousel
+   * Creates a carousel for guests, stored with a guest ID
+   * Guest can later claim these carousels after logging in
+   */
+  app.post("/api/guest/carousel", async (req: Request, res: Response) => {
+    try {
+      const { guestId, title, carouselType, slides } = req.body;
+      
+      if (!guestId) {
+        return res.status(400).json({ error: "Guest ID is required" });
+      }
+
+      const { createCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        // Return a mock response for local storage fallback
+        return res.json({ 
+          success: true, 
+          carousel: {
+            id: `local-${Date.now()}`,
+            userId: `guest-${guestId}`,
+            title: title || "Untitled Carousel",
+            carouselType: carouselType || "story-flow",
+            slides: slides || [],
+            status: "draft",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          isLocal: true
+        });
+      }
+
+      // Store guest ID in session for later migration
+      req.session.guestId = guestId;
+
+      // Deep sanitize function for Firestore
+      const deepSanitize = (obj: any): any => {
+        if (obj === undefined) return null;
+        if (obj === null) return null;
+        if (Array.isArray(obj)) return obj.map(item => deepSanitize(item));
+        if (typeof obj === 'object' && obj !== null) {
+          const cleanObj: Record<string, any> = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) cleanObj[key] = deepSanitize(value);
+          }
+          return cleanObj;
+        }
+        return obj;
+      };
+
+      const sanitizedSlides = slides ? deepSanitize(slides) : [];
+
+      const carousel = await createCarousel({
+        userId: `guest-${guestId}`,
+        title: title || "Untitled Carousel",
+        carouselType: carouselType || "story-flow",
+        slides: sanitizedSlides,
+        status: "draft",
+      });
+
+      res.json({ success: true, carousel });
+    } catch (error: any) {
+      console.error("Create guest carousel error:", error);
+      res.status(500).json({ error: error.message || "Failed to create carousel" });
+    }
+  });
+
+  /**
+   * API: Get Guest Carousel
+   * Retrieves a carousel by ID for guests
+   */
+  app.get("/api/guest/carousel/:carouselId", async (req: Request, res: Response) => {
+    try {
+      const { carouselId } = req.params;
+      const { guestId } = req.query;
+      
+      const { getCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+
+      const carousel = await getCarousel(carouselId);
+      
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+
+      // Verify guest ownership
+      if (carousel.userId !== `guest-${guestId}`) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      res.json(carousel);
+    } catch (error: any) {
+      console.error("Get guest carousel error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch carousel" });
+    }
+  });
+
+  /**
+   * API: Update Guest Carousel
+   * Updates a carousel for guests (e.g., adding base64 images)
+   */
+  app.patch("/api/guest/carousel/:carouselId", async (req: Request, res: Response) => {
+    try {
+      const { carouselId } = req.params;
+      const { guestId, ...updates } = req.body;
+      
+      if (!guestId) {
+        return res.status(400).json({ error: "Guest ID is required" });
+      }
+
+      const { getCarousel, updateCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.json({ success: true, message: "Local update only" });
+      }
+
+      const carousel = await getCarousel(carouselId);
+      
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+
+      if (carousel.userId !== `guest-${guestId}`) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Deep sanitize for Firestore
+      const deepSanitize = (obj: any): any => {
+        if (obj === undefined) return null;
+        if (obj === null) return null;
+        if (Array.isArray(obj)) return obj.map(item => deepSanitize(item));
+        if (typeof obj === 'object' && obj !== null) {
+          const cleanObj: Record<string, any> = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) cleanObj[key] = deepSanitize(value);
+          }
+          return cleanObj;
+        }
+        return obj;
+      };
+
+      const sanitizedUpdates = deepSanitize(updates) || {};
+      await updateCarousel(carouselId, sanitizedUpdates);
+      const updated = await getCarousel(carouselId);
+
+      res.json({ success: true, carousel: updated });
+    } catch (error: any) {
+      console.error("Update guest carousel error:", error);
+      res.status(500).json({ error: error.message || "Failed to update carousel" });
+    }
+  });
+
+  /**
+   * API: Save Slide Base64 Image (Guest-friendly)
+   * Saves a generated base64 image to a specific slide
+   */
+  app.post("/api/carousel/:carouselId/slide/:slideNumber/image", async (req: Request, res: Response) => {
+    try {
+      const { carouselId, slideNumber } = req.params;
+      const { base64Image, guestId } = req.body;
+      
+      if (!base64Image) {
+        return res.status(400).json({ error: "Base64 image is required" });
+      }
+
+      const { getCarousel, updateCarouselSlide, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.json({ success: true, message: "Local storage only" });
+      }
+
+      const carousel = await getCarousel(carouselId);
+      
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+
+      // Check authorization
+      const isGuest = carousel.userId.startsWith("guest-");
+      const isOwner = req.session.user?.profile.sub === carousel.userId;
+      const isGuestOwner = isGuest && carousel.userId === `guest-${guestId}`;
+
+      if (!isOwner && !isGuestOwner) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await updateCarouselSlide(carouselId, parseInt(slideNumber), { base64Image });
+
+      res.json({ success: true, message: "Image saved" });
+    } catch (error: any) {
+      console.error("Save slide image error:", error);
+      res.status(500).json({ error: error.message || "Failed to save image" });
+    }
   });
 
   /**
@@ -1705,14 +2031,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   /**
-   * API: Get Carousel Types
+   * API: Get Carousel Types (Guest-friendly)
    * Returns all available carousel type options
    */
   app.get("/api/carousel/types", async (req: Request, res: Response) => {
-    if (!req.session.user) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
+    // Guest-friendly - no auth required
     try {
       const { CAROUSEL_TYPES } = await import("./lib/firebase-admin");
       res.json({ carouselTypes: CAROUSEL_TYPES });

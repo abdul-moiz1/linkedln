@@ -423,3 +423,34 @@ export async function deleteCarousel(carouselId: string): Promise<void> {
   const db = getDb();
   await db.collection("carousels").doc(carouselId).delete();
 }
+
+/**
+ * Migrate guest carousels to a user account
+ * Called when a guest logs in to claim their carousels
+ */
+export async function migrateGuestCarousels(guestId: string, newUserId: string): Promise<number> {
+  const db = getDb();
+  const guestUserId = `guest-${guestId}`;
+  
+  const snapshot = await db.collection("carousels")
+    .where("userId", "==", guestUserId)
+    .get();
+  
+  let migratedCount = 0;
+  const batch = db.batch();
+  
+  snapshot.docs.forEach(doc => {
+    batch.update(doc.ref, {
+      userId: newUserId,
+      updatedAt: new Date(),
+    });
+    migratedCount++;
+  });
+  
+  if (migratedCount > 0) {
+    await batch.commit();
+    console.log(`Migrated ${migratedCount} carousels from ${guestUserId} to ${newUserId}`);
+  }
+  
+  return migratedCount;
+}
