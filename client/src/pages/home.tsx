@@ -22,7 +22,7 @@ export default function Home() {
   };
 
   const handleStartCreating = () => {
-    window.location.href = "/auth/linkedin";
+    window.location.href = "/create";
   };
 
   return (

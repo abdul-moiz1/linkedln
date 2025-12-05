@@ -1165,17 +1165,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * API: Generate AI Images
+   * API: Generate AI Images (Guest-friendly)
    * 
    * Generates images using OpenAI's DALL-E, Google's Gemini, or Stability AI based on text prompts.
    * Each message in the array becomes an image in the carousel.
    * Provider can be "openai", "gemini", or "stability" (auto selects first available)
+   * No authentication required - allows guests to create carousels
    */
   app.post("/api/images/generate", async (req: Request, res: Response) => {
-    if (!req.session.user) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
+    // Guest-friendly endpoint - no auth required for carousel creation
     try {
       const { messages, provider = "auto" } = req.body;
       
@@ -1337,21 +1335,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * API: Create PDF from Images
+   * API: Create PDF from Images (Guest-friendly)
    * 
    * Converts an array of image URLs into a multi-page PDF document.
    * Each image becomes a page in the carousel PDF.
+   * No authentication required - allows guests to create and download PDFs
    */
   app.post("/api/pdf/create", async (req: Request, res: Response) => {
-    if (!req.session.user) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
+    // Guest-friendly endpoint - no auth required for PDF creation
     try {
-      const { imageUrls, title } = req.body;
+      const { imageUrls, images, title } = req.body;
+      
+      // Support both "imageUrls" and "images" parameters for flexibility
+      const imageArray = imageUrls || images;
 
-      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
-        return res.status(400).json({ error: "Image URLs array is required" });
+      if (!imageArray || !Array.isArray(imageArray) || imageArray.length === 0) {
+        return res.status(400).json({ error: "Images array is required" });
       }
 
       const PDFDocument = (await import("pdfkit")).default;
@@ -1369,17 +1368,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         doc.on("error", reject);
       });
 
-      for (let i = 0; i < imageUrls.length; i++) {
+      for (let i = 0; i < imageArray.length; i++) {
         if (i > 0) {
           doc.addPage();
         }
 
         try {
-          const imgResponse = await fetch(imageUrls[i]);
-          const imgBuffer = Buffer.from(await imgResponse.arrayBuffer());
-          doc.image(imgBuffer, 0, 0, { width: 1080, height: 1080 });
+          const imgData = imageArray[i];
+          // Handle both base64 data URLs and regular URLs
+          if (imgData.startsWith("data:image")) {
+            const base64Data = imgData.split(",")[1];
+            const imgBuffer = Buffer.from(base64Data, "base64");
+            doc.image(imgBuffer, 0, 0, { width: 1080, height: 1080 });
+          } else {
+            const imgResponse = await fetch(imgData);
+            const imgBuffer = Buffer.from(await imgResponse.arrayBuffer());
+            doc.image(imgBuffer, 0, 0, { width: 1080, height: 1080 });
+          }
         } catch (imgError: any) {
-          console.error(`Failed to fetch image ${i + 1}:`, imgError);
+          console.error(`Failed to process image ${i + 1}:`, imgError);
           doc.rect(0, 0, 1080, 1080).fill("#f0f0f0");
           doc.fill("#666").fontSize(24).text(`Image ${i + 1} failed to load`, 100, 500);
         }
@@ -1394,7 +1401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         pdfUrl: pdfDataUrl,
         pdfBase64: pdfDataUrl,
-        pageCount: imageUrls.length,
+        pageCount: imageArray.length,
         title: title || "LinkedIn Carousel",
       });
     } catch (error: any) {
@@ -1716,14 +1723,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * API: Process Text with AI
+   * API: Process Text with AI (Guest-friendly)
    * Takes raw text + carousel type and returns refined LinkedIn-ready text with image prompts
+   * No authentication required - allows guests to create carousels
    */
   app.post("/api/carousel/process", async (req: Request, res: Response) => {
-    if (!req.session.user) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
+    // Guest-friendly endpoint - no auth required for carousel creation
     try {
       const { rawTexts, carouselType, title } = req.body;
 

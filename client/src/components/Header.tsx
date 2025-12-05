@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SiLinkedin } from "react-icons/si";
-import { Sparkles, LogOut, User, List, Calendar, ChevronDown } from "lucide-react";
+import { Sparkles, LogOut, User, List, Calendar, ChevronDown, PlusCircle } from "lucide-react";
 import type { SessionUser } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -61,21 +61,29 @@ export default function Header({ variant = "home" }: HeaderProps) {
         
         <nav className="hidden md:flex items-center gap-6">
           <a 
-            href="#home" 
+            href="/" 
             className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
             data-testid="nav-home"
           >
             Home
           </a>
+          <button 
+            onClick={() => navigate("/create")}
+            className="text-slate-600 hover:text-blue-600 transition-colors font-medium flex items-center gap-1"
+            data-testid="nav-create"
+          >
+            <PlusCircle className="w-4 h-4" />
+            Create
+          </button>
           <a 
-            href="#how-it-works" 
+            href="/#how-it-works" 
             className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
             data-testid="nav-how-it-works"
           >
             How It Works
           </a>
           <a 
-            href="#features" 
+            href="/#features" 
             className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
             data-testid="nav-features"
           >
