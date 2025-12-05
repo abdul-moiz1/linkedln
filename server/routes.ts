@@ -2188,10 +2188,21 @@ Return ONLY the JSON array, no other text.`;
         }
       }
 
+      // Sanitize slides for Firestore - remove undefined values and ensure clean objects
+      const sanitizedSlides = updatedSlides.map(slide => {
+        const cleanSlide: Record<string, any> = {};
+        for (const [key, value] of Object.entries(slide)) {
+          if (value !== undefined && value !== null) {
+            cleanSlide[key] = value;
+          }
+        }
+        return cleanSlide;
+      });
+
       // Save updated slides to Firestore
-      const hasAllImages = updatedSlides.every(s => s.base64Image);
+      const hasAllImages = sanitizedSlides.every(s => s.base64Image);
       await updateCarousel(carouselId, { 
-        slides: updatedSlides,
+        slides: sanitizedSlides as any,
         status: hasAllImages ? "images_generated" : "draft"
       });
 

@@ -281,6 +281,28 @@ export async function clearCachedPosts(userId: string): Promise<void> {
 // ============================================
 
 /**
+ * Recursively sanitize an object for Firestore - removes undefined/null values
+ */
+function sanitizeForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeForFirestore(item)).filter(item => item !== null);
+  }
+  if (typeof obj === 'object' && !(obj instanceof Date)) {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined && value !== null) {
+        cleaned[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+/**
  * Create a new carousel
  */
 export async function createCarousel(carouselData: Omit<Carousel, "id" | "createdAt" | "updatedAt">): Promise<Carousel> {
@@ -288,8 +310,11 @@ export async function createCarousel(carouselData: Omit<Carousel, "id" | "create
   const now = new Date();
   const carouselRef = db.collection("carousels").doc();
   
+  // Sanitize the carousel data before saving
+  const sanitizedData = sanitizeForFirestore(carouselData);
+  
   const carousel: Omit<Carousel, "id"> = {
-    ...carouselData,
+    ...sanitizedData,
     createdAt: now,
     updatedAt: now,
   };
@@ -328,8 +353,12 @@ export async function getUserCarousels(userId: string): Promise<Carousel[]> {
 export async function updateCarousel(carouselId: string, updates: Partial<Carousel>): Promise<void> {
   const db = getDb();
   const carouselRef = db.collection("carousels").doc(carouselId);
+  
+  // Sanitize the updates to remove any undefined/null values that Firestore can't handle
+  const sanitizedUpdates = sanitizeForFirestore(updates);
+  
   await carouselRef.update({
-    ...updates,
+    ...sanitizedUpdates,
     updatedAt: new Date(),
   });
 }
@@ -351,12 +380,19 @@ export async function updateCarouselSlide(
   }
   
   const carousel = doc.data() as Carousel;
+  
+  // Sanitize the slideData before merging
+  const sanitizedSlideData = sanitizeForFirestore(slideData);
+  
   const updatedSlides = carousel.slides.map(slide => 
-    slide.number === slideNumber ? { ...slide, ...slideData } : slide
+    slide.number === slideNumber ? { ...slide, ...sanitizedSlideData } : slide
   );
   
+  // Sanitize the entire slides array before saving
+  const sanitizedSlides = sanitizeForFirestore(updatedSlides);
+  
   await carouselRef.update({
-    slides: updatedSlides,
+    slides: sanitizedSlides,
     updatedAt: new Date(),
   });
 }
@@ -367,6 +403,12 @@ export async function updateCarouselSlide(
 export async function saveCarouselPdf(carouselId: string, pdfBase64: string): Promise<void> {
   const db = getDb();
   const carouselRef = db.collection("carousels").doc(carouselId);
+  
+  // Only save if pdfBase64 is a valid string
+  if (!pdfBase64 || typeof pdfBase64 !== 'string') {
+    throw new Error("Invalid PDF data");
+  }
+  
   await carouselRef.update({
     pdfBase64,
     status: "pdf_created",
