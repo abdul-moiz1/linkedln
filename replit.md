@@ -67,6 +67,9 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 5**: Redesigned login page with Google login and email/password only (no LinkedIn)
 - **Dec 5**: Added "Forgot password?" functionality using Firebase password reset
 - **Dec 5**: Fixed Firebase environment variables configuration for proper authentication
+- **Dec 5**: Added authProvider field to SessionUser type to distinguish LinkedIn OAuth vs Firebase users
+- **Dec 5**: Updated Header to conditionally show LinkedIn-only features (My Profile, My Posts, Scheduled Posts) only for LinkedIn OAuth users
+- **Dec 5**: Redesigned create.tsx with elegant minimal professional look - progress indicator, cleaner cards, refined typography
 
 ## Architecture
 
