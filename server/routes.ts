@@ -666,6 +666,178 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * API: Check Existing Slide Images (Guest-friendly)
+   * Returns existing base64 images from Firestore for a carousel
+   * Allows checking before regenerating images to avoid unnecessary API calls
+   */
+  app.get("/api/carousel/:carouselId/images", async (req: Request, res: Response) => {
+    try {
+      const { carouselId } = req.params;
+      const { guestId } = req.query;
+      
+      const { getCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.json({ 
+          success: true, 
+          images: [],
+          message: "Firebase not configured - no images stored" 
+        });
+      }
+
+      const carousel = await getCarousel(carouselId);
+      
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+
+      // Check authorization
+      const isGuest = carousel.userId.startsWith("guest-");
+      const isOwner = req.session.user?.profile.sub === carousel.userId;
+      const isGuestOwner = isGuest && carousel.userId === `guest-${guestId}`;
+
+      if (!isOwner && !isGuestOwner) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Check if caller wants full base64 data (default: only metadata)
+      const includeBase64 = req.query.includeBase64 === "true";
+
+      // Extract existing images from slides (optionally include base64 data)
+      const images = carousel.slides.map(slide => ({
+        number: slide.number,
+        hasImage: !!slide.base64Image,
+        base64Image: includeBase64 ? (slide.base64Image || "") : undefined,
+        finalText: slide.finalText,
+      }));
+
+      res.json({ 
+        success: true, 
+        carouselId,
+        pdfBase64: includeBase64 ? (carousel.pdfBase64 || "") : undefined,
+        hasPdf: !!carousel.pdfBase64,
+        images 
+      });
+    } catch (error: any) {
+      console.error("Get carousel images error:", error);
+      res.status(500).json({ error: error.message || "Failed to get carousel images" });
+    }
+  });
+
+  /**
+   * API: Check if Slide Needs Regeneration
+   * Compares current slide text with stored text to determine if image needs regeneration
+   */
+  app.post("/api/carousel/:carouselId/check-regeneration", async (req: Request, res: Response) => {
+    try {
+      const { carouselId } = req.params;
+      const { slides, guestId } = req.body;
+      
+      if (!slides || !Array.isArray(slides)) {
+        return res.status(400).json({ error: "Slides array is required" });
+      }
+
+      const { getCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        // No Firestore - all slides need generation
+        return res.json({ 
+          success: true, 
+          needsRegeneration: slides.map((s: any) => ({
+            number: s.number,
+            needsRegeneration: true,
+            reason: "No stored data"
+          }))
+        });
+      }
+
+      const carousel = await getCarousel(carouselId);
+      
+      if (!carousel) {
+        // No carousel found - all slides need generation
+        return res.json({ 
+          success: true, 
+          needsRegeneration: slides.map((s: any) => ({
+            number: s.number,
+            needsRegeneration: true,
+            reason: "Carousel not found"
+          }))
+        });
+      }
+
+      // Check authorization
+      const isGuest = carousel.userId.startsWith("guest-");
+      const isOwner = req.session.user?.profile.sub === carousel.userId;
+      const isGuestOwner = isGuest && carousel.userId === `guest-${guestId}`;
+
+      if (!isOwner && !isGuestOwner) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Compare each slide's text with stored text
+      const regenerationStatus = slides.map((inputSlide: any) => {
+        const storedSlide = carousel.slides.find(s => s.number === inputSlide.number);
+        
+        if (!storedSlide) {
+          return {
+            number: inputSlide.number,
+            needsRegeneration: true,
+            reason: "New slide"
+          };
+        }
+
+        if (!storedSlide.base64Image) {
+          return {
+            number: inputSlide.number,
+            needsRegeneration: true,
+            reason: "No image stored"
+          };
+        }
+
+        // Normalize text for comparison (trim and collapse whitespace)
+        const normalizeText = (text: string) => (text || "").trim().replace(/\s+/g, " ");
+        const storedText = normalizeText(storedSlide.finalText);
+        const inputText = normalizeText(inputSlide.finalText);
+
+        // Check if text has changed (using normalized comparison)
+        if (storedText !== inputText) {
+          return {
+            number: inputSlide.number,
+            needsRegeneration: true,
+            reason: "Text changed",
+            existingImage: storedSlide.base64Image
+          };
+        }
+
+        // Check if text is empty - don't return stale image for empty text
+        if (!inputText) {
+          return {
+            number: inputSlide.number,
+            needsRegeneration: true,
+            reason: "Empty text"
+          };
+        }
+
+        // Text is same and image exists - no regeneration needed
+        return {
+          number: inputSlide.number,
+          needsRegeneration: false,
+          base64Image: storedSlide.base64Image
+        };
+      });
+
+      res.json({ 
+        success: true, 
+        needsRegeneration: regenerationStatus,
+        pdfBase64: carousel.pdfBase64 || ""
+      });
+    } catch (error: any) {
+      console.error("Check regeneration error:", error);
+      res.status(500).json({ error: error.message || "Failed to check regeneration" });
+    }
+  });
+
+  /**
    * API: Share Post on LinkedIn
    * 
    * Creates a text post (with optional media) on the authenticated user's LinkedIn profile.
@@ -2173,23 +2345,46 @@ Return ONLY the JSON array, no other text.`;
         slides = parsed.slides || parsed;
       }
 
-      // Ensure each slide has required fields
+      // Ensure each slide has required fields including base64Image placeholder
       const processedSlides = slides.map((slide: any, index: number) => ({
         number: slide.number || index + 1,
         rawText: rawTexts[index] || "",
         finalText: slide.finalText || rawTexts[index] || "",
         imagePrompt: slide.imagePrompt || `Professional LinkedIn carousel slide ${index + 1}. Clean modern design with space for text.`,
         layout: slide.layout || "big_text_center",
+        base64Image: "", // Empty initially - will be populated when images are generated
       }));
 
+      // Determine login requirements based on session state
+      const isAuthenticated = !!req.session.user;
+      const hasLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";
+
       res.json({
-        success: true,
         carouselType,
         slides: processedSlides,
+        pdfBase64: "", // Empty initially - will be populated when PDF is generated
+        loginRequired: {
+          download: !isAuthenticated,
+          linkedinPost: !hasLinkedInAuth
+        }
       });
     } catch (error: any) {
       console.error("Process text error:", error);
-      res.status(500).json({ error: error.message || "Failed to process text" });
+      
+      // Return consistent structure even on error, with login flags
+      const isAuthenticated = !!req.session.user;
+      const hasLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";
+      
+      res.status(500).json({ 
+        error: error.message || "Failed to process text",
+        carouselType: req.body.carouselType || "",
+        slides: [],
+        pdfBase64: "",
+        loginRequired: {
+          download: !isAuthenticated,
+          linkedinPost: !hasLinkedInAuth
+        }
+      });
     }
   });
 
