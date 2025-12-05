@@ -45,6 +45,10 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 4**: Added expandable post text with "...see more" / "Show less" toggle for long posts (>300 chars)
 - **Dec 4**: Split refresh into two buttons: Cache Refresh (quick, from Firebase) and Re-scrape (full Apify scrape)
 - **Dec 4**: Clear expanded post state when posts are refreshed
+- **Dec 5**: Converted carousel type selection from grid cards to dropdown (Select component)
+- **Dec 5**: Added AI provider selection dropdown in the type-select step with options: Auto, Gemini, OpenAI DALL-E, Stability AI
+- **Dec 5**: Simplified input step by showing selected options as badges instead of duplicate dropdowns
+- **Dec 5**: Improved carousel creation flow with cleaner two-column layout for selections
 
 ## Architecture
 
