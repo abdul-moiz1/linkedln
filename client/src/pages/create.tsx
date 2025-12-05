@@ -93,9 +93,20 @@ export default function Create() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [hasDraft, setHasDraft] = useState(false);
 
-  const { data: user } = useQuery<SessionUser>({
+  const { data: user, isLoading: isLoadingUser } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
+    retry: false,
   });
+
+  useEffect(() => {
+    if (!isLoadingUser && !user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to create and save your carousels.",
+      });
+      navigate("/login");
+    }
+  }, [user, isLoadingUser, navigate, toast]);
 
   useEffect(() => {
     const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);

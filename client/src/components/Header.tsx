@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SiLinkedin } from "react-icons/si";
-import { Sparkles, LogOut, User, List, Calendar, ChevronDown, PlusCircle } from "lucide-react";
+import { Sparkles, LogOut, User, List, Calendar, ChevronDown } from "lucide-react";
 import type { SessionUser } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -67,14 +67,6 @@ export default function Header({ variant = "home" }: HeaderProps) {
           >
             Home
           </a>
-          <button 
-            onClick={() => navigate("/create")}
-            className="text-slate-600 hover:text-blue-600 transition-colors font-medium flex items-center gap-1"
-            data-testid="nav-create"
-          >
-            <PlusCircle className="w-4 h-4" />
-            Create
-          </button>
           <a 
             href="/#how-it-works" 
             className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
@@ -92,12 +84,11 @@ export default function Header({ variant = "home" }: HeaderProps) {
           
           {!user ? (
             <Button 
-              onClick={handleLinkedInLogin}
+              onClick={() => navigate("/login")}
               variant="outline"
               className="gap-2"
               data-testid="button-login"
             >
-              <SiLinkedin className="w-4 h-4" />
               Login
             </Button>
           ) : (
@@ -162,12 +153,11 @@ export default function Header({ variant = "home" }: HeaderProps) {
         <div className="md:hidden">
           {!user ? (
             <Button 
-              onClick={handleLinkedInLogin}
+              onClick={() => navigate("/login")}
               variant="outline"
               className="gap-2"
               data-testid="button-login-mobile"
             >
-              <SiLinkedin className="w-4 h-4" />
               Login
             </Button>
           ) : (

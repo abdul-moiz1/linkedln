@@ -56,6 +56,12 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 5**: LinkedIn OAuth only required when posting - triggered from preview page "Post to LinkedIn" button
 - **Dec 5**: Added "Create" navigation link in header for easy access to carousel creation
 - **Dec 5**: Fixed PDF creation to handle both base64 data URLs and remote URLs
+- **Dec 5**: Fixed localStorage quota exceeded error - implemented in-memory carousel store for image data during navigation
+- **Dec 5**: Updated hero section with new headline "Create Stunning LinkedIn Carousels in Minutes" and darkened overlay
+- **Dec 5**: Simplified navbar - removed Create button, now shows: Home | How It Works | Features | Login
+- **Dec 5**: Created dedicated login page at `/login` with LinkedIn OAuth
+- **Dec 5**: Implemented login-first flow - "Start Creating" button redirects to login, carousel creation requires auth
+- **Dec 5**: Updated user flow: Homepage → Login → Create → Preview → Post
 
 ## Architecture
 
@@ -121,10 +127,14 @@ Required secrets:
 │   └── src/
 │       ├── pages/
 │       │   ├── home.tsx         # SaaS landing page
+│       │   ├── login.tsx        # Login page with LinkedIn OAuth
+│       │   ├── create.tsx       # Carousel creation wizard
+│       │   ├── preview.tsx      # Carousel preview before posting
 │       │   └── profile.tsx      # User dashboard
 │       ├── components/ui/       # shadcn/ui components
 │       ├── lib/
-│       │   └── firebase.ts      # Firebase client config
+│       │   ├── firebase.ts      # Firebase client config
+│       │   └── carouselStore.ts # In-memory store for carousel data
 │       └── App.tsx              # Router configuration
 ├── server/
 │   ├── index.ts                 # Express server setup

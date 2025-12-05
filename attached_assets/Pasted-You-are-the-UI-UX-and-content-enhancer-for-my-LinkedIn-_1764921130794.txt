@@ -1,0 +1,106 @@
+You are the UI/UX and content enhancer for my LinkedIn Carousel Maker website.
+
+Update the homepage and user flow according to these rules:
+
+----------------------------------------------------
+HOMEPAGE FIXES
+----------------------------------------------------
+1. The hero section needs to look more professional and clear.  
+   Replace the current tagline and description with something simple, confident, and friendly.
+
+   New hero headline:
+   "Create Stunning LinkedIn Carousels in Minutes"
+
+   Subheading:
+   "Turn your ideas into clean, scroll-worthy carousel posts. Generate visuals, edit your text, and download your PDF in one place."
+
+2. The main CTA should be only one button on the hero section.  
+   Remove the duplicate “Create” button from the navbar.
+
+   New button text:
+   "Start Creating"
+
+   When clicked → send user to login page first.
+
+3. Keep the layout simple, modern, and clean.  
+   Slightly darken the hero background overlay so the text is more readable.
+
+----------------------------------------------------
+LOGIN REQUIREMENT
+----------------------------------------------------
+Users must log in BEFORE creating a carousel.
+
+This fixes:
+• large image handling  
+• large PDF rendering  
+• saving carousels in Firestore  
+• restoring previews after refresh  
+
+Login options required:
+• Google Login (primary)  
+• Email/Password (backup option)
+
+FLOW:
+When user clicks “Start Creating”
+→ redirect to login page  
+→ after login, redirect to carousel editor  
+
+Show a friendly message:
+"Please sign in to create and save your carousels."
+
+----------------------------------------------------
+NEW LOGIN PAGE COPY
+----------------------------------------------------
+Headline:
+"Welcome Back"
+
+Subheading:
+"Log in to create, save, and download your carousels."
+
+Buttons:
+• "Continue with Google"  
+• "Continue with Email"
+
+----------------------------------------------------
+NAVBAR FIXES
+----------------------------------------------------
+Only show these options:
+Home | How It Works | Features | Login
+
+Remove the extra “+ Create” from the navbar.
+
+----------------------------------------------------
+CAROUSEL CREATION RULES
+----------------------------------------------------
+User must be authenticated before:
+• entering text  
+• generating images  
+• generating PDF  
+• storing slides in Firestore  
+• posting to LinkedIn  
+
+If user is not logged in:
+Show small popup:
+"Please sign in to continue."
+
+----------------------------------------------------
+PROFESSIONAL TONE
+----------------------------------------------------
+All page text must sound:
+• clear
+• natural
+• not like a press release
+• friendly to beginners
+• confident and short
+
+Avoid marketing hype.
+
+----------------------------------------------------
+FINAL OUTPUT
+----------------------------------------------------
+Return:
+1. Improved hero content text  
+2. Improved navbar text  
+3. New login-first flow explanation for frontend  
+4. Updated UX notes for page structure  
+5. Clean UI wording for each button and message  

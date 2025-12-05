@@ -22,7 +22,7 @@ export default function Home() {
   };
 
   const handleStartCreating = () => {
-    window.location.href = "/create";
+    window.location.href = "/login";
   };
 
   return (
@@ -31,37 +31,37 @@ export default function Home() {
 
       {/* Hero Section */}
       <section id="home" className="relative overflow-hidden py-20 lg:py-32">
-        {/* Background Image with Overlay */}
+        {/* Background Image with Overlay - Darkened for better readability */}
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
             backgroundImage: `url('https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2074&q=80')`
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-white/90 via-blue-50/85 to-indigo-100/90" />
-        <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
-        <div className="absolute top-20 right-10 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-40" />
-        <div className="absolute bottom-20 left-10 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-40" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/70 via-blue-900/60 to-indigo-900/70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent" />
+        <div className="absolute top-20 right-10 w-72 h-72 bg-blue-400 rounded-full mix-blend-overlay filter blur-3xl opacity-30" />
+        <div className="absolute bottom-20 left-10 w-72 h-72 bg-indigo-400 rounded-full mix-blend-overlay filter blur-3xl opacity-30" />
         
         <div className="container relative mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
-            Create LinkedIn Carousels<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">in Minutes</span>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight drop-shadow-lg">
+            Create Stunning LinkedIn Carousels<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300">in Minutes</span>
           </h1>
           
-          <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Turn your ideas into AI-generated images and post them to LinkedIn with one click. 
-            No design skills required.
+          <p className="text-lg md:text-xl text-slate-200 mb-10 max-w-2xl mx-auto leading-relaxed">
+            Turn your ideas into clean, scroll-worthy carousel posts. Generate visuals, 
+            edit your text, and download your PDF in one place.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <Button 
               onClick={handleStartCreating}
               size="lg"
-              className="group gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-6 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 hover:scale-105"
+              className="group gap-2 bg-white text-slate-900 hover:bg-slate-100 text-lg px-10 py-6 shadow-xl shadow-black/20 hover:shadow-2xl transition-all duration-300 hover:scale-105 font-semibold"
               data-testid="button-start-creating"
             >
-              <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+              <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform text-blue-600" />
               Start Creating
             </Button>
           </div>
