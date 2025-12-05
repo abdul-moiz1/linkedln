@@ -1886,11 +1886,40 @@ Return ONLY the JSON array, no other text.`;
         });
       }
 
+      // Deep sanitize function to remove undefined values recursively for Firestore
+      // Keeps null, empty objects, and preserves array positions to avoid data loss
+      const deepSanitize = (obj: any): any => {
+        if (obj === undefined) {
+          return null; // Convert undefined to null (Firestore accepts null)
+        }
+        if (obj === null) {
+          return null;
+        }
+        if (Array.isArray(obj)) {
+          // Preserve array positions - don't filter, just sanitize each item
+          return obj.map(item => deepSanitize(item));
+        }
+        if (typeof obj === 'object' && obj !== null) {
+          const cleanObj: Record<string, any> = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) {
+              cleanObj[key] = deepSanitize(value);
+            }
+            // Skip undefined keys entirely - Firestore doesn't accept undefined
+          }
+          return cleanObj; // Keep empty objects to preserve structure
+        }
+        return obj;
+      };
+
+      // Sanitize slides before saving to Firestore
+      const sanitizedSlides = slides ? deepSanitize(slides) : [];
+
       const carousel = await createCarousel({
         userId,
         title: title || "Untitled Carousel",
         carouselType: carouselType || "story-flow",
-        slides: slides || [],
+        slides: sanitizedSlides,
         status: "draft",
       });
 
@@ -1989,7 +2018,36 @@ Return ONLY the JSON array, no other text.`;
         return res.status(403).json({ error: "Access denied" });
       }
 
-      await updateCarousel(carouselId, updates);
+      // Deep sanitize function to remove undefined values recursively for Firestore
+      // Keeps null, empty objects, and preserves array positions to avoid data loss
+      const deepSanitize = (obj: any): any => {
+        if (obj === undefined) {
+          return null; // Convert undefined to null (Firestore accepts null)
+        }
+        if (obj === null) {
+          return null;
+        }
+        if (Array.isArray(obj)) {
+          // Preserve array positions - don't filter, just sanitize each item
+          return obj.map(item => deepSanitize(item));
+        }
+        if (typeof obj === 'object' && obj !== null) {
+          const cleanObj: Record<string, any> = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) {
+              cleanObj[key] = deepSanitize(value);
+            }
+            // Skip undefined keys entirely - Firestore doesn't accept undefined
+          }
+          return cleanObj; // Keep empty objects to preserve structure
+        }
+        return obj;
+      };
+
+      // Sanitize updates before saving to Firestore
+      const sanitizedUpdates = deepSanitize(updates) || {};
+
+      await updateCarousel(carouselId, sanitizedUpdates);
       const updated = await getCarousel(carouselId);
 
       res.json({ success: true, carousel: updated });
@@ -2188,16 +2246,34 @@ Return ONLY the JSON array, no other text.`;
         }
       }
 
-      // Sanitize slides for Firestore - remove undefined values and ensure clean objects
-      const sanitizedSlides = updatedSlides.map(slide => {
-        const cleanSlide: Record<string, any> = {};
-        for (const [key, value] of Object.entries(slide)) {
-          if (value !== undefined && value !== null) {
-            cleanSlide[key] = value;
-          }
+      // Deep sanitize function to remove undefined values recursively for Firestore
+      // Keeps null, empty objects, and preserves array positions to avoid data loss
+      const deepSanitize = (obj: any): any => {
+        if (obj === undefined) {
+          return null; // Convert undefined to null (Firestore accepts null)
         }
-        return cleanSlide;
-      });
+        if (obj === null) {
+          return null;
+        }
+        if (Array.isArray(obj)) {
+          // Preserve array positions - don't filter, just sanitize each item
+          return obj.map(item => deepSanitize(item));
+        }
+        if (typeof obj === 'object' && obj !== null) {
+          const cleanObj: Record<string, any> = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) {
+              cleanObj[key] = deepSanitize(value);
+            }
+            // Skip undefined keys entirely - Firestore doesn't accept undefined
+          }
+          return cleanObj; // Keep empty objects to preserve structure
+        }
+        return obj;
+      };
+
+      // Sanitize slides for Firestore - remove undefined values and preserve all slides
+      const sanitizedSlides = updatedSlides.map(slide => deepSanitize(slide));
 
       // Save updated slides to Firestore
       const hasAllImages = sanitizedSlides.every(s => s.base64Image);
