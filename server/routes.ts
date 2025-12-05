@@ -225,6 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.user = {
         profile,
         accessToken,
+        authProvider: "linkedin",
       };
       req.session.authType = "linkedin"; // Set auth type for LinkedIn OAuth
 
@@ -396,6 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           picture: picture,
         },
         accessToken: idToken, // Store the Firebase token for API calls
+        authProvider: "firebase",
       };
       req.session.authType = "firebase";
       req.session.firebaseUid = uid;

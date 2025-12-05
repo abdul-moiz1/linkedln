@@ -112,31 +112,35 @@ export default function Header({ variant = "home" }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem 
-                  onClick={() => navigate("/profile")}
-                  className="gap-2 cursor-pointer"
-                  data-testid="menu-profile"
-                >
-                  <User className="w-4 h-4" />
-                  My Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => navigate("/posts")}
-                  className="gap-2 cursor-pointer"
-                  data-testid="menu-posts"
-                >
-                  <List className="w-4 h-4" />
-                  My Posts
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => navigate("/scheduled")}
-                  className="gap-2 cursor-pointer"
-                  data-testid="menu-scheduled"
-                >
-                  <Calendar className="w-4 h-4" />
-                  Scheduled Posts
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                {user.authProvider === "linkedin" && (
+                  <>
+                    <DropdownMenuItem 
+                      onClick={() => navigate("/profile")}
+                      className="gap-2 cursor-pointer"
+                      data-testid="menu-profile"
+                    >
+                      <User className="w-4 h-4" />
+                      My Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => navigate("/posts")}
+                      className="gap-2 cursor-pointer"
+                      data-testid="menu-posts"
+                    >
+                      <List className="w-4 h-4" />
+                      My Posts
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => navigate("/scheduled")}
+                      className="gap-2 cursor-pointer"
+                      data-testid="menu-scheduled"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Scheduled Posts
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem 
                   onClick={() => logoutMutation.mutate()}
                   className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
@@ -173,28 +177,32 @@ export default function Header({ variant = "home" }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem 
-                  onClick={() => navigate("/profile")}
-                  className="gap-2 cursor-pointer"
-                >
-                  <User className="w-4 h-4" />
-                  Dashboard
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => navigate("/posts")}
-                  className="gap-2 cursor-pointer"
-                >
-                  <List className="w-4 h-4" />
-                  My Posts
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => navigate("/scheduled")}
-                  className="gap-2 cursor-pointer"
-                >
-                  <Calendar className="w-4 h-4" />
-                  Scheduled Posts
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                {user.authProvider === "linkedin" && (
+                  <>
+                    <DropdownMenuItem 
+                      onClick={() => navigate("/profile")}
+                      className="gap-2 cursor-pointer"
+                    >
+                      <User className="w-4 h-4" />
+                      Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => navigate("/posts")}
+                      className="gap-2 cursor-pointer"
+                    >
+                      <List className="w-4 h-4" />
+                      My Posts
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => navigate("/scheduled")}
+                      className="gap-2 cursor-pointer"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Scheduled Posts
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem 
                   onClick={() => logoutMutation.mutate()}
                   className="gap-2 cursor-pointer text-red-600 focus:text-red-600"

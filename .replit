@@ -15,6 +15,10 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
+localPort = 34341
+externalPort = 8080
+
+[[ports]]
 localPort = 34709
 externalPort = 6000
 
@@ -58,10 +62,6 @@ externalPort = 3003
 localPort = 46109
 externalPort = 5000
 
-[[ports]]
-localPort = 46197
-externalPort = 8080
-
 [env]
 PORT = "5000"
 
@@ -98,4 +98,4 @@ expertMode = true
 [userenv.development]
 
 [userenv.shared]
-BASE_URL = "https://0aefb164-4321-45cd-a685-d63edbf3fe9f-00-25t9ncuqjp00h.janeway.replit.dev"
+BASE_URL = "https://59a0ba94-15f2-4d6f-a8c8-f211c9010d82-00-1htswm7nono9r.spock.replit.dev"

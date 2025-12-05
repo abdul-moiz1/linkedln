@@ -31,11 +31,15 @@ export const createPostSchema = z.object({
 
 export type CreatePost = z.infer<typeof createPostSchema>;
 
+// Auth Provider type
+export type AuthProvider = "linkedin" | "firebase";
+
 // Session User Data (stored in session)
 export interface SessionUser {
   profile: LinkedInUser;
   accessToken: string;
   profileUrl?: string;
+  authProvider: AuthProvider;
 }
 
 // LinkedIn Post from /rest/posts API
