@@ -70,6 +70,7 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 5**: Added authProvider field to SessionUser type to distinguish LinkedIn OAuth vs Firebase users
 - **Dec 5**: Updated Header to conditionally show LinkedIn-only features (My Profile, My Posts, Scheduled Posts) only for LinkedIn OAuth users
 - **Dec 5**: Redesigned create.tsx with elegant minimal professional look - progress indicator, cleaner cards, refined typography
+- **Dec 5**: Added PDF persistence to Firestore - when posting to LinkedIn, PDF is now saved to `carousels` collection with `pdfBase64`, `linkedinPostId`, and `status: published`
 
 ## Architecture
 
