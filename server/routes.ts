@@ -1922,7 +1922,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { pdfBase64, caption, title } = req.body;
+      const { pdfBase64, caption, title, carouselId } = req.body;
 
       if (!pdfBase64) {
         return res.status(400).json({ error: "PDF data is required" });
@@ -2076,9 +2076,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // LinkedIn may return post ID in headers for 201 responses
       const postId = shareData.id || shareData.urn || shareResponse.headers.get("x-restli-id") || "unknown";
       
+      // Save PDF to Firestore
+      let savedCarouselId = carouselId;
+      try {
+        const { 
+          saveCarouselPdf, 
+          createCarousel, 
+          updateCarousel,
+          isFirebaseConfigured 
+        } = await import("./lib/firebase-admin");
+        
+        if (isFirebaseConfigured) {
+          const userId = profile.sub;
+          const pdfDataUrl = pdfBase64.includes(",") ? pdfBase64 : `data:application/pdf;base64,${pdfBase64}`;
+          
+          if (carouselId) {
+            // Update existing carousel with PDF and LinkedIn post ID
+            await saveCarouselPdf(carouselId, pdfDataUrl);
+            await updateCarousel(carouselId, { 
+              linkedinPostId: postId,
+              status: "published" 
+            });
+            console.log(`PDF saved to existing carousel: ${carouselId}`);
+          } else {
+            // Create a new carousel entry to store the published PDF
+            const newCarousel = await createCarousel({
+              userId,
+              title: title || "LinkedIn Carousel",
+              carouselType: "story-flow",
+              slides: [],
+              pdfBase64: pdfDataUrl,
+              status: "published",
+              linkedinPostId: postId,
+            });
+            savedCarouselId = newCarousel.id;
+            console.log(`PDF saved to new carousel: ${savedCarouselId}`);
+          }
+        }
+      } catch (saveError: any) {
+        // Log error but don't fail the request - LinkedIn post was successful
+        console.error("Failed to save PDF to Firestore:", saveError.message);
+      }
+      
       res.json({ 
         success: true, 
         postId: postId,
+        carouselId: savedCarouselId,
         message: "Carousel posted successfully to LinkedIn" 
       });
     } catch (error: any) {
