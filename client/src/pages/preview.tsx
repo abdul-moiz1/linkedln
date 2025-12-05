@@ -21,11 +21,11 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { getCarouselData, clearCarouselData } from "@/lib/carouselStore";
 import Header from "@/components/Header";
 import type { SessionUser } from "@shared/schema";
 
 const DRAFT_STORAGE_KEY = "carousel_draft";
-const SESSION_STORAGE_KEY = "carousel_session";
 
 interface ProcessedSlide {
   number: number;
@@ -61,29 +61,23 @@ export default function Preview() {
   });
 
   useEffect(() => {
-    // Try sessionStorage first (has full images from same-session navigation)
-    const sessionData = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (sessionData) {
-      try {
-        const parsed: CarouselDraft = JSON.parse(sessionData);
-        // Check if we have images
-        const hasImages = parsed.processedSlides.some(slide => slide.base64Image);
-        if (hasImages) {
-          setDraft(parsed);
-          setCaption(parsed.title ? `Check out my ${parsed.title}!` : "");
-          return;
-        }
-      } catch {
-        // Fall through to localStorage
+    // Try in-memory store first (has full images from same-session navigation)
+    const memoryData = getCarouselData();
+    if (memoryData) {
+      const hasImages = memoryData.processedSlides?.some(slide => slide.base64Image);
+      if (hasImages) {
+        setDraft(memoryData as CarouselDraft);
+        setCaption(memoryData.title ? `Check out my ${memoryData.title}!` : "");
+        return;
       }
     }
     
-    // Fall back to localStorage (might not have images)
+    // Fall back to localStorage (might not have images after page refresh)
     const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
     if (savedDraft) {
       try {
         const parsed: CarouselDraft = JSON.parse(savedDraft);
-        const hasImages = parsed.processedSlides.some(slide => slide.base64Image);
+        const hasImages = parsed.processedSlides?.some(slide => slide.base64Image);
         if (!hasImages) {
           toast({
             title: "Images Missing",
@@ -104,6 +98,11 @@ export default function Preview() {
         navigate("/create");
       }
     } else {
+      toast({
+        title: "No Carousel Found",
+        description: "Please create a carousel first",
+        variant: "destructive",
+      });
       navigate("/create");
     }
   }, []);
@@ -159,6 +158,7 @@ export default function Preview() {
         description: "Your carousel has been posted to LinkedIn",
       });
       localStorage.removeItem(DRAFT_STORAGE_KEY);
+      clearCarouselData();
       navigate("/");
     },
     onError: (error: Error) => {

@@ -23,11 +23,11 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { setCarouselData } from "@/lib/carouselStore";
 import Header from "@/components/Header";
 import type { SessionUser } from "@shared/schema";
 
 const DRAFT_STORAGE_KEY = "carousel_draft";
-const SESSION_STORAGE_KEY = "carousel_session";
 
 type CreatorStep = "type-select" | "input" | "processing" | "images";
 type AIProvider = "auto" | "gemini" | "openai" | "stability";
@@ -275,8 +275,8 @@ export default function Create() {
   };
 
   const handlePreview = () => {
-    // Store full data with images in sessionStorage for preview page
-    const sessionData: CarouselDraft = {
+    // Store full data with images in memory for preview page
+    setCarouselData({
       title: carouselTitle,
       carouselType: selectedCarouselType,
       aiProvider,
@@ -284,13 +284,7 @@ export default function Create() {
       processedSlides, // Includes base64 images
       step,
       savedAt: Date.now(),
-    };
-    try {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-    } catch (error) {
-      // sessionStorage quota is larger but might still fail
-      console.error("Failed to save to sessionStorage:", error);
-    }
+    });
     
     // Also save draft without images for long-term persistence
     saveDraft();
