@@ -2415,6 +2415,16 @@ LAYOUT OPTIONS:
 - "points_center": For lists (keep to 3 points max)
 - "cta_slide": For the final call-to-action slide
 
+IMAGE PROMPT (required for each slide):
+For each slide, include an "imagePrompt" field (20-40 words) describing a visual scene based on the article:
+- Professional imagery suitable for LinkedIn, relevant to the article's topic
+- Specific visual elements, colors, and style
+- No text in the image (text overlaid separately)
+
+Examples:
+- "Futuristic robot arm with laptop, glowing circuits, blue and silver tech office aesthetic"
+- "Diverse professionals forming expanding circle, network connection lines, warm corporate lighting"
+
 Return your response as a valid JSON object with this structure:
 {
   "title": "Suggested carousel title based on the content",
@@ -2423,7 +2433,7 @@ Return your response as a valid JSON object with this structure:
       "number": 1,
       "rawText": "Original concept from article",
       "finalText": "Refined short hook text",
-      "imagePrompt": "",
+      "imagePrompt": "Brief visual scene description based on article (20-40 words)",
       "layout": "hook_slide",
       "charCount": 45
     }
@@ -2532,11 +2542,14 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         if (isFirstSlide && layout !== "hook_slide") layout = "hook_slide";
         if (isLastSlide && layout !== "cta_slide") layout = "cta_slide";
         
+        // Generate a fallback imagePrompt if AI didn't provide one
+        const fallbackImagePrompt = `Professional LinkedIn visual for "${finalText}". Modern, clean design with business imagery related to the article topic, abstract shapes or relevant icons. Corporate blue and neutral color palette, suitable for professional social media.`;
+        
         return {
           number: index + 1,
           rawText: slide.rawText || finalText,
           finalText,
-          imagePrompt: "",
+          imagePrompt: slide.imagePrompt || fallbackImagePrompt,
           layout,
           charCount,
           tooMuchText: false,
@@ -2629,6 +2642,7 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       const systemPrompt = `You are a LinkedIn Carousel Expert. Create high-performing, professional carousel slides.
 
 CAROUSEL TYPE: ${carouselType}
+CAROUSEL TITLE: ${title || 'LinkedIn Carousel'}
 
 TEXT RULES:
 1. Keep each slide to ONE single idea - max 100 characters
@@ -2643,14 +2657,22 @@ LAYOUT OPTIONS:
 - "points_center": For lists (keep to 3 points max)
 - "cta_slide": For the final call-to-action slide
 
-IMAGE GENERATION:
-The image will display the text beautifully on it. No separate imagePrompt is needed - the text itself will be shown on the image.
+IMAGE PROMPT (required for each slide):
+For each slide, include an "imagePrompt" field (20-40 words) describing a visual scene:
+- Professional/business imagery suitable for LinkedIn
+- Specific visual elements, colors, and style
+- No text in the image (text overlaid separately)
+
+Examples:
+- "Modern office desk with laptop showing upward graph, magnifying glass icons, blue and white professional style"
+- "Split scene: person in business attire vs casual clothes, warm sunset lighting"
 
 Return your response as a valid JSON array:
 [
   {
     "number": 1,
     "finalText": "Short, powerful hook text",
+    "imagePrompt": "Brief visual scene description (20-40 words)",
     "layout": "hook_slide",
     "charCount": 45
   }
@@ -2753,11 +2775,14 @@ Return ONLY the JSON array, no other text.`;
         // Warning for too much text (should be false after clamping)
         const tooMuchText = charCount > maxChars;
         
+        // Generate a fallback imagePrompt if AI didn't provide one
+        const fallbackImagePrompt = `Professional LinkedIn visual for "${finalText}". Modern, clean design with business imagery, abstract shapes or relevant icons. Corporate blue and neutral color palette, suitable for professional social media.`;
+        
         return {
           number: slide.number || index + 1,
           rawText: normalizedRawTexts[index] || "",
           finalText,
-          imagePrompt: "", // Not used - image is generated directly from finalText with text displayed on it
+          imagePrompt: slide.imagePrompt || fallbackImagePrompt,
           layout,
           charCount,
           tooMuchText,

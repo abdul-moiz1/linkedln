@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SiLinkedin } from "react-icons/si";
-import { Sparkles, LogOut, User, List, Calendar, ChevronDown } from "lucide-react";
+import { Sparkles, LogOut, User, List, Calendar, ChevronDown, LayoutDashboard, Home, Plus } from "lucide-react";
 import type { SessionUser } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -64,17 +64,30 @@ export default function Header({ variant = "home" }: HeaderProps) {
             href="#home" 
             onClick={(e) => {
               e.preventDefault();
-              if (location !== "/") {
-                navigate("/");
+              if (location === "/") {
+                window.scrollTo({ top: 0, behavior: "smooth" });
               } else {
-                document.getElementById("home")?.scrollIntoView({ behavior: "smooth" });
+                navigate("/");
               }
             }}
-            className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
+            className={`transition-colors font-medium ${location === "/" ? "text-blue-600" : "text-slate-600 hover:text-blue-600"}`}
             data-testid="nav-home"
           >
             Home
           </a>
+          {user && (
+            <a 
+              href="/create" 
+              onClick={(e) => {
+                e.preventDefault();
+                navigate("/create");
+              }}
+              className={`transition-colors font-medium ${location === "/create" ? "text-blue-600" : "text-slate-600 hover:text-blue-600"}`}
+              data-testid="nav-dashboard"
+            >
+              Create
+            </a>
+          )}
           <a 
             href="#how-it-works" 
             onClick={(e) => {
@@ -142,6 +155,14 @@ export default function Header({ variant = "home" }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  onClick={() => navigate("/create")}
+                  className="gap-2 cursor-pointer"
+                  data-testid="menu-create"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Carousel
+                </DropdownMenuItem>
                 {user.authProvider === "linkedin" && (
                   <>
                     <DropdownMenuItem 
@@ -168,9 +189,9 @@ export default function Header({ variant = "home" }: HeaderProps) {
                       <Calendar className="w-4 h-4" />
                       Scheduled Posts
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                   </>
                 )}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={() => logoutMutation.mutate()}
                   className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
@@ -207,6 +228,20 @@ export default function Header({ variant = "home" }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  onClick={() => navigate("/")}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Home className="w-4 h-4" />
+                  Home
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => navigate("/create")}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Carousel
+                </DropdownMenuItem>
                 {user.authProvider === "linkedin" && (
                   <>
                     <DropdownMenuItem 
@@ -214,7 +249,7 @@ export default function Header({ variant = "home" }: HeaderProps) {
                       className="gap-2 cursor-pointer"
                     >
                       <User className="w-4 h-4" />
-                      Dashboard
+                      My Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={() => navigate("/posts")}
@@ -230,9 +265,9 @@ export default function Header({ variant = "home" }: HeaderProps) {
                       <Calendar className="w-4 h-4" />
                       Scheduled Posts
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                   </>
                 )}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={() => logoutMutation.mutate()}
                   className="gap-2 cursor-pointer text-red-600 focus:text-red-600"

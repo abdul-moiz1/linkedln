@@ -564,6 +564,15 @@ export default function Create() {
               <p className="text-muted-foreground" data-testid="text-url-subtitle">
                 Paste a blog or article URL to generate your carousel
               </p>
+              <Button 
+                variant="ghost" 
+                onClick={() => setWorkspaceView("manual")}
+                className="text-sm underline underline-offset-4"
+                data-testid="button-switch-to-text"
+              >
+                <PenTool className="w-4 h-4 mr-1" />
+                Or create manually with your own text
+              </Button>
             </div>
 
             <Card className="border-0 shadow-sm">
@@ -753,6 +762,15 @@ export default function Create() {
             <div className="text-center space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight">Create Carousel</h1>
               <p className="text-muted-foreground">Set up your carousel preferences</p>
+              <Button 
+                variant="ghost" 
+                onClick={() => setWorkspaceView("url-input")}
+                className="text-sm underline underline-offset-4"
+                data-testid="button-switch-to-url"
+              >
+                <Globe className="w-4 h-4 mr-1" />
+                Or create from a URL instead
+              </Button>
             </div>
 
             <Card className="border-0 shadow-sm">
