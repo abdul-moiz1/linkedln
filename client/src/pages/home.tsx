@@ -13,7 +13,8 @@ import {
   PenLine,
   Mail,
   Twitter,
-  Link2
+  Link2,
+  RefreshCw
 } from "lucide-react";
 import Header from "@/components/Header";
 
@@ -78,35 +79,42 @@ export default function Home() {
             </span>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">How It Works</h2>
             <p className="text-lg text-slate-600 max-w-xl mx-auto">
-              Create stunning LinkedIn carousels in four simple steps
+              Create stunning LinkedIn carousels in five simple steps
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
             {[
               {
                 step: "1",
+                icon: Link2,
+                title: "Paste a URL",
+                description: "Turn any blog article into a 7-10 slide carousel summary",
+                gradient: "from-blue-500 to-purple-600"
+              },
+              {
+                step: "2",
                 icon: PenLine,
                 title: "Write Your Messages",
                 description: "Enter 4-5 short text inputs that tell your story or share your insights",
                 gradient: "from-blue-500 to-blue-600"
               },
               {
-                step: "2",
+                step: "3",
                 icon: Wand2,
                 title: "AI Generates Images",
                 description: "Our AI creates beautiful, professional images from your text",
                 gradient: "from-violet-500 to-purple-600"
               },
               {
-                step: "3",
+                step: "4",
                 icon: Layers,
                 title: "Convert to PDF",
                 description: "Images are automatically combined into a carousel-ready PDF",
                 gradient: "from-indigo-500 to-blue-600"
               },
               {
-                step: "4",
+                step: "5",
                 icon: Send,
                 title: "Upload to LinkedIn",
                 description: "Publish directly to your LinkedIn profile with one click",
@@ -126,8 +134,8 @@ export default function Home() {
                   <h3 className="text-xl font-semibold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors">{item.title}</h3>
                   <p className="text-slate-600 leading-relaxed">{item.description}</p>
                 </div>
-                {index < 3 && (
-                  <div className="hidden lg:flex absolute top-1/2 -right-4 transform -translate-y-1/2 z-10">
+                {index < 4 && (
+                  <div className="hidden lg:flex absolute top-1/2 -right-3 transform -translate-y-1/2 z-10">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-200 to-indigo-200 flex items-center justify-center">
                       <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -162,7 +170,7 @@ export default function Home() {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
               {
                 icon: Sparkles,
@@ -193,6 +201,12 @@ export default function Home() {
                 title: "URL to Carousel Generator",
                 description: "Paste a URL and get a 7-10 slide LinkedIn carousel summary, automatically designed for LinkedIn",
                 iconBg: "from-blue-500 to-purple-600"
+              },
+              {
+                icon: RefreshCw,
+                title: "Auto-Regenerate Slides",
+                description: "Improve your carousel with one click. Regenerate individual slides until the message fits your story",
+                iconBg: "from-indigo-500 to-purple-600"
               }
             ].map((feature, index) => (
               <Card 
