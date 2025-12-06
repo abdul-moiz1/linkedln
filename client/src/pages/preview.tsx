@@ -334,11 +334,11 @@ export default function Preview() {
         </Card>
 
         <div className="mt-6 space-y-3">
-          {!user ? (
+          {!user || user.authProvider !== 'linkedin' ? (
             <Card className="p-4">
               <div className="text-center space-y-4">
                 <p className="text-slate-600">
-                  Connect your LinkedIn account to post this carousel
+                  {user ? "Connect your LinkedIn account to post this carousel" : "Sign in and connect LinkedIn to post this carousel"}
                 </p>
                 <Button 
                   onClick={handleLinkedInLogin}
