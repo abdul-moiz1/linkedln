@@ -1709,7 +1709,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (selectedProvider === "gemini") {
         for (let i = 0; i < messages.length; i++) {
           try {
-            const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients. The image should be square format.`;
+            const prompt = `Generate a photorealistic or high-quality illustration that directly depicts the meaning of: "${messages[i]}".
+
+REQUIREMENTS:
+- Show a CONCRETE SCENE with real subjects (people, objects, environments) that VISUALIZE this concept
+- Include specific elements: people in action, workplace settings, relevant objects, or clear visual metaphors
+- Style: Professional photography or polished digital illustration, muted color palette
+- Absolutely NO text, words, letters, or typography anywhere in the image
+- Square format (1:1 aspect ratio)
+
+Example: If the message is about "stress at work", show a person at a cluttered desk looking overwhelmed. If it's about "teamwork", show colleagues collaborating enthusiastically.`;
             
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
             
@@ -1756,7 +1765,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (selectedProvider === "stability") {
         for (let i = 0; i < messages.length; i++) {
           try {
-            const prompt = `${messages[i]}, professional illustration, modern style`;
+            const prompt = `Photorealistic scene depicting: "${messages[i]}".
+REQUIREMENTS:
+- Show CONCRETE subjects: real people, objects, or environments that visualize this concept
+- Include specific elements like office workers, workspace settings, or clear visual metaphors
+- Professional photography style with muted color palette
+- High quality, cinematic composition
+- Absolutely NO text, words, letters, or typography anywhere in the image
+Example: For "stress at work" show an overwhelmed person at a cluttered desk. For "teamwork" show colleagues collaborating enthusiastically.`;
             
             const formData = new FormData();
             formData.append("prompt", prompt);
@@ -1793,7 +1809,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         for (let i = 0; i < messages.length; i++) {
           try {
-            const prompt = `Create a professional, visually appealing LinkedIn carousel slide with the following message: "${messages[i]}". Make it clean, modern, and suitable for professional social media. Use bold typography and subtle gradients.`;
+            const prompt = `Generate a photorealistic or high-quality illustration that directly depicts: "${messages[i]}". Show a CONCRETE SCENE with real subjects - people in action, workplace settings, relevant objects, or clear visual metaphors. Style: Professional photography or polished illustration with muted colors. Absolutely NO text, words, or typography in the image. Example: For "stress at work" show an overwhelmed person at a cluttered desk. For "teamwork" show colleagues collaborating.`;
             
             const response = await openai.images.generate({
               model: "dall-e-3",
@@ -2325,25 +2341,26 @@ LAYOUT OPTIONS:
 - "cta_slide": For the final call-to-action slide
 
 IMAGE PROMPT RULES - CRITICAL:
-Generate images that are RELEVANT to the slide content but SUBTLE enough for text overlay.
-- The image should visually represent the TOPIC/THEME of the slide
-- Use soft, muted colors and subtle elements
-- Include gentle gradients or abstract shapes related to the topic
-- Leave clear space in the center for text
-- NO text, words, or letters in the image
+Generate images that ILLUSTRATE and VISUALIZE the slide content's meaning.
+- The image should be a RELEVANT illustration, photo, or scene that represents the concept
+- Focus on visual metaphors, people in action, or real-world scenarios that match the message
+- Use professional photography or illustration style with muted colors suitable for white text overlay
+- NO text, words, typography, or letters in the image
 - Keep it professional and LinkedIn-appropriate
+- The image should help viewers UNDERSTAND the message visually
 
 EXAMPLES of good image prompts:
-- For productivity tips: "Subtle abstract illustration of organized geometric shapes, soft blue and gray gradient, minimalist desk elements faded in background, clean professional aesthetic, space for centered text overlay"
-- For leadership: "Abstract silhouettes of people in soft gradient, muted navy and gold tones, gentle directional lines suggesting guidance, professional corporate feel, clear center for text"
-- For tech/AI: "Soft abstract neural network pattern, subtle purple and blue gradient, gentle flowing data lines, futuristic but calm, space for text overlay"
+- For "Messy data got you down?": "Frustrated professional person at desk surrounded by scattered papers and chaotic sticky notes, stressed expression, office setting, muted colors, professional photography style"
+- For "Simplicity unlocks productivity": "Clean organized workspace with laptop, minimalist desk setup, person working calmly, bright natural lighting, sense of peace and focus"
+- For "Leadership is about listening": "Business professional in meeting genuinely listening to colleague, engaged body language, warm office environment, human connection moment"
+- For "AI is transforming business": "Futuristic office with professionals collaborating alongside holographic data displays, innovative technology integration, forward-looking atmosphere"
 
 Return your response as a valid JSON array:
 [
   {
     "number": 1,
     "finalText": "Short, powerful hook text",
-    "imagePrompt": "Content-relevant subtle background description...",
+    "imagePrompt": "Photorealistic scene with specific subjects (people, objects, setting) that visualize the concept, professional photography style, muted colors, no text",
     "layout": "hook_slide",
     "charCount": 45
   }
@@ -2450,7 +2467,7 @@ Return ONLY the JSON array, no other text.`;
           number: slide.number || index + 1,
           rawText: normalizedRawTexts[index] || "",
           finalText,
-          imagePrompt: slide.imagePrompt || `Subtle professional background for LinkedIn slide about "${finalText.substring(0, 30)}...", soft gradient, abstract shapes, space for text overlay, no text in image`,
+          imagePrompt: slide.imagePrompt || `Photorealistic scene showing: ${finalText.substring(0, 60)}. Include real people in action, workplace environment, or clear visual metaphor. Professional photography, muted colors. NO text or typography in image.`,
           layout,
           charCount,
           tooMuchText,
