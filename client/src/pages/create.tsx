@@ -61,8 +61,6 @@ interface ProcessedSlide {
   imagePrompt: string;
   layout: string;
   charCount?: number;
-  tooMuchText?: boolean;
-  maxChars?: number;
   isHook?: boolean;
   isCta?: boolean;
   base64Image?: string;
@@ -240,48 +238,16 @@ export default function Create() {
         }));
         setSlides(normalizedSlides);
         
-        // Check if any slide exceeds character limits
-        const hasExcessiveTextInDraft = normalizedSlides.some((slide, index) => {
-          const isHook = index === 0;
-          const maxChars = isHook ? 50 : 100;
-          return slide.text.length > maxChars;
-        });
-        
-        // If any slide exceeds limits, force back to input step
-        if (hasExcessiveTextInDraft) {
-          setProcessedSlides([]);
-          setStep("input");
-          setHasDraft(false);
-          toast({
-            title: "Draft Updated",
-            description: "Some slides exceed character limits. Please review and shorten them.",
-          });
-          return;
-        }
-        
-        // Normalize processedSlides as well - clamp finalText to limits
+        // Normalize processedSlides - no character limits
         const normalizedProcessedSlides = draft.processedSlides.map((slide, index) => {
           const isFirstSlide = index === 0;
           const isLastSlide = index === draft.processedSlides.length - 1;
-          const maxChars = isFirstSlide ? 50 : 100;
-          
-          let finalText = (slide.finalText || "").trim();
-          // Clamp to maxChars - ensure length never exceeds limit
-          if (finalText.length > maxChars) {
-            // Reserve 3 chars for ellipsis
-            const truncateAt = maxChars - 3;
-            const truncated = finalText.substring(0, truncateAt);
-            const lastSpace = truncated.lastIndexOf(" ");
-            // Try to break at word boundary, otherwise just truncate
-            finalText = (lastSpace > truncateAt * 0.7 ? truncated.substring(0, lastSpace) : truncated) + "...";
-          }
+          const finalText = (slide.finalText || "").trim();
           
           return {
             ...slide,
             finalText,
             charCount: finalText.length,
-            maxChars,
-            tooMuchText: false, // Always false after clamping
             isHook: isFirstSlide,
             isCta: isLastSlide,
           };
@@ -499,14 +465,7 @@ export default function Create() {
   const typeInfo = DEFAULT_CAROUSEL_TYPES.find(t => t.id === selectedCarouselType);
   const currentStepIndex = STEPS.findIndex(s => s.id === step);
   
-  // Check if any slide exceeds character limits (normalize by trimming whitespace)
-  const hasExcessiveText = slides.some((slide, index) => {
-    const isHook = index === 0;
-    const maxChars = isHook ? 50 : 100;
-    const normalizedLength = slide.text.trim().length;
-    return normalizedLength > maxChars;
-  });
-  const canProcess = filledSlides >= 2 && !hasExcessiveText;
+  const canProcess = filledSlides >= 2;
 
   return (
     <div className="min-h-screen bg-background">
@@ -898,9 +857,7 @@ export default function Create() {
                 {slides.map((slide, index) => {
                   const isHook = index === 0;
                   const isCta = index === slides.length - 1;
-                  const maxChars = isHook ? 50 : 100;
                   const charCount = slide.text.trim().length;
-                  const tooMuchText = charCount > maxChars;
                   
                   return (
                     <div key={slide.id} className="space-y-2">
@@ -917,8 +874,8 @@ export default function Create() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs ${tooMuchText ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                            {charCount}/{maxChars}
+                          <span className="text-xs text-muted-foreground">
+                            {charCount} chars
                           </span>
                           {slides.length > 1 && (
                             <Button
@@ -944,14 +901,9 @@ export default function Create() {
                         value={slide.text}
                         onChange={(e) => updateSlide(slide.id, e.target.value)}
                         rows={3}
-                        className={`resize-none ${tooMuchText ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                        className="resize-none"
                         data-testid={`textarea-slide-${index}`}
                       />
-                      {tooMuchText && (
-                        <p className="text-xs text-destructive flex items-center gap-1">
-                          Too much text - keep it short for better readability
-                        </p>
-                      )}
                       {isHook && charCount === 0 && (
                         <p className="text-xs text-muted-foreground">
                           Tip: "The #1 mistake...", "Stop doing this...", "Here's what nobody tells you..."
@@ -971,12 +923,6 @@ export default function Create() {
                     <Plus className="w-4 h-4 mr-2" />
                     Add Slide
                   </Button>
-                )}
-
-                {hasExcessiveText && (
-                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-                    Some slides exceed character limits. Please shorten them to proceed.
-                  </div>
                 )}
 
                 <div className="flex items-center justify-between pt-4 border-t gap-4">
@@ -1015,9 +961,15 @@ export default function Create() {
         {/* Step 3: Refine */}
         {step === "processing" && (
           <div className="space-y-8">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight">Review Content</h1>
-              <p className="text-muted-foreground mt-1">AI-refined slides ready for image generation</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight">Review Content</h1>
+                <p className="text-muted-foreground mt-1">AI-refined slides ready for image generation</p>
+              </div>
+              <div className="flex gap-2">
+                <Badge variant="secondary" className="font-normal">{getTypeName(selectedCarouselType)}</Badge>
+                <Badge variant="outline" className="font-normal">{getProviderName(aiProvider)}</Badge>
+              </div>
             </div>
 
             <Card className="border-0 shadow-sm">
@@ -1025,7 +977,7 @@ export default function Create() {
                 {processedSlides.map((slide, index) => (
                   <div 
                     key={index} 
-                    className={`p-4 rounded-lg border ${slide.tooMuchText ? 'bg-destructive/5 border-destructive/30' : 'bg-muted/30 border-border/50'}`}
+                    className="p-4 rounded-lg border bg-muted/30 border-border/50"
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -1041,8 +993,8 @@ export default function Create() {
                         <Badge variant="outline" className="text-xs font-normal">{slide.layout}</Badge>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs ${slide.tooMuchText ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                          {slide.charCount || slide.finalText.length}/{slide.maxChars || 100} chars
+                        <span className="text-xs text-muted-foreground">
+                          {slide.charCount || slide.finalText.length} chars
                         </span>
                         {processedSlides.length > 1 && (
                           <Button
@@ -1060,11 +1012,6 @@ export default function Create() {
                     <p className={`leading-relaxed ${slide.isHook ? 'text-lg font-bold' : 'text-foreground font-medium'}`}>
                       {slide.finalText}
                     </p>
-                    {slide.tooMuchText && (
-                      <p className="text-xs text-destructive mt-2">
-                        Text may be too long for optimal readability
-                      </p>
-                    )}
                     {slide.imagePrompt && (
                       <p className="text-xs text-muted-foreground mt-3 line-clamp-2">
                         Image: {slide.imagePrompt}
