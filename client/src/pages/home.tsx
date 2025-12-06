@@ -12,7 +12,8 @@ import {
   Send,
   PenLine,
   Mail,
-  Twitter
+  Twitter,
+  Link2
 } from "lucide-react";
 import Header from "@/components/Header";
 
@@ -137,6 +138,14 @@ export default function Home() {
               </div>
             ))}
           </div>
+          
+          <div className="mt-12 text-center">
+            <div className="inline-block px-6 py-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
+              <p className="text-slate-700 font-medium">
+                <span className="text-blue-600 font-semibold">New in 2025:</span> Turn any blog post into a LinkedIn carousel. Paste a URL and our AI creates a ready-to-post PDF.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -178,6 +187,12 @@ export default function Home() {
                 title: "Draft Saving",
                 description: "Save your work in progress and come back to finish it anytime",
                 iconBg: "from-blue-600 to-violet-600"
+              },
+              {
+                icon: Link2,
+                title: "URL to Carousel Generator",
+                description: "Paste a URL and get a 7-10 slide LinkedIn carousel summary, automatically designed for LinkedIn",
+                iconBg: "from-blue-500 to-purple-600"
               }
             ].map((feature, index) => (
               <Card 

@@ -61,21 +61,51 @@ export default function Header({ variant = "home" }: HeaderProps) {
         
         <nav className="hidden md:flex items-center gap-6">
           <a 
-            href="/" 
+            href="#home" 
+            onClick={(e) => {
+              e.preventDefault();
+              if (location !== "/") {
+                navigate("/");
+              } else {
+                document.getElementById("home")?.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
             className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
             data-testid="nav-home"
           >
             Home
           </a>
           <a 
-            href="/#how-it-works" 
+            href="#how-it-works" 
+            onClick={(e) => {
+              e.preventDefault();
+              if (location !== "/") {
+                navigate("/");
+                setTimeout(() => {
+                  document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+                }, 100);
+              } else {
+                document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
             className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
             data-testid="nav-how-it-works"
           >
             How It Works
           </a>
           <a 
-            href="/#features" 
+            href="#features" 
+            onClick={(e) => {
+              e.preventDefault();
+              if (location !== "/") {
+                navigate("/");
+                setTimeout(() => {
+                  document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+                }, 100);
+              } else {
+                document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
             className="text-slate-600 hover:text-blue-600 transition-colors font-medium"
             data-testid="nav-features"
           >
