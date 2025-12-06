@@ -260,8 +260,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("Firestore save failed (Firebase may not be configured):", firestoreError);
       }
 
-      // Redirect to the profile page where user can see their data
-      res.redirect("/profile");
+      // Redirect to the preview page so user can continue with their carousel
+      res.redirect("/preview");
     } catch (error) {
       console.error("OAuth callback error:", error);
       res.status(500).send("Authentication failed. Please try again.");
@@ -1718,15 +1718,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
             }
             
-            const prompt = `Create a professional LinkedIn carousel slide image with the following text beautifully displayed on it:
+            const prompt = `Create a professional, visually striking image that represents this concept: "${displayText}"
 
-"${displayText}"
-
-Design the image so:
-- The text is the focal point, displayed in a clean, modern, readable font
-- Use an elegant background that complements the text (gradients, subtle patterns, or professional imagery)
-- Text should be well-positioned with good contrast for readability
-- Professional LinkedIn-appropriate style
+Design requirements:
+- Generate imagery that visually illustrates and represents the meaning/theme of the text
+- DO NOT include any text, words, or letters in the image
+- Use relevant visual metaphors, symbols, and professional imagery
+- Modern, clean, polished aesthetic suitable for LinkedIn
+- High-quality, vibrant but professional color palette
 - Square format (1:1 aspect ratio)`;
             
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
@@ -1783,7 +1782,7 @@ Design the image so:
               displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
             }
             
-            const prompt = `Professional LinkedIn carousel slide with text "${displayText}" beautifully displayed. Clean modern typography, elegant background with gradients or subtle patterns, text as focal point, high contrast for readability, square format.`;
+            const prompt = `Professional image illustrating this concept: "${displayText}". Visually represent the meaning with relevant imagery, metaphors, and symbols. NO text or words in the image. Modern clean polished aesthetic, vibrant professional colors, LinkedIn-appropriate, square format.`;
             
             const formData = new FormData();
             formData.append("prompt", prompt);
@@ -1829,7 +1828,7 @@ Design the image so:
               displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
             }
             
-            const prompt = `Create a professional LinkedIn carousel slide image with the following text beautifully displayed on it: "${displayText}". Design with clean modern typography as the focal point, elegant background with gradients or subtle patterns, high contrast for readability, professional LinkedIn-appropriate style, square format.`;
+            const prompt = `Create a professional image that visually represents this concept: "${displayText}". Generate imagery that illustrates the meaning using relevant visual metaphors, symbols, and professional imagery. DO NOT include any text, words, or letters in the image. Modern clean polished aesthetic, high-quality vibrant but professional colors, LinkedIn-appropriate, square format.`;
             
             const response = await openai.images.generate({
               model: "dall-e-3",
