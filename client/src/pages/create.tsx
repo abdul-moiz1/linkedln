@@ -314,9 +314,15 @@ export default function Create() {
 
   const generateImagesMutation = useMutation({
     mutationFn: async () => {
-      const messages = processedSlides.map(s => s.imagePrompt || s.finalText);
+      const slides = processedSlides.map((s, index) => ({
+        text: s.finalText,
+        isHook: index === 0,
+        isCta: index === processedSlides.length - 1,
+      }));
       const response = await apiRequest("POST", "/api/images/generate", {
-        messages,
+        slides,
+        title: carouselTitle,
+        carouselType: selectedCarouselType,
         provider: aiProvider,
       });
       return await response.json();

@@ -1667,22 +1667,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * API: Generate AI Images (Guest-friendly)
    * 
-   * Generates images using OpenAI's DALL-E, Google's Gemini, or Stability AI based on text prompts.
-   * Each message in the array becomes an image in the carousel.
+   * Generates images using OpenAI's DALL-E, Google's Gemini, or Stability AI based on slide content.
+   * Each slide becomes an image in the carousel, with context-aware prompts.
    * Provider can be "openai", "gemini", or "stability" (auto selects first available)
    * No authentication required - allows guests to create carousels
    */
   app.post("/api/images/generate", async (req: Request, res: Response) => {
     // Guest-friendly endpoint - no auth required for carousel creation
     try {
-      const { messages, provider = "auto" } = req.body;
+      // Support new format (slides array with context) and legacy format (messages array)
+      const { slides, messages, title = "", carouselType = "", provider = "auto" } = req.body;
       
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        return res.status(400).json({ error: "Messages array is required" });
+      // Normalize input - convert slides array or messages array to unified format
+      let slideData: Array<{ text: string; isHook: boolean; isCta: boolean }>;
+      
+      if (slides && Array.isArray(slides) && slides.length > 0) {
+        slideData = slides.map((s: any, idx: number) => ({
+          text: (s.text || s).toString().trim(),
+          isHook: s.isHook ?? idx === 0,
+          isCta: s.isCta ?? idx === slides.length - 1,
+        }));
+      } else if (messages && Array.isArray(messages) && messages.length > 0) {
+        // Legacy format - convert messages to slides
+        slideData = messages.map((msg: string, idx: number) => ({
+          text: (msg || "").trim(),
+          isHook: idx === 0,
+          isCta: idx === messages.length - 1,
+        }));
+      } else {
+        return res.status(400).json({ error: "Slides or messages array is required" });
       }
 
-      if (messages.length > 5) {
-        return res.status(400).json({ error: "Maximum 5 messages allowed" });
+      if (slideData.length > 10) {
+        return res.status(400).json({ error: "Maximum 10 slides allowed" });
       }
 
       const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -1703,30 +1720,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Helper function to create context-aware image prompt
+      const createImagePrompt = (slide: { text: string; isHook: boolean; isCta: boolean }, index: number): string => {
+        const { text, isHook, isCta } = slide;
+        const slideContext = title ? `This is for a LinkedIn carousel titled "${title}"` : "This is for a LinkedIn carousel";
+        const typeContext = carouselType ? ` in a "${carouselType}" style` : "";
+        
+        let slideRole = "";
+        if (isHook) {
+          slideRole = "This is the HOOK slide - it should be eye-catching and attention-grabbing.";
+        } else if (isCta) {
+          slideRole = "This is the CALL-TO-ACTION slide - it should be inviting and action-oriented.";
+        } else {
+          slideRole = `This is slide ${index + 1} - a content slide sharing key information.`;
+        }
+
+        return `Create a visually compelling image for a LinkedIn carousel slide.
+
+${slideContext}${typeContext}.
+${slideRole}
+
+THE SLIDE TEXT IS:
+"${text}"
+
+CRITICAL INSTRUCTIONS:
+1. ANALYZE the text above and identify the MAIN CONCEPT, KEY WORDS, and THEME
+2. Create an image that DIRECTLY ILLUSTRATES these concepts using:
+   - Specific objects, scenes, or activities mentioned in the text
+   - Visual metaphors that represent the key ideas
+   - Relevant professional/business imagery that matches the topic
+3. DO NOT include any text, words, letters, or numbers in the image
+4. The image should make sense even without reading the text - viewers should "get" the concept
+
+STYLE REQUIREMENTS:
+- Professional, polished aesthetic suitable for LinkedIn
+- Modern, clean design with good composition
+- Vibrant but professional color palette
+- High quality, well-lit imagery
+- Square format (1:1 aspect ratio)
+
+EXAMPLE THINKING:
+- If text mentions "networking" → show people connecting, handshakes, network diagrams
+- If text mentions "growth" → show upward trends, plants growing, ladders, stairs
+- If text mentions "AI" → show futuristic tech, robots, neural networks, digital elements
+- If text mentions "time management" → show clocks, calendars, organized workspaces`;
+      };
+
       const imageUrls: string[] = [];
       const errors: string[] = [];
 
       if (selectedProvider === "gemini") {
-        for (let i = 0; i < messages.length; i++) {
+        for (let i = 0; i < slideData.length; i++) {
           try {
-            // Process text for display - crop if too long
-            let displayText = (messages[i] || "").trim();
-            const maxTextLength = 120;
-            if (displayText.length > maxTextLength) {
-              const truncated = displayText.substring(0, maxTextLength);
-              const lastSpace = truncated.lastIndexOf(" ");
-              displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
-            }
-            
-            const prompt = `Create a professional, visually striking image that represents this concept: "${displayText}"
-
-Design requirements:
-- Generate imagery that visually illustrates and represents the meaning/theme of the text
-- DO NOT include any text, words, or letters in the image
-- Use relevant visual metaphors, symbols, and professional imagery
-- Modern, clean, polished aesthetic suitable for LinkedIn
-- High-quality, vibrant but professional color palette
-- Square format (1:1 aspect ratio)`;
+            const prompt = createImagePrompt(slideData[i], i);
             
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
             
@@ -1766,23 +1812,17 @@ Design requirements:
               errors.push(`Slide ${i + 1}: No image in response`);
             }
           } catch (imgError: any) {
-            console.error(`Gemini image generation failed for message ${i + 1}:`, imgError);
+            console.error(`Gemini image generation failed for slide ${i + 1}:`, imgError);
             errors.push(`Slide ${i + 1}: ${imgError.message}`);
           }
         }
       } else if (selectedProvider === "stability") {
-        for (let i = 0; i < messages.length; i++) {
+        for (let i = 0; i < slideData.length; i++) {
           try {
-            // Process text for display - crop if too long
-            let displayText = (messages[i] || "").trim();
-            const maxTextLength = 120;
-            if (displayText.length > maxTextLength) {
-              const truncated = displayText.substring(0, maxTextLength);
-              const lastSpace = truncated.lastIndexOf(" ");
-              displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
-            }
-            
-            const prompt = `Professional image illustrating this concept: "${displayText}". Visually represent the meaning with relevant imagery, metaphors, and symbols. NO text or words in the image. Modern clean polished aesthetic, vibrant professional colors, LinkedIn-appropriate, square format.`;
+            const slide = slideData[i];
+            // Stability AI has shorter prompt limits, create a focused prompt
+            const slideRole = slide.isHook ? "hook/attention slide" : slide.isCta ? "call-to-action slide" : "content slide";
+            const prompt = `Professional LinkedIn ${slideRole} image illustrating: "${slide.text}". ${title ? `Topic: ${title}.` : ""} Create visual metaphors and relevant imagery that directly represent the concept. NO text/words in image. Modern, polished, professional aesthetic.`;
             
             const formData = new FormData();
             formData.append("prompt", prompt);
@@ -1809,7 +1849,7 @@ Design requirements:
             const base64Image = `data:image/png;base64,${base64}`;
             imageUrls.push(base64Image);
           } catch (imgError: any) {
-            console.error(`Stability image generation failed for message ${i + 1}:`, imgError);
+            console.error(`Stability image generation failed for slide ${i + 1}:`, imgError);
             errors.push(`Slide ${i + 1}: ${imgError.message}`);
           }
         }
@@ -1817,18 +1857,9 @@ Design requirements:
         const { OpenAI } = await import("openai");
         const openai = new OpenAI({ apiKey: openaiApiKey! });
 
-        for (let i = 0; i < messages.length; i++) {
+        for (let i = 0; i < slideData.length; i++) {
           try {
-            // Process text for display - crop if too long
-            let displayText = (messages[i] || "").trim();
-            const maxTextLength = 120;
-            if (displayText.length > maxTextLength) {
-              const truncated = displayText.substring(0, maxTextLength);
-              const lastSpace = truncated.lastIndexOf(" ");
-              displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
-            }
-            
-            const prompt = `Create a professional image that visually represents this concept: "${displayText}". Generate imagery that illustrates the meaning using relevant visual metaphors, symbols, and professional imagery. DO NOT include any text, words, or letters in the image. Modern clean polished aesthetic, high-quality vibrant but professional colors, LinkedIn-appropriate, square format.`;
+            const prompt = createImagePrompt(slideData[i], i);
             
             const response = await openai.images.generate({
               model: "dall-e-3",
@@ -1842,7 +1873,7 @@ Design requirements:
               imageUrls.push(response.data[0].url);
             }
           } catch (imgError: any) {
-            console.error(`OpenAI image generation failed for message ${i + 1}:`, imgError);
+            console.error(`OpenAI image generation failed for slide ${i + 1}:`, imgError);
             errors.push(`Slide ${i + 1}: ${imgError.message}`);
           }
         }
@@ -1859,7 +1890,7 @@ Design requirements:
         success: true, 
         imageUrls,
         generatedCount: imageUrls.length,
-        requestedCount: messages.length,
+        requestedCount: slideData.length,
         provider: selectedProvider,
         errors: errors.length > 0 ? errors : undefined
       });
