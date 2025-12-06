@@ -251,12 +251,18 @@ export default function Preview() {
             </div>
 
             <div className="relative bg-slate-900">
-              <div className="aspect-square">
+              {/* Slide Number Indicator - Top Right */}
+              <div className="absolute top-3 right-3 z-10 bg-black/60 text-white px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm">
+                {currentSlideIndex + 1} / {slidesWithImages.length}
+              </div>
+
+              {/* LinkedIn Carousel Aspect Ratio: 4:5 (portrait) */}
+              <div className="aspect-[4/5]">
                 {currentSlide?.base64Image ? (
                   <img
                     src={currentSlide.base64Image}
                     alt={`Slide ${currentSlideIndex + 1}`}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover rounded-sm"
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-400">

@@ -2280,6 +2280,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Carousel type is required" });
       }
 
+      // Normalize and validate rawTexts - trim and enforce character limits
+      const normalizedRawTexts = rawTexts.map((text: string, index: number) => {
+        const trimmed = (text || "").trim();
+        const maxChars = index === 0 ? 50 : 100; // Hook = 50, others = 100
+        if (trimmed.length > maxChars) {
+          // Truncate at word boundary
+          const truncated = trimmed.substring(0, maxChars);
+          const lastSpace = truncated.lastIndexOf(" ");
+          return lastSpace > maxChars * 0.7 ? truncated.substring(0, lastSpace) : truncated;
+        }
+        return trimmed;
+      }).filter((t: string) => t.length > 0);
+
+      if (normalizedRawTexts.length === 0) {
+        return res.status(400).json({ error: "At least one non-empty text is required" });
+      }
+
       const geminiApiKey = process.env.GEMINI_API_KEY;
       const openaiApiKey = process.env.OPENAI_API_KEY;
 
@@ -2290,40 +2307,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Build the AI prompt for processing text
-      const systemPrompt = `You are a LinkedIn-Style Carousel Generator. Your job is to take raw text and transform it into professional, engaging LinkedIn carousel slides.
+      const systemPrompt = `You are a LinkedIn Carousel Expert. Create high-performing, professional carousel slides.
 
 CAROUSEL TYPE: ${carouselType}
 
-RULES:
-1. Rewrite each piece of raw text into clean, simple, human wording suitable for LinkedIn
-2. Keep the text short and visual - suitable for carousel slides
-3. Don't change the core meaning
-4. For each slide, determine the best layout:
-   - "title_top": For slides with a main headline
-   - "big_text_center": For impactful statements or quotes
-   - "points_center": For lists or bullet points
-   - "footer_cta": For call-to-action slides
-   - "split_image_text": For balanced content
+TEXT RULES:
+1. Keep each slide to ONE single idea - max 100 characters
+2. Use clean, bold, human-friendly wording
+3. Slide 1 = HOOK: Make it punchy, curiosity-driven, max 50 characters
+4. Last slide = CTA: "Follow for more" or similar call-to-action
+5. Clear hierarchy: Headlines big, details smaller
 
-For each slide, also generate an image prompt that describes:
-- Background style (gradient, solid, abstract)
-- Color palette (professional, matching the tone)
-- Typography placement areas
-- Overall mood and aesthetic
+LAYOUT OPTIONS:
+- "hook_slide": For Slide 1 - bold, centered, maximum impact
+- "big_text_center": For impactful statements or quotes  
+- "points_center": For lists (keep to 3 points max)
+- "cta_slide": For the final call-to-action slide
 
-Return your response as a valid JSON array with this structure:
+IMAGE PROMPT RULES - CRITICAL:
+Generate images that are RELEVANT to the slide content but SUBTLE enough for text overlay.
+- The image should visually represent the TOPIC/THEME of the slide
+- Use soft, muted colors and subtle elements
+- Include gentle gradients or abstract shapes related to the topic
+- Leave clear space in the center for text
+- NO text, words, or letters in the image
+- Keep it professional and LinkedIn-appropriate
+
+EXAMPLES of good image prompts:
+- For productivity tips: "Subtle abstract illustration of organized geometric shapes, soft blue and gray gradient, minimalist desk elements faded in background, clean professional aesthetic, space for centered text overlay"
+- For leadership: "Abstract silhouettes of people in soft gradient, muted navy and gold tones, gentle directional lines suggesting guidance, professional corporate feel, clear center for text"
+- For tech/AI: "Soft abstract neural network pattern, subtle purple and blue gradient, gentle flowing data lines, futuristic but calm, space for text overlay"
+
+Return your response as a valid JSON array:
 [
   {
     "number": 1,
-    "finalText": "The refined, LinkedIn-ready text",
-    "imagePrompt": "Professional LinkedIn carousel slide background. Clean gradient from [color] to [color]. Space for bold centered text. Modern, minimalist aesthetic. No text in the image, only background design.",
-    "layout": "big_text_center"
+    "finalText": "Short, powerful hook text",
+    "imagePrompt": "Content-relevant subtle background description...",
+    "layout": "hook_slide",
+    "charCount": 45
   }
 ]`;
 
-      const userPrompt = `Process these ${rawTexts.length} slide texts for a "${carouselType}" style LinkedIn carousel titled "${title || 'LinkedIn Carousel'}":
+      const userPrompt = `Process these ${normalizedRawTexts.length} slide texts for a "${carouselType}" style LinkedIn carousel titled "${title || 'LinkedIn Carousel'}":
 
-${rawTexts.map((text: string, i: number) => `Slide ${i + 1}: "${text}"`).join('\n')}
+${normalizedRawTexts.map((text: string, i: number) => `Slide ${i + 1}: "${text}"`).join('\n')}
 
 Return ONLY the JSON array, no other text.`;
 
@@ -2391,14 +2419,47 @@ Return ONLY the JSON array, no other text.`;
       }
 
       // Ensure each slide has required fields including base64Image placeholder
-      const processedSlides = slides.map((slide: any, index: number) => ({
-        number: slide.number || index + 1,
-        rawText: rawTexts[index] || "",
-        finalText: slide.finalText || rawTexts[index] || "",
-        imagePrompt: slide.imagePrompt || `Professional LinkedIn carousel slide ${index + 1}. Clean modern design with space for text.`,
-        layout: slide.layout || "big_text_center",
-        base64Image: "", // Empty initially - will be populated when images are generated
-      }));
+      const totalSlides = slides.length;
+      const processedSlides = slides.map((slide: any, index: number) => {
+        const isFirstSlide = index === 0;
+        const isLastSlide = index === totalSlides - 1;
+        const maxChars = isFirstSlide ? 50 : 100;
+        
+        // Get and clamp finalText to enforce character limits
+        let finalText = (slide.finalText || normalizedRawTexts[index] || "").trim();
+        if (finalText.length > maxChars) {
+          // Reserve 3 chars for ellipsis to ensure total length never exceeds maxChars
+          const truncateAt = maxChars - 3;
+          const truncated = finalText.substring(0, truncateAt);
+          const lastSpace = truncated.lastIndexOf(" ");
+          // Try to break at word boundary, otherwise just truncate
+          finalText = (lastSpace > truncateAt * 0.7 ? truncated.substring(0, lastSpace) : truncated) + "...";
+        }
+        
+        const charCount = finalText.length;
+        
+        // Determine layout based on position
+        let layout = slide.layout || "big_text_center";
+        if (isFirstSlide && layout !== "hook_slide") layout = "hook_slide";
+        if (isLastSlide && layout !== "cta_slide") layout = "cta_slide";
+        
+        // Warning for too much text (should be false after clamping)
+        const tooMuchText = charCount > maxChars;
+        
+        return {
+          number: slide.number || index + 1,
+          rawText: normalizedRawTexts[index] || "",
+          finalText,
+          imagePrompt: slide.imagePrompt || `Subtle professional background for LinkedIn slide about "${finalText.substring(0, 30)}...", soft gradient, abstract shapes, space for text overlay, no text in image`,
+          layout,
+          charCount,
+          tooMuchText,
+          maxChars,
+          isHook: isFirstSlide,
+          isCta: isLastSlide,
+          base64Image: "", // Empty initially - will be populated when images are generated
+        };
+      });
 
       // Determine login requirements based on session state
       const isAuthenticated = !!req.session.user;
