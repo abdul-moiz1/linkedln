@@ -122,7 +122,6 @@ const DEFAULT_CAROUSEL_TYPES: CarouselTypeInfo[] = [
 const STEPS = [
   { id: "type-select", label: "Setup", icon: FileText },
   { id: "input", label: "Content", icon: Palette },
-  { id: "processing", label: "Refine", icon: Wand2 },
   { id: "images", label: "Preview", icon: ImageIcon },
 ];
 
@@ -365,11 +364,11 @@ export default function Create() {
           text: s.rawText || s.finalText,
         }));
         setSlides(slideMessages);
-        setStep("processing");
+        setStep("input");
         setWorkspaceView("manual");
         toast({
-          title: "Carousel Generated",
-          description: `Created ${data.slides.length} slides from the URL`,
+          title: "Content Generated",
+          description: `Created ${data.slides.length} slides from the URL. Click Generate Images to continue.`,
         });
       } else if (data.error) {
         toast({
@@ -958,16 +957,28 @@ export default function Create() {
                       Save
                     </Button>
                     <Button
-                      onClick={() => processTextMutation.mutate()}
-                      disabled={!canProcess || processTextMutation.isPending}
-                      data-testid="button-process-text"
+                      onClick={async () => {
+                        const rawTexts = slides.map(s => s.text.trim()).filter(t => t.length > 0);
+                        const response = await apiRequest("POST", "/api/carousel/process", {
+                          rawTexts,
+                          carouselType: selectedCarouselType,
+                          title: carouselTitle,
+                        });
+                        const data = await response.json();
+                        if (data.slides) {
+                          setProcessedSlides(data.slides);
+                          generateImagesMutation.mutate();
+                        }
+                      }}
+                      disabled={!canProcess || processTextMutation.isPending || generateImagesMutation.isPending}
+                      data-testid="button-generate-images"
                     >
-                      {processTextMutation.isPending ? (
+                      {(processTextMutation.isPending || generateImagesMutation.isPending) ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
-                        <Wand2 className="w-4 h-4 mr-2" />
+                        <Sparkles className="w-4 h-4 mr-2" />
                       )}
-                      Process
+                      Generate Images
                     </Button>
                   </div>
                 </div>
@@ -976,96 +987,7 @@ export default function Create() {
           </div>
         )}
 
-        {/* Step 3: Refine */}
-        {step === "processing" && (
-          <div className="space-y-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight">Review Content</h1>
-                <p className="text-muted-foreground mt-1">AI-refined slides ready for image generation</p>
-              </div>
-              <div className="flex gap-2">
-                <Badge variant="secondary" className="font-normal">{getTypeName(selectedCarouselType)}</Badge>
-                <Badge variant="outline" className="font-normal">{getProviderName(aiProvider)}</Badge>
-              </div>
-            </div>
-
-            <Card className="border-0 shadow-sm">
-              <CardContent className="pt-6 space-y-4">
-                {processedSlides.map((slide, index) => (
-                  <div 
-                    key={index} 
-                    className="p-4 rounded-lg border bg-muted/30 border-border/50"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">
-                          {index + 1}
-                        </div>
-                        {slide.isHook && (
-                          <Badge variant="default" className="text-xs">Hook</Badge>
-                        )}
-                        {slide.isCta && (
-                          <Badge variant="secondary" className="text-xs">CTA</Badge>
-                        )}
-                        <Badge variant="outline" className="text-xs font-normal">{slide.layout}</Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {slide.charCount || slide.finalText.length} chars
-                        </span>
-                        {processedSlides.length > 1 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeProcessedSlide(index)}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            data-testid={`button-remove-processed-slide-${index}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <p className={`leading-relaxed ${slide.isHook ? 'text-lg font-bold' : 'text-foreground font-medium'}`}>
-                      {slide.finalText}
-                    </p>
-                    {slide.imagePrompt && (
-                      <p className="text-xs text-muted-foreground mt-3 line-clamp-2">
-                        Image: {slide.imagePrompt}
-                      </p>
-                    )}
-                  </div>
-                ))}
-
-                <div className="flex items-center justify-between pt-4 border-t gap-4">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setStep("input")}
-                    data-testid="button-edit-text"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    Edit Text
-                  </Button>
-                  <Button
-                    onClick={() => generateImagesMutation.mutate()}
-                    disabled={generateImagesMutation.isPending}
-                    data-testid="button-generate-images"
-                  >
-                    {generateImagesMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4 mr-2" />
-                    )}
-                    Generate Images
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Step 4: Preview */}
+        {/* Step 3: Preview */}
         {step === "images" && (
           <div className="space-y-8">
             <div>
