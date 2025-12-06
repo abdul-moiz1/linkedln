@@ -19,10 +19,6 @@ localPort = 34709
 externalPort = 6000
 
 [[ports]]
-localPort = 36341
-externalPort = 8080
-
-[[ports]]
 localPort = 36897
 externalPort = 4200
 
@@ -98,4 +94,4 @@ expertMode = true
 [userenv.development]
 
 [userenv.shared]
-BASE_URL = "https://59a0ba94-15f2-4d6f-a8c8-f211c9010d82-00-1htswm7nono9r.spock.replit.dev"
+BASE_URL = "https://c9ba2034-8f34-46a2-8a24-1178bed75702-00-2z0jen5ox7f9t.riker.replit.dev"

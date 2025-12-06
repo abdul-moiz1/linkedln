@@ -1,0 +1,82 @@
+You are the UI/UX designer for my LinkedIn Carousel Maker app.
+
+Improve the entire carousel creation experience based on proven LinkedIn carousel design principles:
+
+1. STRONG HOOK SLIDE
+- Make Slide 1 visually bold and extremely readable.
+- Large headline text.
+- Minimal background distractions.
+- High contrast.
+- Encourage users to write short, powerful hooks.
+- Provide example hooks and enforce short text limits.
+
+2. CONSISTENT SLIDE DESIGN
+- Enforce a uniform layout across all slides:
+  same font, same spacing, same alignment.
+- Use a consistent color palette.
+- Every slide should feel like part of a clean series.
+
+3. CLEAR HIERARCHY
+- Headline should always dominate.
+- Secondary text should be clearly smaller.
+- Maintain strong alignment: left, center, or justified consistently.
+
+4. SINGLE IDEA PER SLIDE
+- Guide users to keep each slide focused on one idea.
+- Add a text limit to prevent clutter.
+- Add a “Too much text” warning if they overload.
+
+5. MOBILE-OPTIMIZED
+- All text must be readable on a small screen.
+- Enforce minimum font sizes.
+- Encourage simple backgrounds and fewer elements.
+
+6. EASY-TO-READ STRUCTURE
+Update the preview UI to show:
+- Slide number at the top right.
+- Clean padding around text.
+- Smooth edges and rounded corners.
+- Simple, non-distracting backgrounds.
+
+7. CTA END SLIDE
+- Automatically generate a final slide layout with:
+  “Thank you for reading”
+  “Follow for more”
+  or the user’s chosen CTA.
+- Design this slide clean and simple.
+
+8. COLOR + TYPOGRAPHY RULES
+- Use a modern, minimal, high-contrast style.
+- Suggest 2–3 color palettes.
+- Offer preset typography styles:
+  • Bold Headline
+  • Body Text
+  • Small Notes
+
+9. IMAGE GENERATION IMPROVEMENTS
+- Update background images to be simple and subtle.
+- Avoid complex imagery that interferes with text.
+- Encourage plain gradients, abstract shapes, or low-noise patterns.
+
+10. EDITOR LAYOUT IMPROVEMENTS
+- Streamline the editor so users move naturally through:
+  Choose Type → Write Slides → Preview → Download
+- Show live character count.
+- Add spacing and alignment guides.
+- Make the preview match real LinkedIn proportions exactly.
+
+11. BRANDING + PROFESSIONAL FEEL
+- Add a slightly dark overlay on hero backgrounds to improve text readability.
+- Introduce cleaner UI spacing and bigger buttons.
+- Make the product look modern, friendly, and simple.
+
+GOAL:
+Make the whole carousel creation flow match top-tier LinkedIn carousel designs: clean, bold, readable, minimal, and high-performing.
+
+Return:
+- Updated UI layout wireframes
+- Updated color palette suggestions
+- New typography rules
+- Updated guidelines for slide text limits
+- Updated preview styling instructions
+- New simplified editor flow
