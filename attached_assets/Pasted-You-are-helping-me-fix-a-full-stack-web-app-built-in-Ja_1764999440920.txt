@@ -1,0 +1,156 @@
+You are helping me fix a full-stack web app built in JavaScript/Node/React that generates AI carousels and posts them to LinkedIn. The project was working before LinkedIn-only login, but after I added Firebase email/Gmail login and carousel types, many flows broke. I need you to fix everything and output working code + folder structure + API routes + Firebase rules where needed.
+
+📌 1. CURRENT SYSTEM (was working before updates)
+
+User logs in with LinkedIn OAuth.
+
+App fetches some LinkedIn profile info.
+
+User creates an AI-generated carousel, previews it, and uploads it to LinkedIn through our backend.
+
+📌 2. NEW REQUIREMENTS (after updates)
+
+I added:
+
+Firebase Auth (email + Gmail)
+
+10 carousel templates
+
+Firestore saving (but I don’t understand how to store Base64/PDF)
+
+After updates, flows stopped working.
+I need you to fix the entire authentication + carousel generation + preview + save + LinkedIn posting pipeline.
+
+📌 3. FINAL SYSTEM I WANT (FULL SPEC)
+A. Login
+
+User should choose one of:
+
+Login with Email / Password (Firebase Auth)
+
+Login with Google (Firebase Auth)
+
+Login with LinkedIn (only needed when posting)
+
+⚠️ User should NOT need LinkedIn login at the start.
+LinkedIn login should only appear when user tries to Post to LinkedIn.
+
+B. Carousel Creation Flow
+
+User selects carousel type (limit to 4–5 types for now).
+
+Show a small description under each type.
+
+User inputs topic → app sends request to my backend → backend calls AI provider (OpenAI/Claude/Gemini) → returns carousel slides.
+
+App renders the preview.
+
+User can click SAVE.
+
+Generate a PDF
+
+Save in Firestore Storage
+
+Save metadata in Firestore Document
+
+{
+  userId,
+  type,
+  description,
+  createdAt,
+  pdfUrl,
+  previewImagesBase64: [],
+}
+
+
+C. “Post on LinkedIn” Flow
+
+When user clicks "Post on LinkedIn"
+
+If they are not logged in with LinkedIn → trigger LinkedIn OAuth
+
+After success, upload the final carousel PDF as a LinkedIn document post
+
+Return confirmation
+
+📌 4. TECH REQUIREMENTS
+
+You must generate:
+
+Frontend
+
+React + Vite or Next.js (whichever easier)
+
+Components:
+
+Login
+
+CarouselTypeSelector
+
+CarouselEditor
+
+Preview
+
+SaveToFirestore button
+
+PostToLinkedIn button
+
+Backend
+
+Node.js / Express / Typescript
+
+Routes:
+
+/api/ai/generate-carousel
+
+/api/carousel/save
+
+/api/linkedin/auth
+
+/api/linkedin/post
+
+LinkedIn posting code
+
+PDF generator code
+
+Firebase admin integration
+
+Firebase
+
+Provide:
+
+Firestore structure
+
+Storage paths
+
+Security rules
+
+📌 5. MAIN FIXES I NEED
+
+✔ Fix Firebase Gmail login
+✔ Ensure email login works
+✔ Make carousel type selection dynamic
+✔ Add descriptions for templates
+✔ Fix preview renderer
+✔ Generate and save PDF to Firestore Storage
+✔ Save metadata document in Firestore
+✔ Trigger LinkedIn OAuth only when posting
+✔ Upload PDF to LinkedIn correctly
+
+📌 6. FINAL OUTPUT FORMAT
+
+Please output:
+
+File structure
+
+Updated frontend code
+
+Updated backend code
+
+Firebase rules
+
+Example Firestore document
+
+Instructions to run on Replit
+
+Make sure all logic works end-to-end.
