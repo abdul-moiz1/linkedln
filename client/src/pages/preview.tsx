@@ -19,6 +19,8 @@ import {
   Download,
   Loader2,
   ArrowLeft,
+  X,
+  Maximize2,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { getCarouselData, clearCarouselData } from "@/lib/carouselStore";
@@ -55,6 +57,7 @@ export default function Preview() {
   const [caption, setCaption] = useState("");
   const [isCreatingPdf, setIsCreatingPdf] = useState(false);
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { data: user, isLoading: isLoadingUser } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
@@ -66,7 +69,6 @@ export default function Preview() {
       const hasImages = memoryData.processedSlides?.some(slide => slide.base64Image);
       if (hasImages) {
         setDraft(memoryData as CarouselDraft);
-        setCaption(memoryData.title ? `Check out my ${memoryData.title}!` : "");
         return;
       }
     }
@@ -86,7 +88,6 @@ export default function Preview() {
           return;
         }
         setDraft(parsed);
-        setCaption(parsed.title ? `Check out my ${parsed.title}!` : "");
       } catch {
         toast({
           title: "Error",
@@ -169,6 +170,9 @@ export default function Preview() {
   });
 
   const handleLinkedInLogin = () => {
+    if (draft) {
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    }
     window.location.href = "/auth/linkedin";
   };
 
@@ -367,14 +371,16 @@ export default function Preview() {
                 </div>
               </div>
 
-              {/* Fullscreen icon hint - Bottom Right (LinkedIn style) */}
-              <div className="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="bg-black/70 text-white p-1.5 rounded backdrop-blur-sm">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M21 16v3a2 2 0 01-2 2h-3M3 16v3a2 2 0 002 2h3" />
-                  </svg>
+              {/* Fullscreen button - Bottom Right (LinkedIn style) */}
+              <button
+                onClick={() => setIsFullscreen(true)}
+                className="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                data-testid="button-fullscreen"
+              >
+                <div className="bg-black/70 text-white p-1.5 rounded backdrop-blur-sm hover:bg-black/80 transition-colors">
+                  <Maximize2 className="w-4 h-4" />
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* LinkedIn-style Social Actions Bar */}
@@ -474,6 +480,62 @@ export default function Preview() {
           </div>
         </div>
       </main>
+
+      {/* Fullscreen Image Modal */}
+      {isFullscreen && currentSlide?.base64Image && (
+        <div 
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
+          onClick={() => setIsFullscreen(false)}
+          data-testid="modal-fullscreen"
+        >
+          <button
+            onClick={() => setIsFullscreen(false)}
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-colors"
+            data-testid="button-close-fullscreen"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          
+          <div className="relative max-w-4xl max-h-[90vh] px-4">
+            <img
+              src={currentSlide.base64Image}
+              alt={`Slide ${currentSlideIndex + 1}`}
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+            
+            {/* Navigation in fullscreen */}
+            {slidesWithImages.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handlePrevSlide(); }}
+                  disabled={currentSlideIndex === 0}
+                  className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 w-10 h-10 rounded-full bg-white/90 shadow-lg flex items-center justify-center transition-all
+                    ${currentSlideIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white hover:scale-105'}`}
+                  data-testid="button-fullscreen-prev"
+                >
+                  <ChevronLeft className="w-6 h-6 text-slate-700" />
+                </button>
+                
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleNextSlide(); }}
+                  disabled={currentSlideIndex === slidesWithImages.length - 1}
+                  className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 w-10 h-10 rounded-full bg-white/90 shadow-lg flex items-center justify-center transition-all
+                    ${currentSlideIndex === slidesWithImages.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white hover:scale-105'}`}
+                  data-testid="button-fullscreen-next"
+                >
+                  <ChevronRight className="w-6 h-6 text-slate-700" />
+                </button>
+              </>
+            )}
+            
+            {/* Slide counter in fullscreen */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm backdrop-blur-sm">
+              {currentSlideIndex + 1} / {slidesWithImages.length}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
