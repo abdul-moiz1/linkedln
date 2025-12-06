@@ -446,8 +446,14 @@ export default function Create() {
   };
 
   const removeSlide = (id: number) => {
-    if (slides.length > 2) {
+    if (slides.length > 1) {
       setSlides(slides.filter(s => s.id !== id));
+    }
+  };
+
+  const removeProcessedSlide = (index: number) => {
+    if (processedSlides.length > 1) {
+      setProcessedSlides(processedSlides.filter((_, idx) => idx !== index));
     }
   };
 
@@ -897,7 +903,7 @@ export default function Create() {
                           <span className={`text-xs ${tooMuchText ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
                             {charCount}/{maxChars}
                           </span>
-                          {slides.length > 2 && (
+                          {slides.length > 1 && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1017,9 +1023,22 @@ export default function Create() {
                         )}
                         <Badge variant="outline" className="text-xs font-normal">{slide.layout}</Badge>
                       </div>
-                      <span className={`text-xs ${slide.tooMuchText ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                        {slide.charCount || slide.finalText.length}/{slide.maxChars || 100} chars
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs ${slide.tooMuchText ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                          {slide.charCount || slide.finalText.length}/{slide.maxChars || 100} chars
+                        </span>
+                        {processedSlides.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeProcessedSlide(index)}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            data-testid={`button-remove-processed-slide-${index}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <p className={`leading-relaxed ${slide.isHook ? 'text-lg font-bold' : 'text-foreground font-medium'}`}>
                       {slide.finalText}
