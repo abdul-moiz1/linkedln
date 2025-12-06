@@ -1723,7 +1723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Helper function to create context-aware image prompt
       const createImagePrompt = (slide: { text: string; isHook: boolean; isCta: boolean }, index: number): string => {
         const { text, isHook, isCta } = slide;
-        const slideContext = title ? `This is for a LinkedIn carousel titled "${title}"` : "This is for a LinkedIn carousel";
+        const slideContext = title ? `This is for a carousel titled "${title}"` : "This is for a professional carousel";
         const typeContext = carouselType ? ` in a "${carouselType}" style` : "";
         
         let slideRole = "";
@@ -1735,7 +1735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           slideRole = `This is slide ${index + 1} - a content slide sharing key information.`;
         }
 
-        return `Create a visually compelling image for a LinkedIn carousel slide that DIRECTLY REPRESENTS the slide's text content.
+        return `Create a visually compelling image for a carousel slide that DIRECTLY REPRESENTS the slide's text content.
 
 ${slideContext}${typeContext}.
 ${slideRole}
@@ -1751,21 +1751,23 @@ CRITICAL INSTRUCTIONS:
    - Visual metaphors or symbols that represent the key idea
    - A scene that a viewer would immediately connect to the text's meaning
 4. DO NOT include any text, words, letters, or numbers in the image
-5. DO NOT create generic "LinkedIn" or "professional" imagery - make it SPECIFIC to this text
+5. DO NOT include any social media logos, app icons, or brand symbols
+6. Focus ONLY on the concept in the text - make the image SPECIFIC to this content
 
 STYLE REQUIREMENTS:
-- Professional, polished aesthetic suitable for LinkedIn
+- Professional, polished aesthetic
 - Modern, clean design with good composition
 - Vibrant but professional color palette
 - High quality, well-lit imagery
 - Square format (1:1 aspect ratio)
+- NO logos, NO text, NO brand symbols
 
 TEXT-TO-IMAGE MAPPING EXAMPLES:
 - "5 Tips for Remote Work" → home office setup, person working on laptop at kitchen table, comfortable workspace with plants
 - "Boost Your Network" → people shaking hands, coffee meeting, network connection diagram, business card exchange
 - "AI is Transforming Business" → futuristic robots, neural network visualization, digital transformation scene
 - "Time Management Secrets" → clocks, calendars, organized desk, hourglass, productivity tools
-- "Follow for more tips" → pointing hand gesture, growth arrow, community gathering, follow icon visualization`;
+- "Follow for more tips" → pointing hand gesture, growth arrow, community gathering`;
       };
 
       const imageUrls: string[] = [];
@@ -1824,7 +1826,7 @@ TEXT-TO-IMAGE MAPPING EXAMPLES:
             const slide = slideData[i];
             // Stability AI has shorter prompt limits, create a focused prompt
             const slideRole = slide.isHook ? "hook/attention slide" : slide.isCta ? "call-to-action slide" : "content slide";
-            const prompt = `Professional LinkedIn ${slideRole} image illustrating: "${slide.text}". ${title ? `Topic: ${title}.` : ""} Create visual metaphors and relevant imagery that directly represent the concept. NO text/words in image. Modern, polished, professional aesthetic.`;
+            const prompt = `Professional ${slideRole} image illustrating: "${slide.text}". ${title ? `Topic: ${title}.` : ""} Create visual metaphors and relevant imagery that directly represent the concept. NO text/words in image. NO logos or brand symbols. Modern, polished, professional aesthetic.`;
             
             const formData = new FormData();
             formData.append("prompt", prompt);
@@ -2426,7 +2428,7 @@ TEXT-TO-IMAGE MAPPING EXAMPLES:
       console.log(`Extracted ${textContent.length} characters from URL`);
 
       // Step 3: Use AI to summarize into 7-10 carousel slides
-      const systemPrompt = `You are a LinkedIn Carousel Expert. Your task is to transform blog/article content into a high-performing LinkedIn carousel with 7-10 slides.
+      const systemPrompt = `You are a Carousel Design Expert. Your task is to transform blog/article content into a high-performing professional carousel with 7-10 slides.
 
 CAROUSEL TYPE: ${carouselType}
 
@@ -2453,8 +2455,8 @@ For each slide, create an "imagePrompt" field (20-40 words) that VISUALLY REPRES
 - ANALYZE the slide text and identify the KEY CONCEPT, MAIN IDEA, or ACTION
 - Describe a scene or visual metaphor that DIRECTLY ILLUSTRATES that concept
 - Use specific visual elements, objects, or activities mentioned or implied in the text
-- Professional imagery suitable for LinkedIn
-- No text/words in the image (text overlaid separately)
+- Professional, polished imagery with modern aesthetics
+- NO logos, NO text, NO brand symbols in the image
 
 MAPPING TEXT TO VISUALS (REQUIRED):
 - If slide says "5 Tips for Remote Work" → show home office setup, person with laptop at kitchen table
@@ -2478,7 +2480,7 @@ Return your response as a valid JSON object with this structure:
   ]
 }`;
 
-      const userPrompt = `Transform this article/blog content into a LinkedIn carousel with 7-10 slides:
+      const userPrompt = `Transform this article/blog content into a professional carousel with 7-10 slides:
 
 SOURCE URL: ${url}
 
@@ -2581,7 +2583,7 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         if (isLastSlide && layout !== "cta_slide") layout = "cta_slide";
         
         // Generate a content-specific fallback imagePrompt if AI didn't provide one
-        const fallbackImagePrompt = `Create a visual that directly illustrates the concept: "${finalText}". Show objects, scenes, or metaphors that represent the main idea. Professional LinkedIn style with modern clean aesthetic. Focus on visual storytelling that matches the text meaning.`;
+        const fallbackImagePrompt = `Create a visual that directly illustrates the concept: "${finalText}". Show objects, scenes, or metaphors that represent the main idea. Professional modern style with clean aesthetic. NO logos, NO text, NO brand symbols. Focus on visual storytelling that matches the text meaning.`;
         
         return {
           number: index + 1,
@@ -2677,10 +2679,10 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       }
 
       // Build the AI prompt for processing text
-      const systemPrompt = `You are a LinkedIn Carousel Expert. Create high-performing, professional carousel slides.
+      const systemPrompt = `You are a Carousel Design Expert. Create high-performing, professional carousel slides.
 
 CAROUSEL TYPE: ${carouselType}
-CAROUSEL TITLE: ${title || 'LinkedIn Carousel'}
+CAROUSEL TITLE: ${title || 'Professional Carousel'}
 
 TEXT RULES:
 1. Keep each slide to ONE single idea - max 100 characters
@@ -2700,8 +2702,8 @@ For each slide, create an "imagePrompt" field (20-40 words) that VISUALLY REPRES
 - ANALYZE the slide text and identify the KEY CONCEPT, MAIN IDEA, or ACTION
 - Describe a scene or visual metaphor that DIRECTLY ILLUSTRATES that concept
 - Use specific visual elements, objects, or activities mentioned or implied in the text
-- Professional imagery suitable for LinkedIn
-- No text/words in the image (text overlaid separately)
+- Professional, polished imagery with modern aesthetics
+- NO logos, NO text, NO brand symbols in the image
 
 MAPPING TEXT TO VISUALS:
 - If slide says "5 Tips for Remote Work" → show home office setup, person with laptop at kitchen table, comfortable workspace
@@ -2721,7 +2723,7 @@ Return your response as a valid JSON array:
   }
 ]`;
 
-      const userPrompt = `Process these ${normalizedRawTexts.length} slide texts for a "${carouselType}" style LinkedIn carousel titled "${title || 'LinkedIn Carousel'}":
+      const userPrompt = `Process these ${normalizedRawTexts.length} slide texts for a "${carouselType}" style professional carousel titled "${title || 'Professional Carousel'}":
 
 ${normalizedRawTexts.map((text: string, i: number) => `Slide ${i + 1}: "${text}"`).join('\n')}
 
@@ -2820,7 +2822,7 @@ Return ONLY the JSON array, no other text.`;
         
         // Generate a content-specific fallback imagePrompt if AI didn't provide one
         // Extract key concepts from the text for a more relevant image
-        const fallbackImagePrompt = `Create a visual that directly illustrates the concept: "${finalText}". Show objects, scenes, or metaphors that represent the main idea. Professional LinkedIn style with modern clean aesthetic. Focus on visual storytelling that matches the text meaning.`;
+        const fallbackImagePrompt = `Create a visual that directly illustrates the concept: "${finalText}". Show objects, scenes, or metaphors that represent the main idea. Professional modern style with clean aesthetic. NO logos, NO text, NO brand symbols. Focus on visual storytelling that matches the text meaning.`;
         
         return {
           number: slide.number || index + 1,
@@ -3170,7 +3172,7 @@ Return ONLY the JSON array, no other text.`;
           }
           
           // Use ONLY the user's text to generate image - no preset examples
-          const prompt = `Create a professional LinkedIn carousel slide image with the following text beautifully displayed on it:
+          const prompt = `Create a professional carousel slide image with the following text beautifully displayed on it:
 
 "${displayText}"
 
@@ -3178,7 +3180,8 @@ Design the image so:
 - The text is the focal point, displayed in a clean, modern, readable font
 - Use an elegant background that complements the text (gradients, subtle patterns, or professional imagery)
 - Text should be well-positioned with good contrast for readability
-- Professional LinkedIn-appropriate style
+- Professional, polished style with modern aesthetics
+- NO logos, NO brand symbols
 - Square format (1:1 aspect ratio)`;
 
           if (selectedProvider === "gemini") {
