@@ -1709,16 +1709,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (selectedProvider === "gemini") {
         for (let i = 0; i < messages.length; i++) {
           try {
-            const prompt = `Generate a photorealistic or high-quality illustration that directly depicts the meaning of: "${messages[i]}".
+            // Process text for display - crop if too long
+            let displayText = (messages[i] || "").trim();
+            const maxTextLength = 120;
+            if (displayText.length > maxTextLength) {
+              const truncated = displayText.substring(0, maxTextLength);
+              const lastSpace = truncated.lastIndexOf(" ");
+              displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
+            }
+            
+            const prompt = `Create a professional LinkedIn carousel slide image with the following text beautifully displayed on it:
 
-REQUIREMENTS:
-- Show a CONCRETE SCENE with real subjects (people, objects, environments) that VISUALIZE this concept
-- Include specific elements: people in action, workplace settings, relevant objects, or clear visual metaphors
-- Style: Professional photography or polished digital illustration, muted color palette
-- Absolutely NO text, words, letters, or typography anywhere in the image
-- Square format (1:1 aspect ratio)
+"${displayText}"
 
-Example: If the message is about "stress at work", show a person at a cluttered desk looking overwhelmed. If it's about "teamwork", show colleagues collaborating enthusiastically.`;
+Design the image so:
+- The text is the focal point, displayed in a clean, modern, readable font
+- Use an elegant background that complements the text (gradients, subtle patterns, or professional imagery)
+- Text should be well-positioned with good contrast for readability
+- Professional LinkedIn-appropriate style
+- Square format (1:1 aspect ratio)`;
             
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
             
@@ -1765,14 +1774,16 @@ Example: If the message is about "stress at work", show a person at a cluttered 
       } else if (selectedProvider === "stability") {
         for (let i = 0; i < messages.length; i++) {
           try {
-            const prompt = `Photorealistic scene depicting: "${messages[i]}".
-REQUIREMENTS:
-- Show CONCRETE subjects: real people, objects, or environments that visualize this concept
-- Include specific elements like office workers, workspace settings, or clear visual metaphors
-- Professional photography style with muted color palette
-- High quality, cinematic composition
-- Absolutely NO text, words, letters, or typography anywhere in the image
-Example: For "stress at work" show an overwhelmed person at a cluttered desk. For "teamwork" show colleagues collaborating enthusiastically.`;
+            // Process text for display - crop if too long
+            let displayText = (messages[i] || "").trim();
+            const maxTextLength = 120;
+            if (displayText.length > maxTextLength) {
+              const truncated = displayText.substring(0, maxTextLength);
+              const lastSpace = truncated.lastIndexOf(" ");
+              displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
+            }
+            
+            const prompt = `Professional LinkedIn carousel slide with text "${displayText}" beautifully displayed. Clean modern typography, elegant background with gradients or subtle patterns, text as focal point, high contrast for readability, square format.`;
             
             const formData = new FormData();
             formData.append("prompt", prompt);
@@ -1809,7 +1820,16 @@ Example: For "stress at work" show an overwhelmed person at a cluttered desk. Fo
 
         for (let i = 0; i < messages.length; i++) {
           try {
-            const prompt = `Generate a photorealistic or high-quality illustration that directly depicts: "${messages[i]}". Show a CONCRETE SCENE with real subjects - people in action, workplace settings, relevant objects, or clear visual metaphors. Style: Professional photography or polished illustration with muted colors. Absolutely NO text, words, or typography in the image. Example: For "stress at work" show an overwhelmed person at a cluttered desk. For "teamwork" show colleagues collaborating.`;
+            // Process text for display - crop if too long
+            let displayText = (messages[i] || "").trim();
+            const maxTextLength = 120;
+            if (displayText.length > maxTextLength) {
+              const truncated = displayText.substring(0, maxTextLength);
+              const lastSpace = truncated.lastIndexOf(" ");
+              displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
+            }
+            
+            const prompt = `Create a professional LinkedIn carousel slide image with the following text beautifully displayed on it: "${displayText}". Design with clean modern typography as the focal point, elegant background with gradients or subtle patterns, high contrast for readability, professional LinkedIn-appropriate style, square format.`;
             
             const response = await openai.images.generate({
               model: "dall-e-3",
@@ -2340,27 +2360,14 @@ LAYOUT OPTIONS:
 - "points_center": For lists (keep to 3 points max)
 - "cta_slide": For the final call-to-action slide
 
-IMAGE PROMPT RULES - CRITICAL:
-Generate images that ILLUSTRATE and VISUALIZE the slide content's meaning.
-- The image should be a RELEVANT illustration, photo, or scene that represents the concept
-- Focus on visual metaphors, people in action, or real-world scenarios that match the message
-- Use professional photography or illustration style with muted colors suitable for white text overlay
-- NO text, words, typography, or letters in the image
-- Keep it professional and LinkedIn-appropriate
-- The image should help viewers UNDERSTAND the message visually
-
-EXAMPLES of good image prompts:
-- For "Messy data got you down?": "Frustrated professional person at desk surrounded by scattered papers and chaotic sticky notes, stressed expression, office setting, muted colors, professional photography style"
-- For "Simplicity unlocks productivity": "Clean organized workspace with laptop, minimalist desk setup, person working calmly, bright natural lighting, sense of peace and focus"
-- For "Leadership is about listening": "Business professional in meeting genuinely listening to colleague, engaged body language, warm office environment, human connection moment"
-- For "AI is transforming business": "Futuristic office with professionals collaborating alongside holographic data displays, innovative technology integration, forward-looking atmosphere"
+IMAGE GENERATION:
+The image will display the text beautifully on it. No separate imagePrompt is needed - the text itself will be shown on the image.
 
 Return your response as a valid JSON array:
 [
   {
     "number": 1,
     "finalText": "Short, powerful hook text",
-    "imagePrompt": "Photorealistic scene with specific subjects (people, objects, setting) that visualize the concept, professional photography style, muted colors, no text",
     "layout": "hook_slide",
     "charCount": 45
   }
@@ -2467,7 +2474,7 @@ Return ONLY the JSON array, no other text.`;
           number: slide.number || index + 1,
           rawText: normalizedRawTexts[index] || "",
           finalText,
-          imagePrompt: slide.imagePrompt || `Photorealistic scene showing: ${finalText.substring(0, 60)}. Include real people in action, workplace environment, or clear visual metaphor. Professional photography, muted colors. NO text or typography in image.`,
+          imagePrompt: "", // Not used - image is generated directly from finalText with text displayed on it
           layout,
           charCount,
           tooMuchText,
@@ -2801,7 +2808,26 @@ Return ONLY the JSON array, no other text.`;
         }
 
         try {
-          const prompt = slide.imagePrompt || `Professional LinkedIn carousel slide. Clean modern design with space for text: "${slide.finalText}"`;
+          // Process text for display - crop if too long for image
+          let displayText = (slide.finalText || "").trim();
+          const maxTextLength = 120;
+          if (displayText.length > maxTextLength) {
+            const truncated = displayText.substring(0, maxTextLength);
+            const lastSpace = truncated.lastIndexOf(" ");
+            displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
+          }
+          
+          // Use ONLY the user's text to generate image - no preset examples
+          const prompt = `Create a professional LinkedIn carousel slide image with the following text beautifully displayed on it:
+
+"${displayText}"
+
+Design the image so:
+- The text is the focal point, displayed in a clean, modern, readable font
+- Use an elegant background that complements the text (gradients, subtle patterns, or professional imagery)
+- Text should be well-positioned with good contrast for readability
+- Professional LinkedIn-appropriate style
+- Square format (1:1 aspect ratio)`;
 
           if (selectedProvider === "gemini") {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
