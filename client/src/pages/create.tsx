@@ -25,6 +25,9 @@ import {
   FileText,
   Palette,
   ImageIcon,
+  Link as LinkIcon,
+  PenTool,
+  Globe,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { setCarouselData } from "@/lib/carouselStore";
@@ -33,6 +36,7 @@ import type { SessionUser } from "@shared/schema";
 
 const DRAFT_STORAGE_KEY = "carousel_draft";
 
+type WorkspaceView = "dashboard" | "manual" | "url-input" | "url-processing" | "editor";
 type CreatorStep = "type-select" | "input" | "processing" | "images";
 type AIProvider = "auto" | "gemini" | "openai" | "stability";
 
@@ -128,6 +132,7 @@ export default function Create() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("dashboard");
   const [step, setStep] = useState<CreatorStep>("type-select");
   const [selectedCarouselType, setSelectedCarouselType] = useState<string>("");
   const [aiProvider, setAiProvider] = useState<AIProvider>("auto");
@@ -140,6 +145,8 @@ export default function Create() {
   const [processedSlides, setProcessedSlides] = useState<ProcessedSlide[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [hasDraft, setHasDraft] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [urlCarouselType, setUrlCarouselType] = useState<string>("tips-howto");
 
   const { data: user, isLoading: isLoadingUser } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
@@ -374,6 +381,62 @@ export default function Create() {
     },
   });
 
+  const urlProcessMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/carousel/from-url", {
+        url: urlInput,
+        carouselType: urlCarouselType,
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      if (data.slides && data.slides.length > 0) {
+        setCarouselTitle(data.title || "Carousel from URL");
+        setSelectedCarouselType(data.carouselType || urlCarouselType);
+        setProcessedSlides(data.slides);
+        const slideMessages = data.slides.map((s: ProcessedSlide, idx: number) => ({
+          id: idx + 1,
+          text: s.rawText || s.finalText,
+        }));
+        setSlides(slideMessages);
+        setStep("processing");
+        setWorkspaceView("manual");
+        toast({
+          title: "Carousel Generated",
+          description: `Created ${data.slides.length} slides from the URL`,
+        });
+      } else if (data.error) {
+        toast({
+          title: "Generation Failed",
+          description: data.error,
+          variant: "destructive",
+        });
+        setWorkspaceView("url-input");
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to create carousel from URL",
+        variant: "destructive",
+      });
+      setWorkspaceView("url-input");
+    },
+  });
+
+  const handleUrlSubmit = () => {
+    if (!urlInput.trim()) {
+      toast({
+        title: "URL Required",
+        description: "Please enter a valid URL",
+        variant: "destructive",
+      });
+      return;
+    }
+    setWorkspaceView("url-processing");
+    urlProcessMutation.mutate();
+  };
+
   const addSlide = () => {
     const typeInfo = DEFAULT_CAROUSEL_TYPES.find(t => t.id === selectedCarouselType);
     const maxSlides = typeInfo?.slideCount.max || 5;
@@ -444,71 +507,266 @@ export default function Create() {
       <Header variant="app" />
       
       <main className="container mx-auto max-w-3xl py-12 px-4">
-        {/* Progress Steps */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between">
-            {STEPS.map((s, index) => {
-              const Icon = s.icon;
-              const isActive = s.id === step;
-              const isCompleted = index < currentStepIndex;
-              
-              return (
-                <div key={s.id} className="flex items-center flex-1 last:flex-none">
-                  <div className="flex flex-col items-center">
-                    <div 
-                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                        isActive 
-                          ? "bg-primary text-primary-foreground" 
-                          : isCompleted
-                            ? "bg-primary/20 text-primary"
-                            : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {isCompleted ? (
-                        <Check className="w-5 h-5" />
-                      ) : (
-                        <Icon className="w-5 h-5" />
-                      )}
-                    </div>
-                    <span className={`text-xs mt-2 font-medium ${
-                      isActive ? "text-foreground" : "text-muted-foreground"
-                    }`}>
-                      {s.label}
-                    </span>
-                  </div>
-                  {index < STEPS.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-3 mt-[-1rem] ${
-                      index < currentStepIndex ? "bg-primary/30" : "bg-muted"
-                    }`} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {/* Dashboard View - Choose creation method */}
+        {workspaceView === "dashboard" && (
+          <div className="space-y-8">
+            <div className="text-center space-y-2">
+              <h1 className="text-3xl font-semibold tracking-tight" data-testid="text-dashboard-title">
+                Create Your Carousel
+              </h1>
+              <p className="text-muted-foreground" data-testid="text-dashboard-subtitle">
+                Choose how you want to create your LinkedIn carousel
+              </p>
+            </div>
 
-        {/* Draft Banner */}
-        {hasDraft && step === "type-select" && (
-          <div className="mb-8 p-4 rounded-lg bg-muted/50 border border-border">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="font-medium text-foreground">Continue your draft?</p>
-                <p className="text-sm text-muted-foreground">Pick up where you left off</p>
+            {/* Draft Banner */}
+            {hasDraft && (
+              <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-foreground">Continue your draft?</p>
+                    <p className="text-sm text-muted-foreground">Pick up where you left off</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={clearDraft} data-testid="button-discard-draft">
+                      Start Fresh
+                    </Button>
+                    <Button size="sm" onClick={() => { loadDraft(); setWorkspaceView("manual"); }} data-testid="button-load-draft">
+                      Load Draft
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={clearDraft} data-testid="button-discard-draft">
-                  Start Fresh
-                </Button>
-                <Button size="sm" onClick={loadDraft} data-testid="button-load-draft">
-                  Load Draft
-                </Button>
-              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Manual Creation Option */}
+              <Card 
+                className="hover-elevate cursor-pointer border-2 border-transparent hover:border-primary/20 transition-all"
+                onClick={() => setWorkspaceView("manual")}
+                data-testid="card-manual-create"
+              >
+                <CardContent className="pt-6 space-y-4">
+                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <PenTool className="w-7 h-7 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-foreground">Create Manually</h3>
+                    <p className="text-muted-foreground mt-1">
+                      Write your own content slide by slide. Perfect when you have specific ideas in mind.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <Badge variant="secondary">Full Control</Badge>
+                    <Badge variant="outline">3-5 Slides</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* URL-based Creation Option */}
+              <Card 
+                className="hover-elevate cursor-pointer border-2 border-transparent hover:border-primary/20 transition-all"
+                onClick={() => setWorkspaceView("url-input")}
+                data-testid="card-url-create"
+              >
+                <CardContent className="pt-6 space-y-4">
+                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Globe className="w-7 h-7 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-foreground">Create from URL</h3>
+                    <p className="text-muted-foreground mt-1">
+                      Paste a blog or article URL and let AI generate a carousel from the content.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <Badge variant="default">AI-Powered</Badge>
+                    <Badge variant="outline">7-10 Slides</Badge>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         )}
 
-        {/* Step 1: Setup */}
-        {step === "type-select" && (
+        {/* URL Input View */}
+        {workspaceView === "url-input" && (
+          <div className="space-y-8">
+            <div className="text-center space-y-2">
+              <h1 className="text-3xl font-semibold tracking-tight" data-testid="text-url-title">
+                Create from URL
+              </h1>
+              <p className="text-muted-foreground" data-testid="text-url-subtitle">
+                Paste a blog or article URL to generate your carousel
+              </p>
+            </div>
+
+            <Card className="border-0 shadow-sm">
+              <CardContent className="pt-6 space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="url-input" className="text-sm font-medium">Blog or Article URL</Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="url-input"
+                        type="url"
+                        placeholder="https://example.com/your-article"
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        className="h-11 pl-10"
+                        data-testid="input-url"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Works best with blog posts, articles, and news content
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Carousel Style</Label>
+                  <Select value={urlCarouselType} onValueChange={setUrlCarouselType}>
+                    <SelectTrigger className="h-11" data-testid="select-url-carousel-type">
+                      <SelectValue placeholder="Select style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEFAULT_CAROUSEL_TYPES.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name} - {type.shortDescription}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t gap-4">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setWorkspaceView("dashboard")}
+                    data-testid="button-back-to-dashboard"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Back
+                  </Button>
+                  <Button
+                    onClick={handleUrlSubmit}
+                    disabled={!urlInput.trim() || urlProcessMutation.isPending}
+                    data-testid="button-generate-from-url"
+                  >
+                    {urlProcessMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 mr-2" />
+                    )}
+                    Generate Carousel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* URL Processing View */}
+        {workspaceView === "url-processing" && (
+          <div className="space-y-8">
+            <div className="text-center space-y-4">
+              <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+              </div>
+              <h1 className="text-3xl font-semibold tracking-tight" data-testid="text-processing-title">
+                Creating Your Carousel
+              </h1>
+              <p className="text-muted-foreground max-w-md mx-auto" data-testid="text-processing-subtitle">
+                We're reading the article and generating 7-10 slides with key insights. This may take a moment...
+              </p>
+            </div>
+
+            <Card className="border-0 shadow-sm">
+              <CardContent className="py-8">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Check className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-foreground">Fetching article content</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                    </div>
+                    <span className="text-foreground">AI is summarizing into slides...</span>
+                  </div>
+                  <div className="flex items-center gap-3 opacity-50">
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <span className="text-muted-foreground">Ready for review</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="text-center">
+              <Button 
+                variant="ghost"
+                onClick={() => setWorkspaceView("url-input")}
+                data-testid="button-cancel-processing"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Manual Creation Flow */}
+        {workspaceView === "manual" && (
+          <>
+            {/* Progress Steps */}
+            <div className="mb-12">
+              <div className="flex items-center justify-between">
+                {STEPS.map((s, index) => {
+                  const Icon = s.icon;
+                  const isActive = s.id === step;
+                  const isCompleted = index < currentStepIndex;
+                  
+                  return (
+                    <div key={s.id} className="flex items-center flex-1 last:flex-none">
+                      <div className="flex flex-col items-center">
+                        <div 
+                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                            isActive 
+                              ? "bg-primary text-primary-foreground" 
+                              : isCompleted
+                                ? "bg-primary/20 text-primary"
+                                : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {isCompleted ? (
+                            <Check className="w-5 h-5" />
+                          ) : (
+                            <Icon className="w-5 h-5" />
+                          )}
+                        </div>
+                        <span className={`text-xs mt-2 font-medium ${
+                          isActive ? "text-foreground" : "text-muted-foreground"
+                        }`}>
+                          {s.label}
+                        </span>
+                      </div>
+                      {index < STEPS.length - 1 && (
+                        <div className={`flex-1 h-0.5 mx-3 mt-[-1rem] ${
+                          index < currentStepIndex ? "bg-primary/30" : "bg-muted"
+                        }`} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Step 1: Setup */}
+            {step === "type-select" && (
           <div className="space-y-8">
             <div className="text-center space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight">Create Carousel</h1>
@@ -940,6 +1198,8 @@ export default function Create() {
               </CardContent>
             </Card>
           </div>
+        )}
+          </>
         )}
       </main>
     </div>

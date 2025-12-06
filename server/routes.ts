@@ -2298,6 +2298,290 @@ Design requirements:
   });
 
   /**
+   * API: Create Carousel from URL (Guest-friendly)
+   * Scrapes a URL, extracts text content, and uses AI to summarize into 7-10 carousel slides
+   * No authentication required - allows guests to create carousels from blog URLs
+   */
+  app.post("/api/carousel/from-url", async (req: Request, res: Response) => {
+    try {
+      const { url, carouselType = "tips-howto" } = req.body;
+
+      if (!url || typeof url !== "string") {
+        return res.status(400).json({ error: "URL is required" });
+      }
+
+      // Validate URL format
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+        if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+          throw new Error("Invalid protocol");
+        }
+      } catch {
+        return res.status(400).json({ error: "Invalid URL format. Please provide a valid http or https URL." });
+      }
+
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+
+      if (!geminiApiKey && !openaiApiKey) {
+        return res.status(503).json({ 
+          error: "No AI API key configured. Please add GEMINI_API_KEY or OPENAI_API_KEY to your secrets." 
+        });
+      }
+
+      // Step 1: Fetch the URL content
+      console.log(`Fetching URL: ${url}`);
+      let htmlContent: string;
+      try {
+        const fetchResponse = await fetch(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; LinkedInCarouselBot/1.0; +https://replit.com)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+          },
+          redirect: "follow",
+        });
+
+        if (!fetchResponse.ok) {
+          throw new Error(`Failed to fetch URL: ${fetchResponse.status} ${fetchResponse.statusText}`);
+        }
+
+        htmlContent = await fetchResponse.text();
+      } catch (fetchError: any) {
+        console.error("URL fetch error:", fetchError);
+        return res.status(400).json({ 
+          error: `Could not fetch the URL. ${fetchError.message || "Please check if the URL is accessible."}` 
+        });
+      }
+
+      // Step 2: Extract readable text from HTML
+      // Remove scripts, styles, and HTML tags
+      let textContent = htmlContent
+        // Remove script tags and content
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
+        // Remove style tags and content
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
+        // Remove HTML comments
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        // Remove all remaining HTML tags
+        .replace(/<[^>]+>/g, " ")
+        // Decode common HTML entities
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&mdash;/g, "—")
+        .replace(/&ndash;/g, "–")
+        // Normalize whitespace
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (textContent.length < 100) {
+        return res.status(400).json({ 
+          error: "Could not extract enough text from the URL. The page may be behind a paywall, require JavaScript, or contain mostly images." 
+        });
+      }
+
+      // Limit text length for API call (approximately 15,000 characters)
+      if (textContent.length > 15000) {
+        textContent = textContent.substring(0, 15000) + "...";
+      }
+
+      console.log(`Extracted ${textContent.length} characters from URL`);
+
+      // Step 3: Use AI to summarize into 7-10 carousel slides
+      const systemPrompt = `You are a LinkedIn Carousel Expert. Your task is to transform blog/article content into a high-performing LinkedIn carousel with 7-10 slides.
+
+CAROUSEL TYPE: ${carouselType}
+
+SLIDE STRUCTURE:
+- Slide 1: HOOK - A punchy, curiosity-driven headline (max 50 characters)
+- Slides 2-9: KEY POINTS - One clear idea per slide (max 100 characters each)
+- Final Slide: CTA - Call-to-action like "Follow for more tips" (max 100 characters)
+
+TEXT RULES:
+1. Each slide = ONE single idea, clear and impactful
+2. Use clean, bold, human-friendly wording
+3. Remove jargon, simplify complex ideas
+4. Make it scannable - short sentences, power words
+5. Aim for 7-10 slides total (minimum 7, maximum 10)
+
+LAYOUT OPTIONS:
+- "hook_slide": For Slide 1 - bold, centered, maximum impact
+- "big_text_center": For impactful statements or key points
+- "points_center": For lists (keep to 3 points max)
+- "cta_slide": For the final call-to-action slide
+
+Return your response as a valid JSON object with this structure:
+{
+  "title": "Suggested carousel title based on the content",
+  "slides": [
+    {
+      "number": 1,
+      "rawText": "Original concept from article",
+      "finalText": "Refined short hook text",
+      "imagePrompt": "",
+      "layout": "hook_slide",
+      "charCount": 45
+    }
+  ]
+}`;
+
+      const userPrompt = `Transform this article/blog content into a LinkedIn carousel with 7-10 slides:
+
+SOURCE URL: ${url}
+
+CONTENT:
+${textContent}
+
+Create a compelling carousel that captures the key insights. Return ONLY the JSON object, no other text.`;
+
+      let aiResponse: { title: string; slides: any[] } = { title: "", slides: [] };
+
+      if (geminiApiKey) {
+        // Use Gemini for text processing
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topP: 0.9,
+            }
+          }),
+        });
+
+        const json = await response.json() as any;
+
+        if (json.error) {
+          console.error("Gemini API error:", json.error);
+          throw new Error(json.error.message || "Gemini API error");
+        }
+
+        const textResponse = json.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!textResponse) {
+          throw new Error("No response from Gemini");
+        }
+
+        // Parse JSON from the response
+        const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          aiResponse = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error("Failed to parse AI response as JSON");
+        }
+      } else if (openaiApiKey) {
+        // Use OpenAI for text processing
+        const { OpenAI } = await import("openai");
+        const openai = new OpenAI({ apiKey: openaiApiKey });
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.7,
+          response_format: { type: "json_object" }
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content) {
+          throw new Error("No response from OpenAI");
+        }
+
+        aiResponse = JSON.parse(content);
+      }
+
+      // Ensure slides array exists
+      const rawSlides = aiResponse.slides || [];
+      if (rawSlides.length < 3) {
+        return res.status(500).json({ 
+          error: "AI could not generate enough slides from the content. Please try a different URL with more substantial content." 
+        });
+      }
+
+      // Process and normalize slides (same as /api/carousel/process)
+      const totalSlides = rawSlides.length;
+      const processedSlides = rawSlides.map((slide: any, index: number) => {
+        const isFirstSlide = index === 0;
+        const isLastSlide = index === totalSlides - 1;
+        const maxChars = isFirstSlide ? 50 : 100;
+        
+        // Get and clamp finalText to enforce character limits
+        let finalText = (slide.finalText || slide.rawText || "").trim();
+        if (finalText.length > maxChars) {
+          const truncateAt = maxChars - 3;
+          const truncated = finalText.substring(0, truncateAt);
+          const lastSpace = truncated.lastIndexOf(" ");
+          finalText = (lastSpace > truncateAt * 0.7 ? truncated.substring(0, lastSpace) : truncated) + "...";
+        }
+        
+        const charCount = finalText.length;
+        
+        // Determine layout based on position
+        let layout = slide.layout || "big_text_center";
+        if (isFirstSlide && layout !== "hook_slide") layout = "hook_slide";
+        if (isLastSlide && layout !== "cta_slide") layout = "cta_slide";
+        
+        return {
+          number: index + 1,
+          rawText: slide.rawText || finalText,
+          finalText,
+          imagePrompt: "",
+          layout,
+          charCount,
+          tooMuchText: false,
+          maxChars,
+          isHook: isFirstSlide,
+          isCta: isLastSlide,
+          base64Image: "",
+        };
+      });
+
+      // Determine login requirements based on session state
+      const isAuthenticated = !!req.session.user;
+      const hasLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";
+
+      res.json({
+        title: aiResponse.title || "Carousel from URL",
+        carouselType,
+        sourceUrl: url,
+        slides: processedSlides,
+        pdfBase64: "",
+        loginRequired: {
+          download: !isAuthenticated,
+          linkedinPost: !hasLinkedInAuth
+        }
+      });
+    } catch (error: any) {
+      console.error("From-URL carousel error:", error);
+      
+      const isAuthenticated = !!req.session.user;
+      const hasLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";
+      
+      res.status(500).json({ 
+        error: error.message || "Failed to create carousel from URL",
+        carouselType: req.body.carouselType || "tips-howto",
+        slides: [],
+        pdfBase64: "",
+        loginRequired: {
+          download: !isAuthenticated,
+          linkedinPost: !hasLinkedInAuth
+        }
+      });
+    }
+  });
+
+  /**
    * API: Process Text with AI (Guest-friendly)
    * Takes raw text + carousel type and returns refined LinkedIn-ready text with image prompts
    * No authentication required - allows guests to create carousels
