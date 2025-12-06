@@ -175,18 +175,27 @@ export default function Preview() {
   };
 
   const handleDownloadPdf = async () => {
-    if (!pdfBase64) {
-      setIsCreatingPdf(true);
-      await createPdfMutation.mutateAsync();
+    try {
+      if (!pdfBase64) {
+        setIsCreatingPdf(true);
+        await createPdfMutation.mutateAsync();
+      }
+      
+      const pdfToDownload = pdfBase64 || createPdfMutation.data?.pdfBase64;
+      if (pdfToDownload) {
+        const link = document.createElement("a");
+        link.href = pdfToDownload;
+        link.download = `${draft?.title || "carousel"}.pdf`;
+        link.click();
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsCreatingPdf(false);
-    }
-    
-    const pdfToDownload = pdfBase64 || createPdfMutation.data?.pdfBase64;
-    if (pdfToDownload) {
-      const link = document.createElement("a");
-      link.href = pdfToDownload;
-      link.download = `${draft?.title || "carousel"}.pdf`;
-      link.click();
     }
   };
 
