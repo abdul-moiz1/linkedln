@@ -1735,22 +1735,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           slideRole = `This is slide ${index + 1} - a content slide sharing key information.`;
         }
 
-        return `Create a visually compelling image for a LinkedIn carousel slide.
+        return `Create a visually compelling image for a LinkedIn carousel slide that DIRECTLY REPRESENTS the slide's text content.
 
 ${slideContext}${typeContext}.
 ${slideRole}
 
-THE SLIDE TEXT IS:
+THE SLIDE TEXT IS (THIS IS THE MOST IMPORTANT INPUT - BASE YOUR IMAGE ON THIS):
 "${text}"
 
 CRITICAL INSTRUCTIONS:
-1. ANALYZE the text above and identify the MAIN CONCEPT, KEY WORDS, and THEME
-2. Create an image that DIRECTLY ILLUSTRATES these concepts using:
-   - Specific objects, scenes, or activities mentioned in the text
-   - Visual metaphors that represent the key ideas
-   - Relevant professional/business imagery that matches the topic
-3. DO NOT include any text, words, letters, or numbers in the image
-4. The image should make sense even without reading the text - viewers should "get" the concept
+1. READ the text above carefully - your image MUST visually represent THIS SPECIFIC text
+2. IDENTIFY the main topic, action, or concept in the text
+3. Create an image showing:
+   - Objects, people, or scenes that directly relate to what the text is about
+   - Visual metaphors or symbols that represent the key idea
+   - A scene that a viewer would immediately connect to the text's meaning
+4. DO NOT include any text, words, letters, or numbers in the image
+5. DO NOT create generic "LinkedIn" or "professional" imagery - make it SPECIFIC to this text
 
 STYLE REQUIREMENTS:
 - Professional, polished aesthetic suitable for LinkedIn
@@ -1759,11 +1760,12 @@ STYLE REQUIREMENTS:
 - High quality, well-lit imagery
 - Square format (1:1 aspect ratio)
 
-EXAMPLE THINKING:
-- If text mentions "networking" → show people connecting, handshakes, network diagrams
-- If text mentions "growth" → show upward trends, plants growing, ladders, stairs
-- If text mentions "AI" → show futuristic tech, robots, neural networks, digital elements
-- If text mentions "time management" → show clocks, calendars, organized workspaces`;
+TEXT-TO-IMAGE MAPPING EXAMPLES:
+- "5 Tips for Remote Work" → home office setup, person working on laptop at kitchen table, comfortable workspace with plants
+- "Boost Your Network" → people shaking hands, coffee meeting, network connection diagram, business card exchange
+- "AI is Transforming Business" → futuristic robots, neural network visualization, digital transformation scene
+- "Time Management Secrets" → clocks, calendars, organized desk, hourglass, productivity tools
+- "Follow for more tips" → pointing hand gesture, growth arrow, community gathering, follow icon visualization`;
       };
 
       const imageUrls: string[] = [];
@@ -2446,15 +2448,20 @@ LAYOUT OPTIONS:
 - "points_center": For lists (keep to 3 points max)
 - "cta_slide": For the final call-to-action slide
 
-IMAGE PROMPT (required for each slide):
-For each slide, include an "imagePrompt" field (20-40 words) describing a visual scene based on the article:
-- Professional imagery suitable for LinkedIn, relevant to the article's topic
-- Specific visual elements, colors, and style
-- No text in the image (text overlaid separately)
+IMAGE PROMPT (required for each slide - MUST be based on the slide's text content):
+For each slide, create an "imagePrompt" field (20-40 words) that VISUALLY REPRESENTS the specific concept in that slide's text:
+- ANALYZE the slide text and identify the KEY CONCEPT, MAIN IDEA, or ACTION
+- Describe a scene or visual metaphor that DIRECTLY ILLUSTRATES that concept
+- Use specific visual elements, objects, or activities mentioned or implied in the text
+- Professional imagery suitable for LinkedIn
+- No text/words in the image (text overlaid separately)
 
-Examples:
-- "Futuristic robot arm with laptop, glowing circuits, blue and silver tech office aesthetic"
-- "Diverse professionals forming expanding circle, network connection lines, warm corporate lighting"
+MAPPING TEXT TO VISUALS (REQUIRED):
+- If slide says "5 Tips for Remote Work" → show home office setup, person with laptop at kitchen table
+- If slide says "Boost Your Network" → show people connecting, handshakes, coffee meeting scene
+- If slide says "Time Management" → show clocks, calendars, organized desk, scheduling app
+- If slide says "AI is Transforming Business" → show robots, neural networks, digital elements
+- If slide says "Follow me for more" → show pointing hand, growth arrow, community gathering
 
 Return your response as a valid JSON object with this structure:
 {
@@ -2463,10 +2470,10 @@ Return your response as a valid JSON object with this structure:
     {
       "number": 1,
       "rawText": "Original concept from article",
-      "finalText": "Refined short hook text",
-      "imagePrompt": "Brief visual scene description based on article (20-40 words)",
+      "finalText": "5 Habits That Changed My Career",
+      "imagePrompt": "Professional person climbing corporate ladder, stepping stones to success, sunrise representing new beginnings, modern office building background",
       "layout": "hook_slide",
-      "charCount": 45
+      "charCount": 32
     }
   ]
 }`;
@@ -2573,8 +2580,8 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         if (isFirstSlide && layout !== "hook_slide") layout = "hook_slide";
         if (isLastSlide && layout !== "cta_slide") layout = "cta_slide";
         
-        // Generate a fallback imagePrompt if AI didn't provide one
-        const fallbackImagePrompt = `Professional LinkedIn visual for "${finalText}". Modern, clean design with business imagery related to the article topic, abstract shapes or relevant icons. Corporate blue and neutral color palette, suitable for professional social media.`;
+        // Generate a content-specific fallback imagePrompt if AI didn't provide one
+        const fallbackImagePrompt = `Create a visual that directly illustrates the concept: "${finalText}". Show objects, scenes, or metaphors that represent the main idea. Professional LinkedIn style with modern clean aesthetic. Focus on visual storytelling that matches the text meaning.`;
         
         return {
           number: index + 1,
@@ -2688,24 +2695,29 @@ LAYOUT OPTIONS:
 - "points_center": For lists (keep to 3 points max)
 - "cta_slide": For the final call-to-action slide
 
-IMAGE PROMPT (required for each slide):
-For each slide, include an "imagePrompt" field (20-40 words) describing a visual scene:
-- Professional/business imagery suitable for LinkedIn
-- Specific visual elements, colors, and style
-- No text in the image (text overlaid separately)
+IMAGE PROMPT (required for each slide - MUST be based on the slide's text content):
+For each slide, create an "imagePrompt" field (20-40 words) that VISUALLY REPRESENTS the specific concept in that slide's text:
+- ANALYZE the slide text and identify the KEY CONCEPT, MAIN IDEA, or ACTION
+- Describe a scene or visual metaphor that DIRECTLY ILLUSTRATES that concept
+- Use specific visual elements, objects, or activities mentioned or implied in the text
+- Professional imagery suitable for LinkedIn
+- No text/words in the image (text overlaid separately)
 
-Examples:
-- "Modern office desk with laptop showing upward graph, magnifying glass icons, blue and white professional style"
-- "Split scene: person in business attire vs casual clothes, warm sunset lighting"
+MAPPING TEXT TO VISUALS:
+- If slide says "5 Tips for Remote Work" → show home office setup, person with laptop at kitchen table, comfortable workspace
+- If slide says "Boost Your Network" → show people connecting, handshakes, network diagrams, coffee meeting
+- If slide says "Time Management Secrets" → show clocks, calendars, organized desk, hourglass, scheduling app
+- If slide says "AI is Transforming Business" → show robots, neural networks, futuristic tech, digital transformation
+- If slide says "Follow me for more tips" → show pointing hand, follow icon, growth arrow, community gathering
 
 Return your response as a valid JSON array:
 [
   {
     "number": 1,
-    "finalText": "Short, powerful hook text",
-    "imagePrompt": "Brief visual scene description (20-40 words)",
+    "finalText": "5 Habits That Changed My Career",
+    "imagePrompt": "Professional person climbing corporate ladder, stepping stones to success, sunrise representing new beginnings, modern office building in background, warm golden lighting",
     "layout": "hook_slide",
-    "charCount": 45
+    "charCount": 32
   }
 ]`;
 
@@ -2806,8 +2818,9 @@ Return ONLY the JSON array, no other text.`;
         // Warning for too much text (should be false after clamping)
         const tooMuchText = charCount > maxChars;
         
-        // Generate a fallback imagePrompt if AI didn't provide one
-        const fallbackImagePrompt = `Professional LinkedIn visual for "${finalText}". Modern, clean design with business imagery, abstract shapes or relevant icons. Corporate blue and neutral color palette, suitable for professional social media.`;
+        // Generate a content-specific fallback imagePrompt if AI didn't provide one
+        // Extract key concepts from the text for a more relevant image
+        const fallbackImagePrompt = `Create a visual that directly illustrates the concept: "${finalText}". Show objects, scenes, or metaphors that represent the main idea. Professional LinkedIn style with modern clean aesthetic. Focus on visual storytelling that matches the text meaning.`;
         
         return {
           number: slide.number || index + 1,
