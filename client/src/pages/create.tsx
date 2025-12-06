@@ -39,7 +39,9 @@ type AIProvider = "auto" | "gemini" | "openai" | "stability";
 interface CarouselTypeInfo {
   id: string;
   name: string;
-  description: string;
+  shortDescription: string;
+  fullDescription: string;
+  outputExample: string;
   slideCount: { min: number; max: number };
 }
 
@@ -73,16 +75,46 @@ interface CarouselDraft {
 }
 
 const DEFAULT_CAROUSEL_TYPES: CarouselTypeInfo[] = [
-  { id: "story-flow", name: "Story-Flow", description: "Tell a narrative across slides", slideCount: { min: 3, max: 5 } },
-  { id: "educational", name: "Educational", description: "Teach concepts step by step", slideCount: { min: 3, max: 5 } },
-  { id: "before-after", name: "Before/After", description: "Show transformation or comparison", slideCount: { min: 2, max: 4 } },
-  { id: "checklist", name: "Checklist", description: "Present actionable items", slideCount: { min: 3, max: 5 } },
-  { id: "quote", name: "Quote", description: "Feature impactful quotes", slideCount: { min: 2, max: 4 } },
-  { id: "stats-data", name: "Stats/Data", description: "Present key statistics", slideCount: { min: 3, max: 5 } },
-  { id: "portfolio", name: "Portfolio", description: "Showcase work examples", slideCount: { min: 3, max: 5 } },
-  { id: "comparison", name: "Comparison", description: "Compare options or choices", slideCount: { min: 2, max: 4 } },
-  { id: "achievement", name: "Achievement", description: "Highlight accomplishments", slideCount: { min: 2, max: 5 } },
-  { id: "framework", name: "Framework", description: "Present a methodology or process", slideCount: { min: 3, max: 5 } },
+  { 
+    id: "story-flow", 
+    name: "Story", 
+    shortDescription: "Tell a narrative",
+    fullDescription: "Perfect for sharing personal experiences, case studies, or step-by-step journeys. Each slide builds on the previous one to create a compelling story arc.",
+    outputExample: "Slide 1: Hook with a relatable problem. Slides 2-4: Your journey or solution. Final slide: Key takeaway and call-to-action.",
+    slideCount: { min: 3, max: 5 } 
+  },
+  { 
+    id: "tips-howto", 
+    name: "Tips & How-To", 
+    shortDescription: "Share actionable advice",
+    fullDescription: "Great for sharing practical tips, tutorials, or step-by-step guides. Each slide presents one clear, actionable piece of advice.",
+    outputExample: "Slide 1: Bold hook (e.g., '5 Ways to...'). Slides 2-4: One tip per slide with clear visuals. Final slide: Summary or follow CTA.",
+    slideCount: { min: 3, max: 5 } 
+  },
+  { 
+    id: "stats-data", 
+    name: "Stats & Data", 
+    shortDescription: "Present key numbers",
+    fullDescription: "Ideal for sharing research findings, industry insights, or data-driven content. Makes complex information visually digestible.",
+    outputExample: "Slide 1: Attention-grabbing headline stat. Slides 2-4: Supporting data points with context. Final slide: Conclusion or insight.",
+    slideCount: { min: 3, max: 5 } 
+  },
+  { 
+    id: "before-after", 
+    name: "Before/After", 
+    shortDescription: "Show transformation",
+    fullDescription: "Best for showcasing transformations, comparisons, or progress. Creates a clear visual contrast between two states.",
+    outputExample: "Slide 1: The problem or 'before' state. Slide 2: The solution or process. Slide 3-4: The 'after' result with proof.",
+    slideCount: { min: 2, max: 4 } 
+  },
+  { 
+    id: "quote-inspiration", 
+    name: "Quote", 
+    shortDescription: "Feature powerful quotes",
+    fullDescription: "Perfect for thought leadership, motivational content, or sharing wisdom. Each slide features impactful quotes with visual appeal.",
+    outputExample: "Slide 1: Main quote with visual impact. Slides 2-3: Supporting quotes or context. Final slide: Your insight or CTA.",
+    slideCount: { min: 2, max: 4 } 
+  },
 ];
 
 const STEPS = [
@@ -507,16 +539,13 @@ export default function Create() {
                       <SelectContent>
                         {DEFAULT_CAROUSEL_TYPES.map((type) => (
                           <SelectItem key={type.id} value={type.id}>
-                            {type.name}
+                            <span className="flex flex-col items-start">
+                              <span>{type.name}</span>
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedCarouselType && (
-                      <p className="text-xs text-muted-foreground">
-                        {DEFAULT_CAROUSEL_TYPES.find(t => t.id === selectedCarouselType)?.description}
-                      </p>
-                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -534,6 +563,24 @@ export default function Create() {
                     </Select>
                   </div>
                 </div>
+
+                {/* Type Description Panel - Shows when type is selected */}
+                {selectedCarouselType && (() => {
+                  const selectedType = DEFAULT_CAROUSEL_TYPES.find(t => t.id === selectedCarouselType);
+                  if (!selectedType) return null;
+                  return (
+                    <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-3">
+                      <div>
+                        <h3 className="font-medium text-foreground">{selectedType.name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{selectedType.fullDescription}</p>
+                      </div>
+                      <div className="pt-2 border-t border-border">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Expected Output</p>
+                        <p className="text-sm text-foreground">{selectedType.outputExample}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="pt-4">
                   <Button
