@@ -76,6 +76,13 @@ A professional SaaS application that allows users to create AI-generated LinkedI
   - Backend: Server validates and truncates text inputs to enforce limits
   - Draft handling: Both raw slides and processedSlides normalized on load, saves use trimmed text
   - Ellipsis handling: Reserves 3 chars for "..." to ensure final length never exceeds limits
+- **Dec 6**: Added "Create Carousel From URL" feature
+  - New dashboard view with two options: Manual creation and URL-based creation
+  - POST /api/carousel/from-url endpoint for URL scraping and AI summarization
+  - Fetches and parses HTML content, extracts text, uses Gemini/OpenAI to generate 7-10 slides
+  - URL input view with carousel style selector
+  - Processing view with animated loading states
+  - Integrates with existing editor for slide refinement and image generation
 
 ## Architecture
 
@@ -102,6 +109,7 @@ A professional SaaS application that allows users to create AI-generated LinkedI
   - `GET /api/project/:projectId` - Gets single project
   - `POST /api/posts/fetch` - Fetches LinkedIn posts via Apify scraper (sends `username` field)
   - `POST /api/posts/clear-cache` - Clears cached posts for the user
+  - `POST /api/carousel/from-url` - Creates carousel slides from a blog/article URL using AI
 - **Session Management**: Express-session with in-memory storage
 
 ### Database (Firebase/Firestore)
