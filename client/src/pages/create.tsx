@@ -630,20 +630,37 @@ export default function Create() {
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Carousel Style</Label>
-                  <Select value={urlCarouselType} onValueChange={setUrlCarouselType}>
-                    <SelectTrigger className="h-11" data-testid="select-url-carousel-type">
-                      <SelectValue placeholder="Select style" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DEFAULT_CAROUSEL_TYPES.map((type) => (
-                        <SelectItem key={type.id} value={type.id}>
-                          {type.name} - {type.shortDescription}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Carousel Style</Label>
+                    <Select value={urlCarouselType} onValueChange={setUrlCarouselType}>
+                      <SelectTrigger className="h-11" data-testid="select-url-carousel-type">
+                        <SelectValue placeholder="Select style" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEFAULT_CAROUSEL_TYPES.map((type) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.name} - {type.shortDescription}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">AI Provider</Label>
+                    <Select value={aiProvider} onValueChange={(v) => setAiProvider(v as AIProvider)}>
+                      <SelectTrigger className="h-11" data-testid="select-url-ai-provider">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto (Best Available)</SelectItem>
+                        <SelectItem value="gemini">Google Gemini</SelectItem>
+                        <SelectItem value="openai">OpenAI DALL-E</SelectItem>
+                        <SelectItem value="stability">Stability AI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t gap-4">
