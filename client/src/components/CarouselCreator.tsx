@@ -96,16 +96,16 @@ interface ProcessTextResponse {
 }
 
 const DEFAULT_CAROUSEL_TYPES: CarouselTypeInfo[] = [
-  { id: "story-flow", name: "Story-Flow", description: "Tell a narrative across slides", slideCount: { min: 3, max: 5 } },
-  { id: "educational", name: "Educational", description: "Teach concepts step by step", slideCount: { min: 3, max: 5 } },
-  { id: "before-after", name: "Before/After", description: "Show transformation or comparison", slideCount: { min: 2, max: 4 } },
-  { id: "checklist", name: "Checklist", description: "Present actionable items", slideCount: { min: 3, max: 5 } },
-  { id: "quote", name: "Quote", description: "Feature impactful quotes", slideCount: { min: 2, max: 4 } },
-  { id: "stats-data", name: "Stats/Data", description: "Present key statistics", slideCount: { min: 3, max: 5 } },
-  { id: "portfolio", name: "Portfolio", description: "Showcase work examples", slideCount: { min: 3, max: 5 } },
-  { id: "comparison", name: "Comparison", description: "Compare options or choices", slideCount: { min: 2, max: 4 } },
-  { id: "achievement", name: "Achievement", description: "Highlight accomplishments", slideCount: { min: 2, max: 5 } },
-  { id: "framework", name: "Framework", description: "Present a methodology or process", slideCount: { min: 3, max: 5 } },
+  { id: "story-flow", name: "Story-Flow", description: "Tell a narrative across slides", slideCount: { min: 1, max: 100 } },
+  { id: "educational", name: "Educational", description: "Teach concepts step by step", slideCount: { min: 1, max: 100 } },
+  { id: "before-after", name: "Before/After", description: "Show transformation or comparison", slideCount: { min: 1, max: 100 } },
+  { id: "checklist", name: "Checklist", description: "Present actionable items", slideCount: { min: 1, max: 100 } },
+  { id: "quote", name: "Quote", description: "Feature impactful quotes", slideCount: { min: 1, max: 100 } },
+  { id: "stats-data", name: "Stats/Data", description: "Present key statistics", slideCount: { min: 1, max: 100 } },
+  { id: "portfolio", name: "Portfolio", description: "Showcase work examples", slideCount: { min: 1, max: 100 } },
+  { id: "comparison", name: "Comparison", description: "Compare options or choices", slideCount: { min: 1, max: 100 } },
+  { id: "achievement", name: "Achievement", description: "Highlight accomplishments", slideCount: { min: 1, max: 100 } },
+  { id: "framework", name: "Framework", description: "Present a methodology or process", slideCount: { min: 1, max: 100 } },
 ];
 
 export default function CarouselCreator() {
@@ -792,7 +792,6 @@ export default function CarouselCreator() {
                 placeholder="e.g., 5 Tips for Better Productivity"
                 value={carouselTitle}
                 onChange={(e) => setCarouselTitle(e.target.value)}
-                maxLength={100}
                 className="border-slate-200"
                 data-testid="input-carousel-title"
               />
@@ -801,14 +800,13 @@ export default function CarouselCreator() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">
-                  Slide Content ({slides.length}/{carouselTypes.find(t => t.id === selectedCarouselType)?.slideCount.max || 5})
+                  Slide Content ({slides.length} slides)
                 </Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={addSlide}
-                  disabled={slides.length >= (carouselTypes.find(t => t.id === selectedCarouselType)?.slideCount.max || 5)}
                   data-testid="button-add-slide"
                 >
                   <Plus className="w-4 h-4 mr-1" />
@@ -828,7 +826,6 @@ export default function CarouselCreator() {
                         value={slide.text}
                         onChange={(e) => updateSlide(slide.id, e.target.value)}
                         className="min-h-20 resize-none"
-                        maxLength={500}
                         data-testid={`input-slide-${index}`}
                       />
                     </div>
