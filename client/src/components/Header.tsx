@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SiLinkedin } from "react-icons/si";
-import { Sparkles, LogOut, User, List, Calendar, ChevronDown, LayoutDashboard, Home, Plus } from "lucide-react";
+import { Sparkles, LogOut, User, List, Calendar, ChevronDown, LayoutDashboard, Home, Plus, Layers } from "lucide-react";
 import type { SessionUser } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -163,6 +163,14 @@ export default function Header({ variant = "home" }: HeaderProps) {
                   <Plus className="w-4 h-4" />
                   Create Carousel
                 </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => navigate("/my-carousels")}
+                  className="gap-2 cursor-pointer"
+                  data-testid="menu-my-carousels"
+                >
+                  <Layers className="w-4 h-4" />
+                  My Carousels
+                </DropdownMenuItem>
                 {user.authProvider === "linkedin" && (
                   <>
                     <DropdownMenuItem 
@@ -241,6 +249,13 @@ export default function Header({ variant = "home" }: HeaderProps) {
                 >
                   <Plus className="w-4 h-4" />
                   Create Carousel
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => navigate("/my-carousels")}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Layers className="w-4 h-4" />
+                  My Carousels
                 </DropdownMenuItem>
                 {user.authProvider === "linkedin" && (
                   <>

@@ -11,6 +11,7 @@ import Preview from "@/pages/preview";
 import Profile from "@/pages/profile";
 import Posts from "@/pages/posts";
 import Scheduled from "@/pages/scheduled";
+import MyCarousels from "@/pages/my-carousels";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/posts" component={Posts} />
       <Route path="/scheduled" component={Scheduled} />
+      <Route path="/my-carousels" component={MyCarousels} />
       <Route component={NotFound} />
     </Switch>
   );
