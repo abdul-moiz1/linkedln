@@ -339,12 +339,25 @@ export async function getCarousel(carouselId: string): Promise<Carousel | null> 
  */
 export async function getUserCarousels(userId: string): Promise<Carousel[]> {
   const db = getDb();
+  // Note: We avoid using orderBy with where to prevent needing a composite index
   const snapshot = await db.collection("carousels")
     .where("userId", "==", userId)
-    .orderBy("updatedAt", "desc")
     .get();
   
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Carousel));
+  const carousels = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Carousel));
+  
+  // Sort by updatedAt descending (most recent first)
+  carousels.sort((a, b) => {
+    const dateA = a.updatedAt instanceof Date ? a.updatedAt : 
+                  (a.updatedAt as any)?._seconds ? new Date((a.updatedAt as any)._seconds * 1000) : 
+                  new Date(a.updatedAt || 0);
+    const dateB = b.updatedAt instanceof Date ? b.updatedAt : 
+                  (b.updatedAt as any)?._seconds ? new Date((b.updatedAt as any)._seconds * 1000) : 
+                  new Date(b.updatedAt || 0);
+    return dateB.getTime() - dateA.getTime();
+  });
+  
+  return carousels;
 }
 
 /**
