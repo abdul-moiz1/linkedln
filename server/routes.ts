@@ -1708,7 +1708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let selectedProvider = provider;
       if (provider === "auto") {
-        selectedProvider = geminiApiKey ? "gemini" : stabilityApiKey ? "stability" : openaiApiKey ? "openai" : null;
+        selectedProvider = stabilityApiKey ? "stability" : geminiApiKey ? "gemini" : openaiApiKey ? "openai" : null;
       }
 
       if (!selectedProvider || 
@@ -1716,7 +1716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (selectedProvider === "openai" && !openaiApiKey) ||
           (selectedProvider === "stability" && !stabilityApiKey)) {
         return res.status(503).json({ 
-          error: "No AI API key configured. Please add GEMINI_API_KEY, STABILITY_API_KEY, or OPENAI_API_KEY to your secrets." 
+          error: "No AI API key configured. Please add STABILITY_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY to your secrets." 
         });
       }
 
@@ -2311,12 +2311,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid URL format. Please provide a valid http or https URL." });
       }
 
-      const geminiApiKey = process.env.GEMINI_API_KEY;
       const openaiApiKey = process.env.OPENAI_API_KEY;
+      const geminiApiKey = process.env.GEMINI_API_KEY;
 
-      if (!geminiApiKey && !openaiApiKey) {
+      if (!openaiApiKey && !geminiApiKey) {
         return res.status(503).json({ 
-          error: "No AI API key configured. Please add GEMINI_API_KEY or OPENAI_API_KEY to your secrets." 
+          error: "No AI API key configured. Please add OPENAI_API_KEY or GEMINI_API_KEY to your secrets." 
         });
       }
 
@@ -2430,8 +2430,29 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
 
       let aiResponse: { title: string; slides: any[] } = { title: "", slides: [] };
 
-      if (geminiApiKey) {
-        // Use Gemini for text processing
+      if (openaiApiKey) {
+        // Use OpenAI for text processing (prioritized)
+        const { OpenAI } = await import("openai");
+        const openai = new OpenAI({ apiKey: openaiApiKey });
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.7,
+          response_format: { type: "json_object" }
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content) {
+          throw new Error("No response from OpenAI");
+        }
+
+        aiResponse = JSON.parse(content);
+      } else if (geminiApiKey) {
+        // Use Gemini for text processing (fallback)
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
         
         const response = await fetch(apiUrl, {
@@ -2467,27 +2488,6 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         } else {
           throw new Error("Failed to parse AI response as JSON");
         }
-      } else if (openaiApiKey) {
-        // Use OpenAI for text processing
-        const { OpenAI } = await import("openai");
-        const openai = new OpenAI({ apiKey: openaiApiKey });
-
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.7,
-          response_format: { type: "json_object" }
-        });
-
-        const content = response.choices[0]?.message?.content;
-        if (!content) {
-          throw new Error("No response from OpenAI");
-        }
-
-        aiResponse = JSON.parse(content);
       }
 
       // Ensure slides array exists
@@ -2606,12 +2606,12 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         return res.status(400).json({ error: "At least one non-empty text is required" });
       }
 
-      const geminiApiKey = process.env.GEMINI_API_KEY;
       const openaiApiKey = process.env.OPENAI_API_KEY;
+      const geminiApiKey = process.env.GEMINI_API_KEY;
 
-      if (!geminiApiKey && !openaiApiKey) {
+      if (!openaiApiKey && !geminiApiKey) {
         return res.status(503).json({ 
-          error: "No AI API key configured. Please add GEMINI_API_KEY or OPENAI_API_KEY to your secrets." 
+          error: "No AI API key configured. Please add OPENAI_API_KEY or GEMINI_API_KEY to your secrets." 
         });
       }
 
@@ -2652,8 +2652,30 @@ Return ONLY the JSON array, no other text.`;
 
       let slides: any[] = [];
 
-      if (geminiApiKey) {
-        // Use Gemini for text processing
+      if (openaiApiKey) {
+        // Use OpenAI for text processing (prioritized)
+        const { OpenAI } = await import("openai");
+        const openai = new OpenAI({ apiKey: openaiApiKey });
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.7,
+          response_format: { type: "json_object" }
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content) {
+          throw new Error("No response from OpenAI");
+        }
+
+        const parsed = JSON.parse(content);
+        slides = parsed.slides || parsed;
+      } else if (geminiApiKey) {
+        // Use Gemini for text processing (fallback)
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
         
         const response = await fetch(url, {
@@ -2689,28 +2711,6 @@ Return ONLY the JSON array, no other text.`;
         } else {
           throw new Error("Failed to parse AI response as JSON");
         }
-      } else if (openaiApiKey) {
-        // Use OpenAI for text processing
-        const { OpenAI } = await import("openai");
-        const openai = new OpenAI({ apiKey: openaiApiKey });
-
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.7,
-          response_format: { type: "json_object" }
-        });
-
-        const content = response.choices[0]?.message?.content;
-        if (!content) {
-          throw new Error("No response from OpenAI");
-        }
-
-        const parsed = JSON.parse(content);
-        slides = parsed.slides || parsed;
       }
 
       // Ensure each slide has required fields including base64Image placeholder
@@ -3058,13 +3058,13 @@ Return ONLY the JSON array, no other text.`;
 
       let selectedProvider = provider;
       if (provider === "auto") {
-        selectedProvider = geminiApiKey ? "gemini" : stabilityApiKey ? "stability" : openaiApiKey ? "openai" : null;
+        selectedProvider = stabilityApiKey ? "stability" : geminiApiKey ? "gemini" : openaiApiKey ? "openai" : null;
       }
 
       if (!selectedProvider) {
         await updateCarousel(carouselId, { status: "draft" });
         return res.status(503).json({ 
-          error: "No AI API key configured. Please add GEMINI_API_KEY, STABILITY_API_KEY, or OPENAI_API_KEY." 
+          error: "No AI API key configured. Please add STABILITY_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY." 
         });
       }
 
