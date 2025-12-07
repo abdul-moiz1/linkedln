@@ -2946,10 +2946,15 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         selectedProvider = stabilityApiKey ? "stability" : geminiApiKey ? "gemini" : openaiApiKey ? "openai" : null;
       }
 
-      if (!selectedProvider) {
+      if (!selectedProvider || 
+          (selectedProvider === "gemini" && !geminiApiKey) || 
+          (selectedProvider === "openai" && !openaiApiKey) ||
+          (selectedProvider === "stability" && !stabilityApiKey)) {
         await updateCarousel(carouselId, { status: "draft" });
         return res.status(503).json({ 
-          error: "No AI API key configured. Please add STABILITY_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY." 
+          error: selectedProvider && selectedProvider !== "auto"
+            ? `${selectedProvider.toUpperCase()} API key not configured. Please add the required API key to your secrets.`
+            : "No AI API key configured. Please add STABILITY_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY to your secrets." 
         });
       }
 
