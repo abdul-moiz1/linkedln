@@ -2572,8 +2572,9 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
   });
 
   /**
-   * API: Process Text with AI (Guest-friendly)
-   * Takes raw text + carousel type and returns refined LinkedIn-ready text with image prompts
+   * API: Process Text (Guest-friendly)
+   * Takes raw text + carousel type and returns formatted slides (NO AI text processing)
+   * AI is only used for image generation, not text processing
    * No authentication required - allows guests to create carousels
    */
   app.post("/api/carousel/process", async (req: Request, res: Response) => {
@@ -2594,10 +2595,11 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         const trimmed = (text || "").trim();
         const maxChars = index === 0 ? 50 : 100; // Hook = 50, others = 100
         if (trimmed.length > maxChars) {
-          // Truncate at word boundary
-          const truncated = trimmed.substring(0, maxChars);
+          // Truncate at word boundary, reserving space for ellipsis
+          const truncateAt = maxChars - 3;
+          const truncated = trimmed.substring(0, truncateAt);
           const lastSpace = truncated.lastIndexOf(" ");
-          return lastSpace > maxChars * 0.7 ? truncated.substring(0, lastSpace) : truncated;
+          return (lastSpace > truncateAt * 0.7 ? truncated.substring(0, lastSpace) : truncated) + "...";
         }
         return trimmed;
       }).filter((t: string) => t.length > 0);
@@ -2606,145 +2608,28 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         return res.status(400).json({ error: "At least one non-empty text is required" });
       }
 
-      const openaiApiKey = process.env.OPENAI_API_KEY;
-      const geminiApiKey = process.env.GEMINI_API_KEY;
-
-      if (!openaiApiKey && !geminiApiKey) {
-        return res.status(503).json({ 
-          error: "No AI API key configured. Please add OPENAI_API_KEY or GEMINI_API_KEY to your secrets." 
-        });
-      }
-
-      // Build the AI prompt for processing text
-      const systemPrompt = `You are a Carousel Design Expert. Create high-performing, professional carousel slides.
-
-CAROUSEL TYPE: ${carouselType}
-CAROUSEL TITLE: ${title || 'Professional Carousel'}
-
-TEXT RULES:
-1. Keep each slide to ONE single idea - max 100 characters
-2. Use clean, bold, human-friendly wording
-3. Slide 1 = HOOK: Make it punchy, curiosity-driven, max 50 characters
-4. Last slide = CTA: "Follow for more" or similar call-to-action
-5. Clear hierarchy: Headlines big, details smaller
-
-LAYOUT OPTIONS:
-- "hook_slide": For Slide 1 - bold, centered, maximum impact
-- "big_text_center": For impactful statements or quotes  
-- "points_center": For lists (keep to 3 points max)
-- "cta_slide": For the final call-to-action slide
-
-Return your response as a valid JSON array:
-[
-  {
-    "number": 1,
-    "finalText": "5 Habits That Changed My Career",
-    "layout": "hook_slide",
-    "charCount": 32
-  }
-]`;
-
-      const userPrompt = `Process these ${normalizedRawTexts.length} slide texts for a "${carouselType}" style professional carousel titled "${title || 'Professional Carousel'}":
-
-${normalizedRawTexts.map((text: string, i: number) => `Slide ${i + 1}: "${text}"`).join('\n')}
-
-Return ONLY the JSON array, no other text.`;
-
-      let slides: any[] = [];
-
-      if (openaiApiKey) {
-        // Use OpenAI for text processing (prioritized)
-        const { OpenAI } = await import("openai");
-        const openai = new OpenAI({ apiKey: openaiApiKey });
-
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.7,
-          response_format: { type: "json_object" }
-        });
-
-        const content = response.choices[0]?.message?.content;
-        if (!content) {
-          throw new Error("No response from OpenAI");
-        }
-
-        const parsed = JSON.parse(content);
-        slides = parsed.slides || parsed;
-      } else if (geminiApiKey) {
-        // Use Gemini for text processing (fallback)
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-        
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              topP: 0.9,
-            }
-          }),
-        });
-
-        const json = await response.json() as any;
-
-        if (json.error) {
-          console.error("Gemini API error:", json.error);
-          throw new Error(json.error.message || "Gemini API error");
-        }
-
-        const textContent = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!textContent) {
-          throw new Error("No response from Gemini");
-        }
-
-        // Parse JSON from the response
-        const jsonMatch = textContent.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          slides = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("Failed to parse AI response as JSON");
-        }
-      }
-
-      // Ensure each slide has required fields including base64Image placeholder
-      const totalSlides = slides.length;
-      const processedSlides = slides.map((slide: any, index: number) => {
+      // NO AI text processing - just format the raw text directly into slides
+      const totalSlides = normalizedRawTexts.length;
+      const processedSlides = normalizedRawTexts.map((text: string, index: number) => {
         const isFirstSlide = index === 0;
         const isLastSlide = index === totalSlides - 1;
         const maxChars = isFirstSlide ? 50 : 100;
         
-        // Get and clamp finalText to enforce character limits
-        let finalText = (slide.finalText || normalizedRawTexts[index] || "").trim();
-        if (finalText.length > maxChars) {
-          // Reserve 3 chars for ellipsis to ensure total length never exceeds maxChars
-          const truncateAt = maxChars - 3;
-          const truncated = finalText.substring(0, truncateAt);
-          const lastSpace = truncated.lastIndexOf(" ");
-          // Try to break at word boundary, otherwise just truncate
-          finalText = (lastSpace > truncateAt * 0.7 ? truncated.substring(0, lastSpace) : truncated) + "...";
-        }
-        
+        const finalText = text;
         const charCount = finalText.length;
         
         // Determine layout based on position
-        let layout = slide.layout || "big_text_center";
-        if (isFirstSlide && layout !== "hook_slide") layout = "hook_slide";
-        if (isLastSlide && layout !== "cta_slide") layout = "cta_slide";
+        let layout = "big_text_center";
+        if (isFirstSlide) layout = "hook_slide";
+        if (isLastSlide) layout = "cta_slide";
         
-        // Warning for too much text (should be false after clamping)
+        // Warning for too much text (should be false after normalization)
         const tooMuchText = charCount > maxChars;
         
-        // Use the slide text directly as the image prompt - no AI-generated prompts
+        // Use the slide text directly as the image prompt
         return {
-          number: slide.number || index + 1,
-          rawText: normalizedRawTexts[index] || "",
+          number: index + 1,
+          rawText: text,
           finalText,
           imagePrompt: finalText,
           layout,
