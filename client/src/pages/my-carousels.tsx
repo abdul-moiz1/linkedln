@@ -55,9 +55,10 @@ export default function MyCarousels() {
 
   const generatePdfMutation = useMutation({
     mutationFn: async (carouselId: string) => {
-      return await apiRequest("POST", `/api/carousel/${carouselId}/create-pdf`);
+      const response = await apiRequest("POST", `/api/carousel/${carouselId}/create-pdf`);
+      return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { pdfBase64: string }) => {
       toast({ title: "PDF Generated", description: "Your carousel PDF is ready for download." });
       queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
       if (selectedCarousel) {

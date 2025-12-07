@@ -144,6 +144,7 @@ export default function Create() {
   const [hasDraft, setHasDraft] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [urlCarouselType, setUrlCarouselType] = useState<string>("tips-howto");
+  const [currentCarouselId, setCurrentCarouselId] = useState<string | null>(null);
 
   const { data: user, isLoading: isLoadingUser } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
@@ -297,10 +298,25 @@ export default function Create() {
       });
       return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.slides) {
         setProcessedSlides(data.slides);
         setStep("processing");
+        
+        // Save carousel to Firestore for persistence
+        try {
+          const createResponse = await apiRequest("POST", "/api/carousel", {
+            title: carouselTitle || "Untitled Carousel",
+            carouselType: selectedCarouselType,
+            slides: data.slides,
+          });
+          const createData = await createResponse.json();
+          if (createData.carousel?.id) {
+            setCurrentCarouselId(createData.carousel.id);
+          }
+        } catch (e) {
+          console.warn("Failed to save carousel to Firestore:", e);
+        }
       }
     },
     onError: (error: Error) => {
@@ -314,6 +330,15 @@ export default function Create() {
 
   const generateImagesMutation = useMutation({
     mutationFn: async () => {
+      // If we have a carousel ID, use the Firestore-integrated endpoint
+      if (currentCarouselId) {
+        const response = await apiRequest("POST", `/api/carousel/${currentCarouselId}/generate-images`, {
+          provider: aiProvider,
+        });
+        return await response.json();
+      }
+      
+      // Fallback to direct image generation
       const slides = processedSlides.map((s, index) => ({
         text: s.finalText,
         isHook: index === 0,
@@ -327,7 +352,21 @@ export default function Create() {
       });
       return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // Handle response from Firestore-integrated endpoint
+      if (data.carousel?.slides) {
+        setProcessedSlides(data.carousel.slides);
+        setCurrentImageIndex(0);
+        setStep("images");
+        saveDraft();
+        toast({
+          title: "Images Generated",
+          description: `Created ${data.generatedCount || data.carousel.slides.filter((s: ProcessedSlide) => s.base64Image).length} images`,
+        });
+        return;
+      }
+      
+      // Handle legacy endpoint response
       if (data.imageUrls && data.imageUrls.length > 0) {
         const updatedSlides = processedSlides.map((slide, idx) => ({
           ...slide,
@@ -337,6 +376,19 @@ export default function Create() {
         setCurrentImageIndex(0);
         setStep("images");
         saveDraft();
+        
+        // Save images to Firestore if we have a carousel ID
+        if (currentCarouselId) {
+          try {
+            await apiRequest("PUT", `/api/carousel/${currentCarouselId}`, {
+              slides: updatedSlides,
+              status: "images_generated",
+            });
+          } catch (e) {
+            console.warn("Failed to save images to Firestore:", e);
+          }
+        }
+        
         toast({
           title: "Images Generated",
           description: `Created ${data.imageUrls.length} images`,
