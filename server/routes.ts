@@ -1720,54 +1720,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Helper function to create context-aware image prompt
-      const createImagePrompt = (slide: { text: string; isHook: boolean; isCta: boolean }, index: number): string => {
-        const { text, isHook, isCta } = slide;
-        const slideContext = title ? `This is for a carousel titled "${title}"` : "This is for a professional carousel";
-        const typeContext = carouselType ? ` in a "${carouselType}" style` : "";
-        
-        let slideRole = "";
-        if (isHook) {
-          slideRole = "This is the HOOK slide - it should be eye-catching and attention-grabbing.";
-        } else if (isCta) {
-          slideRole = "This is the CALL-TO-ACTION slide - it should be inviting and action-oriented.";
-        } else {
-          slideRole = `This is slide ${index + 1} - a content slide sharing key information.`;
-        }
-
-        return `Create a visually compelling image for a carousel slide that DIRECTLY REPRESENTS the slide's text content.
-
-${slideContext}${typeContext}.
-${slideRole}
-
-THE SLIDE TEXT IS (THIS IS THE MOST IMPORTANT INPUT - BASE YOUR IMAGE ON THIS):
-"${text}"
-
-CRITICAL INSTRUCTIONS:
-1. READ the text above carefully - your image MUST visually represent THIS SPECIFIC text
-2. IDENTIFY the main topic, action, or concept in the text
-3. Create an image showing:
-   - Objects, people, or scenes that directly relate to what the text is about
-   - Visual metaphors or symbols that represent the key idea
-   - A scene that a viewer would immediately connect to the text's meaning
-4. DO NOT include any text, words, letters, or numbers in the image
-5. DO NOT include any social media logos, app icons, or brand symbols
-6. Focus ONLY on the concept in the text - make the image SPECIFIC to this content
-
-STYLE REQUIREMENTS:
-- Professional, polished aesthetic
-- Modern, clean design with good composition
-- Vibrant but professional color palette
-- High quality, well-lit imagery
-- Square format (1:1 aspect ratio)
-- NO logos, NO text, NO brand symbols
-
-TEXT-TO-IMAGE MAPPING EXAMPLES:
-- "5 Tips for Remote Work" → home office setup, person working on laptop at kitchen table, comfortable workspace with plants
-- "Boost Your Network" → people shaking hands, coffee meeting, network connection diagram, business card exchange
-- "AI is Transforming Business" → futuristic robots, neural network visualization, digital transformation scene
-- "Time Management Secrets" → clocks, calendars, organized desk, hourglass, productivity tools
-- "Follow for more tips" → pointing hand gesture, growth arrow, community gathering`;
+      // Use slide text directly as the image prompt - no additional context or templates
+      const getSlidePrompt = (slide: { text: string; isHook: boolean; isCta: boolean }): string => {
+        return slide.text;
       };
 
       const imageUrls: string[] = [];
@@ -1776,7 +1731,7 @@ TEXT-TO-IMAGE MAPPING EXAMPLES:
       if (selectedProvider === "gemini") {
         for (let i = 0; i < slideData.length; i++) {
           try {
-            const prompt = createImagePrompt(slideData[i], i);
+            const prompt = getSlidePrompt(slideData[i]);
             
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
             
@@ -1824,9 +1779,8 @@ TEXT-TO-IMAGE MAPPING EXAMPLES:
         for (let i = 0; i < slideData.length; i++) {
           try {
             const slide = slideData[i];
-            // Stability AI has shorter prompt limits, create a focused prompt
-            const slideRole = slide.isHook ? "hook/attention slide" : slide.isCta ? "call-to-action slide" : "content slide";
-            const prompt = `Professional ${slideRole} image illustrating: "${slide.text}". ${title ? `Topic: ${title}.` : ""} Create visual metaphors and relevant imagery that directly represent the concept. NO text/words in image. NO logos or brand symbols. Modern, polished, professional aesthetic.`;
+            // Use slide text directly as the prompt
+            const prompt = slide.text;
             
             const formData = new FormData();
             formData.append("prompt", prompt);
@@ -1863,7 +1817,8 @@ TEXT-TO-IMAGE MAPPING EXAMPLES:
 
         for (let i = 0; i < slideData.length; i++) {
           try {
-            const prompt = createImagePrompt(slideData[i], i);
+            // Use slide text directly as the prompt
+            const prompt = slideData[i].text;
             
             const response = await openai.images.generate({
               model: "dall-e-3",
@@ -2450,21 +2405,6 @@ LAYOUT OPTIONS:
 - "points_center": For lists (keep to 3 points max)
 - "cta_slide": For the final call-to-action slide
 
-IMAGE PROMPT (required for each slide - MUST be based on the slide's text content):
-For each slide, create an "imagePrompt" field (20-40 words) that VISUALLY REPRESENTS the specific concept in that slide's text:
-- ANALYZE the slide text and identify the KEY CONCEPT, MAIN IDEA, or ACTION
-- Describe a scene or visual metaphor that DIRECTLY ILLUSTRATES that concept
-- Use specific visual elements, objects, or activities mentioned or implied in the text
-- Professional, polished imagery with modern aesthetics
-- NO logos, NO text, NO brand symbols in the image
-
-MAPPING TEXT TO VISUALS (REQUIRED):
-- If slide says "5 Tips for Remote Work" → show home office setup, person with laptop at kitchen table
-- If slide says "Boost Your Network" → show people connecting, handshakes, coffee meeting scene
-- If slide says "Time Management" → show clocks, calendars, organized desk, scheduling app
-- If slide says "AI is Transforming Business" → show robots, neural networks, digital elements
-- If slide says "Follow me for more" → show pointing hand, growth arrow, community gathering
-
 Return your response as a valid JSON object with this structure:
 {
   "title": "Suggested carousel title based on the content",
@@ -2473,7 +2413,6 @@ Return your response as a valid JSON object with this structure:
       "number": 1,
       "rawText": "Original concept from article",
       "finalText": "5 Habits That Changed My Career",
-      "imagePrompt": "Professional person climbing corporate ladder, stepping stones to success, sunrise representing new beginnings, modern office building background",
       "layout": "hook_slide",
       "charCount": 32
     }
@@ -2582,14 +2521,12 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         if (isFirstSlide && layout !== "hook_slide") layout = "hook_slide";
         if (isLastSlide && layout !== "cta_slide") layout = "cta_slide";
         
-        // Generate a content-specific fallback imagePrompt if AI didn't provide one
-        const fallbackImagePrompt = `Create a visual that directly illustrates the concept: "${finalText}". Show objects, scenes, or metaphors that represent the main idea. Professional modern style with clean aesthetic. NO logos, NO text, NO brand symbols. Focus on visual storytelling that matches the text meaning.`;
-        
+        // Use the slide text directly as the image prompt - no AI-generated prompts
         return {
           number: index + 1,
           rawText: slide.rawText || finalText,
           finalText,
-          imagePrompt: slide.imagePrompt || fallbackImagePrompt,
+          imagePrompt: finalText,
           layout,
           charCount,
           tooMuchText: false,
@@ -2697,27 +2634,11 @@ LAYOUT OPTIONS:
 - "points_center": For lists (keep to 3 points max)
 - "cta_slide": For the final call-to-action slide
 
-IMAGE PROMPT (required for each slide - MUST be based on the slide's text content):
-For each slide, create an "imagePrompt" field (20-40 words) that VISUALLY REPRESENTS the specific concept in that slide's text:
-- ANALYZE the slide text and identify the KEY CONCEPT, MAIN IDEA, or ACTION
-- Describe a scene or visual metaphor that DIRECTLY ILLUSTRATES that concept
-- Use specific visual elements, objects, or activities mentioned or implied in the text
-- Professional, polished imagery with modern aesthetics
-- NO logos, NO text, NO brand symbols in the image
-
-MAPPING TEXT TO VISUALS:
-- If slide says "5 Tips for Remote Work" → show home office setup, person with laptop at kitchen table, comfortable workspace
-- If slide says "Boost Your Network" → show people connecting, handshakes, network diagrams, coffee meeting
-- If slide says "Time Management Secrets" → show clocks, calendars, organized desk, hourglass, scheduling app
-- If slide says "AI is Transforming Business" → show robots, neural networks, futuristic tech, digital transformation
-- If slide says "Follow me for more tips" → show pointing hand, follow icon, growth arrow, community gathering
-
 Return your response as a valid JSON array:
 [
   {
     "number": 1,
     "finalText": "5 Habits That Changed My Career",
-    "imagePrompt": "Professional person climbing corporate ladder, stepping stones to success, sunrise representing new beginnings, modern office building in background, warm golden lighting",
     "layout": "hook_slide",
     "charCount": 32
   }
@@ -2820,15 +2741,12 @@ Return ONLY the JSON array, no other text.`;
         // Warning for too much text (should be false after clamping)
         const tooMuchText = charCount > maxChars;
         
-        // Generate a content-specific fallback imagePrompt if AI didn't provide one
-        // Extract key concepts from the text for a more relevant image
-        const fallbackImagePrompt = `Create a visual that directly illustrates the concept: "${finalText}". Show objects, scenes, or metaphors that represent the main idea. Professional modern style with clean aesthetic. NO logos, NO text, NO brand symbols. Focus on visual storytelling that matches the text meaning.`;
-        
+        // Use the slide text directly as the image prompt - no AI-generated prompts
         return {
           number: slide.number || index + 1,
           rawText: normalizedRawTexts[index] || "",
           finalText,
-          imagePrompt: slide.imagePrompt || fallbackImagePrompt,
+          imagePrompt: finalText,
           layout,
           charCount,
           tooMuchText,
@@ -3171,18 +3089,8 @@ Return ONLY the JSON array, no other text.`;
             displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
           }
           
-          // Use ONLY the user's text to generate image - no preset examples
-          const prompt = `Create a professional carousel slide image with the following text beautifully displayed on it:
-
-"${displayText}"
-
-Design the image so:
-- The text is the focal point, displayed in a clean, modern, readable font
-- Use an elegant background that complements the text (gradients, subtle patterns, or professional imagery)
-- Text should be well-positioned with good contrast for readability
-- Professional, polished style with modern aesthetics
-- NO logos, NO brand symbols
-- Square format (1:1 aspect ratio)`;
+          // Use the slide text directly as the prompt - no AI additions
+          const prompt = displayText;
 
           if (selectedProvider === "gemini") {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
