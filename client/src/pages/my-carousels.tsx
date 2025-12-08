@@ -322,99 +322,108 @@ export default function MyCarousels() {
 
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
-        <div className="container flex h-16 items-center justify-between gap-4 px-4">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate("/")} 
-              className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
-              data-testid="button-back-home"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+        <div className="container px-4 py-3">
+          {/* Top row: Back button, Title, New Carousel button */}
+          <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <Layers className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-slate-900 dark:text-white">My Carousels</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{carousels.length} carousel{carousels.length !== 1 ? 's' : ''}</p>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate("/")} 
+                className="rounded-xl shrink-0"
+                data-testid="button-back-home"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+                  <Layers className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-semibold text-slate-900 dark:text-white">My Carousels</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{carousels.length} carousel{carousels.length !== 1 ? 's' : ''}</p>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => refetch()}
-              className="rounded-xl"
-              data-testid="button-refresh-carousels"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
             
-            {/* Sort Control */}
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-[100px] sm:w-[130px] h-9 rounded-xl text-xs" data-testid="select-sort">
-                <SortAsc className="h-3.5 w-3.5 mr-1 sm:mr-1.5 shrink-0" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest First</SelectItem>
-                <SelectItem value="oldest">Oldest First</SelectItem>
-                <SelectItem value="alphabetical">A-Z</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {/* Filter Control */}
-            <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterOption)}>
-              <SelectTrigger className="w-[100px] sm:w-[130px] h-9 rounded-xl text-xs" data-testid="select-filter">
-                <Filter className="h-3.5 w-3.5 mr-1 sm:mr-1.5 shrink-0" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pdf_ready">PDF Ready</SelectItem>
-                <SelectItem value="images_ready">Images Ready</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* LinkedIn Status */}
-            {authStatus?.hasLinkedInAuth ? (
-              <Badge className="gap-1.5 bg-[#0A66C2]/10 text-[#0A66C2] dark:bg-[#0A66C2]/20 dark:text-[#0A66C2] border-0 hidden sm:flex" data-testid="badge-linkedin-connected">
-                <SiLinkedin className="h-3 w-3" />
-                Connected
-              </Badge>
-            ) : (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => window.location.href = '/auth/linkedin'}
-                className="gap-1.5 text-xs hidden sm:flex"
-                data-testid="button-connect-linkedin"
-              >
-                <SiLinkedin className="h-3 w-3" />
-                Connect LinkedIn
-              </Button>
-            )}
-            
-            {user && (
-              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-sm text-slate-600 dark:text-slate-300" data-testid="text-current-user">
-                <User className="h-4 w-4" />
-                <span className="max-w-[150px] truncate">{user.profile?.email || user.profile?.sub}</span>
-              </div>
-            )}
             <Button 
               onClick={() => navigate("/create")}
-              className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 rounded-xl"
+              className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 rounded-xl shrink-0"
               data-testid="button-create-new"
             >
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">New Carousel</span>
             </Button>
+          </div>
+          
+          {/* Bottom row: Controls */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => refetch()}
+                className="rounded-xl shrink-0"
+                data-testid="button-refresh-carousels"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              
+              {/* Sort Control */}
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="w-[120px] h-9 rounded-xl text-xs" data-testid="select-sort">
+                  <SortAsc className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest...</SelectItem>
+                  <SelectItem value="oldest">Oldest...</SelectItem>
+                  <SelectItem value="alphabetical">A-Z</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Filter Control */}
+              <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterOption)}>
+                <SelectTrigger className="w-[120px] h-9 rounded-xl text-xs" data-testid="select-filter">
+                  <Filter className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pdf_ready">PDF Ready</SelectItem>
+                  <SelectItem value="images_ready">Images Ready</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* LinkedIn Status */}
+              {authStatus?.hasLinkedInAuth ? (
+                <Badge className="gap-1.5 bg-[#0A66C2]/10 text-[#0A66C2] dark:bg-[#0A66C2]/20 dark:text-[#0A66C2] border-0 hidden sm:flex" data-testid="badge-linkedin-connected">
+                  <SiLinkedin className="h-3 w-3" />
+                  Connected
+                </Badge>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => window.location.href = '/auth/linkedin'}
+                  className="gap-1.5 text-xs hidden sm:flex"
+                  data-testid="button-connect-linkedin"
+                >
+                  <SiLinkedin className="h-3 w-3" />
+                  Connect LinkedIn
+                </Button>
+              )}
+              
+              {user && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-sm text-slate-600 dark:text-slate-300" data-testid="text-current-user">
+                  <User className="h-4 w-4 shrink-0" />
+                  <span className="max-w-[120px] truncate">{user.profile?.email || user.profile?.sub}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
