@@ -1706,17 +1706,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const openaiApiKey = process.env.OPENAI_API_KEY;
       const stabilityApiKey = process.env.STABILITY_API_KEY;
 
-      let selectedProvider = provider;
-      if (provider === "auto") {
-        selectedProvider = stabilityApiKey ? "stability" : geminiApiKey ? "gemini" : openaiApiKey ? "openai" : null;
+      // STRICT provider selection - no auto-fallback
+      // User must explicitly select a provider
+      const selectedProvider = provider;
+
+      if (!selectedProvider || selectedProvider === "auto") {
+        return res.status(400).json({ 
+          error: "Please select an AI provider (gemini, stability, or openai). Auto-selection is disabled." 
+        });
       }
 
-      if (!selectedProvider || 
-          (selectedProvider === "gemini" && !geminiApiKey) || 
-          (selectedProvider === "openai" && !openaiApiKey) ||
-          (selectedProvider === "stability" && !stabilityApiKey)) {
+      // Check if the selected provider's API key is configured
+      if (selectedProvider === "gemini" && !geminiApiKey) {
         return res.status(503).json({ 
-          error: "No AI API key configured. Please add STABILITY_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY to your secrets." 
+          error: "Gemini API key not configured. Please add GEMINI_API_KEY to your secrets." 
+        });
+      }
+      if (selectedProvider === "openai" && !openaiApiKey) {
+        return res.status(503).json({ 
+          error: "OpenAI API key not configured. Please add OPENAI_API_KEY to your secrets." 
+        });
+      }
+      if (selectedProvider === "stability" && !stabilityApiKey) {
+        return res.status(503).json({ 
+          error: "Stability API key not configured. Please add STABILITY_API_KEY to your secrets." 
         });
       }
 

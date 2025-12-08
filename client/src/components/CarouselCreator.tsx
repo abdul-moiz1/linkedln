@@ -362,7 +362,7 @@ export default function CarouselCreator() {
     },
     onSuccess: (data) => {
       if (data.pdfUrl || data.pdfBase64) {
-        setPdfDataUrl(data.pdfUrl || data.pdfBase64);
+        setPdfDataUrl(data.pdfUrl || data.pdfBase64 || null);
         setStep("review");
         toast({
           title: "PDF Created!",

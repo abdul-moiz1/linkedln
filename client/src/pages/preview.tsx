@@ -36,6 +36,7 @@ interface ProcessedSlide {
   imagePrompt: string;
   layout: string;
   base64Image?: string;
+  imageUrl?: string;
 }
 
 interface CarouselDraft {
@@ -66,7 +67,7 @@ export default function Preview() {
   useEffect(() => {
     const memoryData = getCarouselData();
     if (memoryData) {
-      const hasImages = memoryData.processedSlides?.some(slide => slide.base64Image);
+      const hasImages = memoryData.processedSlides?.some(slide => slide.base64Image || slide.imageUrl);
       if (hasImages) {
         setDraft(memoryData as CarouselDraft);
         return;
@@ -77,7 +78,7 @@ export default function Preview() {
     if (savedDraft) {
       try {
         const parsed: CarouselDraft = JSON.parse(savedDraft);
-        const hasImages = parsed.processedSlides?.some(slide => slide.base64Image);
+        const hasImages = parsed.processedSlides?.some(slide => slide.base64Image || slide.imageUrl);
         if (!hasImages) {
           toast({
             title: "Images Missing",
@@ -110,8 +111,8 @@ export default function Preview() {
     mutationFn: async () => {
       if (!draft) return null;
       const imageArray = draft.processedSlides
-        .filter(s => s.base64Image)
-        .map(s => s.base64Image!);
+        .filter(s => s.base64Image || s.imageUrl)
+        .map(s => s.base64Image || s.imageUrl);
       
       const response = await apiRequest("POST", "/api/pdf/create", { 
         images: imageArray,
@@ -230,7 +231,7 @@ export default function Preview() {
 
   const handleNextSlide = () => {
     if (draft) {
-      const slidesWithImages = draft.processedSlides.filter(s => s.base64Image);
+      const slidesWithImages = draft.processedSlides.filter(s => s.base64Image || s.imageUrl);
       setCurrentSlideIndex(Math.min(slidesWithImages.length - 1, currentSlideIndex + 1));
     }
   };
@@ -243,7 +244,7 @@ export default function Preview() {
     );
   }
 
-  const slidesWithImages = draft.processedSlides.filter(s => s.base64Image);
+  const slidesWithImages = draft.processedSlides.filter(s => s.base64Image || s.imageUrl);
   const currentSlide = slidesWithImages[currentSlideIndex];
   
   const profile = user?.profile;
@@ -306,9 +307,9 @@ export default function Preview() {
             <div className="relative bg-slate-900 group">
               {/* LinkedIn Carousel Aspect Ratio: 4:5 (portrait) */}
               <div className="aspect-[4/5]">
-                {currentSlide?.base64Image ? (
+                {(currentSlide?.base64Image || currentSlide?.imageUrl) ? (
                   <img
-                    src={currentSlide.base64Image}
+                    src={currentSlide.base64Image || currentSlide.imageUrl}
                     alt={`Slide ${currentSlideIndex + 1}`}
                     className="w-full h-full object-cover"
                     data-testid={`img-slide-${currentSlideIndex}`}

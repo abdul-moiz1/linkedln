@@ -28,7 +28,9 @@ import {
   Link as LinkIcon,
   PenTool,
   Globe,
+  Download,
 } from "lucide-react";
+import { SiLinkedin } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
 import { setCarouselData } from "@/lib/carouselStore";
 import Header from "@/components/Header";
@@ -38,7 +40,7 @@ const DRAFT_STORAGE_KEY = "carousel_draft";
 
 type WorkspaceView = "dashboard" | "manual" | "url-input" | "url-processing" | "editor";
 type CreatorStep = "type-select" | "input" | "processing" | "images";
-type AIProvider = "auto" | "gemini" | "openai" | "stability";
+type AIProvider = "gemini" | "openai" | "stability" | "";
 
 interface CarouselTypeInfo {
   id: string;
@@ -64,6 +66,7 @@ interface ProcessedSlide {
   isHook?: boolean;
   isCta?: boolean;
   base64Image?: string;
+  imageUrl?: string;
 }
 
 interface CarouselDraft {
@@ -132,7 +135,7 @@ export default function Create() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("dashboard");
   const [step, setStep] = useState<CreatorStep>("type-select");
   const [selectedCarouselType, setSelectedCarouselType] = useState<string>("");
-  const [aiProvider, setAiProvider] = useState<AIProvider>("auto");
+  const [aiProvider, setAiProvider] = useState<AIProvider>("");
   const [carouselTitle, setCarouselTitle] = useState("");
   const [slides, setSlides] = useState<SlideMessage[]>([
     { id: 1, text: "" },
@@ -145,6 +148,7 @@ export default function Create() {
   const [urlInput, setUrlInput] = useState("");
   const [urlCarouselType, setUrlCarouselType] = useState<string>("tips-howto");
   const [currentCarouselId, setCurrentCarouselId] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: user, isLoading: isLoadingUser } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
@@ -229,7 +233,13 @@ export default function Create() {
         const draft: CarouselDraft = JSON.parse(savedDraft);
         setCarouselTitle(draft.title);
         setSelectedCarouselType(draft.carouselType);
-        setAiProvider(draft.aiProvider);
+        
+        // Normalize legacy "auto" provider to empty string
+        const validProviders = ["gemini", "openai", "stability"];
+        const normalizedProvider = validProviders.includes(draft.aiProvider as string) 
+          ? draft.aiProvider 
+          : "";
+        setAiProvider(normalizedProvider);
         
         // Normalize slides on load - trim text
         const normalizedSlides = draft.slides.map(s => ({
@@ -256,7 +266,7 @@ export default function Create() {
         setProcessedSlides(normalizedProcessedSlides);
         setHasDraft(false);
         
-        const hasImages = normalizedProcessedSlides.some(slide => slide.base64Image);
+        const hasImages = normalizedProcessedSlides.some(slide => slide.base64Image || slide.imageUrl);
         if (draft.step === "images" && !hasImages) {
           setStep("processing");
           toast({
@@ -265,10 +275,17 @@ export default function Create() {
           });
         } else {
           setStep(draft.step);
-          toast({
-            title: "Draft Restored",
-            description: "Your previous work has been loaded.",
-          });
+          if (!normalizedProvider) {
+            toast({
+              title: "Draft Restored",
+              description: "Please select an AI provider to continue generating images.",
+            });
+          } else {
+            toast({
+              title: "Draft Restored",
+              description: "Your previous work has been loaded.",
+            });
+          }
         }
       } catch {
         toast({
@@ -283,6 +300,72 @@ export default function Create() {
   const clearDraft = () => {
     localStorage.removeItem(DRAFT_STORAGE_KEY);
     setHasDraft(false);
+  };
+
+  const handleDownloadPdf = async () => {
+    if (processedSlides.length === 0) {
+      toast({
+        title: "No images",
+        description: "Please generate images first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      const images = processedSlides
+        .filter(s => s.base64Image || s.imageUrl)
+        .map(s => s.base64Image || s.imageUrl);
+      
+      if (images.length === 0) {
+        throw new Error("No images available");
+      }
+
+      const response = await apiRequest("POST", "/api/pdf/create", {
+        images,
+        title: carouselTitle || "LinkedIn Carousel"
+      });
+      const data = await response.json();
+
+      if (data.pdfBase64) {
+        const base64Data = data.pdfBase64.includes(",") 
+          ? data.pdfBase64.split(",")[1] 
+          : data.pdfBase64;
+        
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "application/pdf" });
+        
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = `${carouselTitle || "carousel"}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        
+        toast({
+          title: "Downloaded!",
+          description: "Your PDF carousel has been downloaded",
+        });
+      } else {
+        throw new Error("No PDF data received");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Download Failed",
+        description: error.message || "Failed to create PDF",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const processTextMutation = useMutation({
@@ -330,6 +413,12 @@ export default function Create() {
 
   const generateImagesMutation = useMutation({
     mutationFn: async () => {
+      // Explicit provider validation - reject if not valid
+      const validProviders = ["gemini", "openai", "stability"];
+      if (!validProviders.includes(aiProvider)) {
+        throw new Error("Please select an AI provider (Gemini, OpenAI, or Stability AI) before generating images.");
+      }
+      
       // If we have a carousel ID, use the Firestore-integrated endpoint
       if (currentCarouselId) {
         const response = await apiRequest("POST", `/api/carousel/${currentCarouselId}/generate-images`, {
@@ -510,7 +599,7 @@ export default function Create() {
       case "gemini": return "Gemini";
       case "openai": return "DALL-E";
       case "stability": return "Stability";
-      default: return "Auto";
+      default: return "Not Selected";
     }
   };
 
@@ -522,7 +611,10 @@ export default function Create() {
   const typeInfo = DEFAULT_CAROUSEL_TYPES.find(t => t.id === selectedCarouselType);
   const currentStepIndex = STEPS.findIndex(s => s.id === step);
   
-  const canProcess = filledSlides >= 2;
+  // Validate aiProvider is one of the valid options
+  const validProviders = ["gemini", "openai", "stability"];
+  const isValidProvider = validProviders.includes(aiProvider);
+  const canProcess = filledSlides >= 2 && isValidProvider;
 
   return (
     <div className="min-h-screen bg-background">
@@ -673,18 +765,18 @@ export default function Create() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">AI Provider</Label>
+                    <Label className="text-sm font-medium">AI Provider (Required)</Label>
                     <Select value={aiProvider} onValueChange={(v) => setAiProvider(v as AIProvider)}>
                       <SelectTrigger className="h-11" data-testid="select-url-ai-provider">
-                        <SelectValue />
+                        <SelectValue placeholder="Select AI Provider" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="auto">Auto (Best Available)</SelectItem>
                         <SelectItem value="gemini">Google Gemini</SelectItem>
                         <SelectItem value="openai">OpenAI DALL-E</SelectItem>
                         <SelectItem value="stability">Stability AI</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">Choose which AI provider will generate your images</p>
                   </div>
                 </div>
 
@@ -699,7 +791,7 @@ export default function Create() {
                   </Button>
                   <Button
                     onClick={handleUrlSubmit}
-                    disabled={!urlInput.trim() || urlProcessMutation.isPending}
+                    disabled={!urlInput.trim() || !aiProvider || urlProcessMutation.isPending}
                     data-testid="button-generate-from-url"
                   >
                     {urlProcessMutation.isPending ? (
@@ -710,6 +802,11 @@ export default function Create() {
                     Generate Carousel
                   </Button>
                 </div>
+                {!aiProvider && urlInput.trim() && (
+                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-2 text-center">
+                    Please select an AI provider above
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -864,18 +961,18 @@ export default function Create() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">AI Provider</Label>
+                    <Label className="text-sm font-medium">AI Provider (Required)</Label>
                     <Select value={aiProvider} onValueChange={(v) => setAiProvider(v as AIProvider)}>
                       <SelectTrigger className="h-11" data-testid="select-ai-provider">
-                        <SelectValue />
+                        <SelectValue placeholder="Select AI Provider" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="auto">Auto (Best Available)</SelectItem>
                         <SelectItem value="gemini">Google Gemini</SelectItem>
                         <SelectItem value="openai">OpenAI DALL-E</SelectItem>
                         <SelectItem value="stability">Stability AI</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">Choose which AI provider will generate your images</p>
                   </div>
                 </div>
 
@@ -901,12 +998,17 @@ export default function Create() {
                   <Button
                     className="w-full h-11"
                     onClick={() => setStep("input")}
-                    disabled={!selectedCarouselType}
+                    disabled={!selectedCarouselType || !aiProvider}
                     data-testid="button-next-step"
                   >
                     Continue
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
+                  {!aiProvider && selectedCarouselType && (
+                    <p className="text-sm text-amber-600 dark:text-amber-400 mt-2 text-center">
+                      Please select an AI provider to continue
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1040,17 +1142,25 @@ export default function Create() {
                     </Button>
                   </div>
                 </div>
+                {!aiProvider && filledSlides >= 2 && (
+                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-2 text-center">
+                    Go back to select an AI provider before generating images
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
         )}
 
-        {/* Step 3: Preview */}
+        {/* Step 3: Preview with Download & Post Options */}
         {step === "images" && (
           <div className="space-y-8">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight">Preview</h1>
-              <p className="text-muted-foreground mt-1">Review your carousel before posting</p>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight">Your Carousel is Ready</h1>
+                <p className="text-muted-foreground mt-1">Download, preview, or post to LinkedIn</p>
+              </div>
+              <Badge variant="secondary" className="font-normal">{getProviderName(aiProvider)}</Badge>
             </div>
 
             <Card className="border-0 shadow-sm overflow-hidden">
@@ -1074,9 +1184,9 @@ export default function Create() {
                     </div>
                   )}
 
-                  {processedSlides[currentImageIndex]?.base64Image ? (
+                  {(processedSlides[currentImageIndex]?.base64Image || processedSlides[currentImageIndex]?.imageUrl) ? (
                     <img
-                      src={processedSlides[currentImageIndex].base64Image}
+                      src={processedSlides[currentImageIndex].base64Image || processedSlides[currentImageIndex].imageUrl}
                       alt={`Slide ${currentImageIndex + 1}`}
                       className="w-full h-full object-cover"
                     />
@@ -1139,9 +1249,9 @@ export default function Create() {
                         }`}
                         data-testid={`button-thumbnail-${idx}`}
                       >
-                        {slide.base64Image ? (
+                        {(slide.base64Image || slide.imageUrl) ? (
                           <img 
-                            src={slide.base64Image} 
+                            src={slide.base64Image || slide.imageUrl} 
                             alt={`Thumbnail ${idx + 1}`} 
                             className="w-full h-full object-cover" 
                           />
@@ -1154,30 +1264,114 @@ export default function Create() {
                     ))}
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="p-4 border-t flex items-center justify-between gap-4">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setStep("processing")}
-                    data-testid="button-back-to-refine"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-2" />
-                    Back
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={saveDraft} data-testid="button-save-progress">
-                      <Save className="w-4 h-4 mr-2" />
-                      Save
-                    </Button>
-                    <Button onClick={handlePreview} data-testid="button-preview">
-                      <Eye className="w-4 h-4 mr-2" />
-                      Preview & Post
-                    </Button>
-                  </div>
-                </div>
               </CardContent>
             </Card>
+
+            {/* Action Cards - Download, Preview, LinkedIn Post */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              {/* Download PDF Card */}
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Download className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Download PDF</h3>
+                      <p className="text-xs text-muted-foreground">Save to your device</p>
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    onClick={handleDownloadPdf}
+                    disabled={isDownloading}
+                    data-testid="button-download-pdf"
+                  >
+                    {isDownloading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-2" />
+                    )}
+                    Download
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Preview Card */}
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-secondary/50 flex items-center justify-center">
+                      <Eye className="w-5 h-5 text-secondary-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Full Preview</h3>
+                      <p className="text-xs text-muted-foreground">LinkedIn-style view</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline"
+                    className="w-full" 
+                    onClick={handlePreview}
+                    data-testid="button-full-preview"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Preview
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Post to LinkedIn Card */}
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-[#0077B5]/10 flex items-center justify-center">
+                      <SiLinkedin className="w-5 h-5 text-[#0077B5]" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Post to LinkedIn</h3>
+                      <p className="text-xs text-muted-foreground">Share with your network</p>
+                    </div>
+                  </div>
+                  {user && user.authProvider === 'linkedin' ? (
+                    <Button 
+                      className="w-full bg-[#0077B5] hover:bg-[#006699]"
+                      onClick={handlePreview}
+                      data-testid="button-post-linkedin"
+                    >
+                      <SiLinkedin className="w-4 h-4 mr-2" />
+                      Post Now
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => window.location.href = "/auth/linkedin"}
+                      data-testid="button-linkedin-login"
+                    >
+                      <SiLinkedin className="w-4 h-4 mr-2" />
+                      Connect LinkedIn
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Back/Edit Button */}
+            <div className="flex items-center justify-between gap-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => setStep("input")}
+                data-testid="button-back-to-edit"
+              >
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Edit Content
+              </Button>
+              <Button variant="outline" onClick={saveDraft} data-testid="button-save-progress">
+                <Save className="w-4 h-4 mr-2" />
+                Save Draft
+              </Button>
+            </div>
           </div>
         )}
           </>
