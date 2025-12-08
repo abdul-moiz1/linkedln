@@ -59,7 +59,9 @@ export { adminDb, adminAuth, adminStorage, isFirebaseConfigured };
  * Check if Firebase Storage is properly configured
  */
 export function isStorageConfigured(): boolean {
-  return !!(adminStorage && storageBucket);
+  const configured = !!(adminStorage && storageBucket);
+  console.log(`[Storage Debug] isStorageConfigured: ${configured}, adminStorage: ${!!adminStorage}, storageBucket: "${storageBucket}"`);
+  return configured;
 }
 
 /**
@@ -69,7 +71,10 @@ function getStorageBucket() {
   if (!adminStorage) {
     throw new Error("Firebase Storage not configured");
   }
-  return adminStorage.bucket();
+  // Explicitly pass the bucket name to ensure correct bucket is used
+  const bucketName = storageBucket || undefined;
+  console.log(`[Storage Debug] Getting bucket with name: ${bucketName}`);
+  return adminStorage.bucket(bucketName);
 }
 
 /**

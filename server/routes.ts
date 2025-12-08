@@ -3296,19 +3296,24 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       const pdfBase64 = pdfBuffer.toString("base64");
 
       // Upload to Firebase Storage if configured
+      console.log("[PDF Route] Checking storage configuration...");
       const useStorage = isStorageConfigured();
+      console.log(`[PDF Route] useStorage: ${useStorage}, carouselId: ${carouselId}`);
       let pdfUrl: string | undefined;
 
       if (useStorage) {
         try {
+          console.log("[PDF Route] Attempting to upload PDF to Firebase Storage...");
           pdfUrl = await uploadPdfToStorage(pdfBase64, carouselId);
+          console.log(`[PDF Route] PDF uploaded successfully: ${pdfUrl}`);
           await updateCarousel(carouselId, { pdfUrl, status: "pdf_created" });
         } catch (uploadError: any) {
-          console.error("Failed to upload PDF to Storage:", uploadError);
+          console.error("[PDF Route] Failed to upload PDF to Storage:", uploadError.message || uploadError);
           // Fall back to base64 in Firestore
           await saveCarouselPdf(carouselId, `data:application/pdf;base64,${pdfBase64}`);
         }
       } else {
+        console.log("[PDF Route] Storage not configured, saving base64 to Firestore");
         // No storage, save base64 to Firestore
         await saveCarouselPdf(carouselId, `data:application/pdf;base64,${pdfBase64}`);
       }
