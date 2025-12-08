@@ -2321,7 +2321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.post("/api/carousel/from-url", async (req: Request, res: Response) => {
     try {
-      const { url, carouselType = "tips-howto" } = req.body;
+      const { url, carouselType = "tips-howto", aiProvider } = req.body;
 
       if (!url || typeof url !== "string") {
         return res.status(400).json({ error: "URL is required" });
@@ -2341,9 +2341,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const openaiApiKey = process.env.OPENAI_API_KEY;
       const geminiApiKey = process.env.GEMINI_API_KEY;
 
-      if (!openaiApiKey && !geminiApiKey) {
+      // Validate AI provider selection
+      const validProviders = ["gemini", "openai"];
+      if (!aiProvider || !validProviders.includes(aiProvider)) {
+        return res.status(400).json({ 
+          error: "Please select an AI provider (Gemini or OpenAI) before generating." 
+        });
+      }
+
+      // Check if selected provider has API key configured
+      if (aiProvider === "gemini" && !geminiApiKey) {
         return res.status(503).json({ 
-          error: "No AI API key configured. Please add OPENAI_API_KEY or GEMINI_API_KEY to your secrets." 
+          error: "Gemini API key not configured. Please add GEMINI_API_KEY to your secrets." 
+        });
+      }
+      if (aiProvider === "openai" && !openaiApiKey) {
+        return res.status(503).json({ 
+          error: "OpenAI API key not configured. Please add OPENAI_API_KEY to your secrets." 
         });
       }
 
@@ -2457,29 +2471,9 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
 
       let aiResponse: { title: string; slides: any[] } = { title: "", slides: [] };
 
-      if (openaiApiKey) {
-        // Use OpenAI for text processing (prioritized)
-        const { OpenAI } = await import("openai");
-        const openai = new OpenAI({ apiKey: openaiApiKey });
-
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.7,
-          response_format: { type: "json_object" }
-        });
-
-        const content = response.choices[0]?.message?.content;
-        if (!content) {
-          throw new Error("No response from OpenAI");
-        }
-
-        aiResponse = JSON.parse(content);
-      } else if (geminiApiKey) {
-        // Use Gemini for text processing (fallback)
+      // Use the selected AI provider (respect user's choice)
+      if (aiProvider === "gemini") {
+        // Use Gemini for text processing
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
         
         const response = await fetch(apiUrl, {
@@ -2515,6 +2509,27 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         } else {
           throw new Error("Failed to parse AI response as JSON");
         }
+      } else if (aiProvider === "openai") {
+        // Use OpenAI for text processing
+        const { OpenAI } = await import("openai");
+        const openai = new OpenAI({ apiKey: openaiApiKey! });
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.7,
+          response_format: { type: "json_object" }
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content) {
+          throw new Error("No response from OpenAI");
+        }
+
+        aiResponse = JSON.parse(content);
       }
 
       // Ensure slides array exists

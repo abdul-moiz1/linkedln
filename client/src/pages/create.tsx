@@ -498,6 +498,7 @@ export default function Create() {
       const response = await apiRequest("POST", "/api/carousel/from-url", {
         url: urlInput,
         carouselType: urlCarouselType,
+        aiProvider: aiProvider,
       });
       return await response.json();
     },
