@@ -81,7 +81,7 @@ interface GenerateImagesResponse {
 interface CreatePdfResponse {
   success: boolean;
   carousel?: Carousel;
-  pdfBase64: string;
+  pdfBase64?: string;
   pdfUrl?: string;
   pageCount: number;
 }
