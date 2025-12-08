@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Image as ImageIcon, FileText, Download, Upload, ArrowLeft, Calendar, Layers, ChevronLeft, ChevronRight, Trash2, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, Image as ImageIcon, FileText, Download, Upload, ArrowLeft, Calendar, Layers, ChevronLeft, ChevronRight, Trash2, AlertCircle, RefreshCw, User } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import type { SessionUser } from "@shared/schema";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +52,12 @@ export default function MyCarousels() {
   const [previewSlideIndex, setPreviewSlideIndex] = useState(0);
   const [deleteCarouselId, setDeleteCarouselId] = useState<string | null>(null);
 
-  const { data, isLoading, error } = useQuery<{ carousels: Carousel[] }>({
+  const { data: user } = useQuery<SessionUser>({
+    queryKey: ["/api/user"],
+    retry: false,
+  });
+
+  const { data, isLoading, error, refetch } = useQuery<{ carousels: Carousel[] }>({
     queryKey: ["/api/carousels"],
   });
 
@@ -229,6 +235,22 @@ export default function MyCarousels() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-lg font-semibold">My Carousels</h1>
+          <div className="ml-auto flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => refetch()}
+              data-testid="button-refresh-carousels"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            {user && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="text-current-user">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">{user.profile?.email || user.profile?.sub}</span>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

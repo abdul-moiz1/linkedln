@@ -66,7 +66,8 @@ export default function Login() {
         throw new Error("Failed to verify authentication with server");
       }
       
-      // Invalidate user query to ensure the new session is recognized
+      // Clear all cached data and invalidate queries to ensure fresh data for new user
+      queryClient.clear();
       await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       
       toast({
@@ -124,7 +125,8 @@ export default function Login() {
         throw new Error("Failed to verify authentication with server");
       }
       
-      // Invalidate user query to ensure the new session is recognized
+      // Clear all cached data and invalidate queries to ensure fresh data for new user
+      queryClient.clear();
       await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       
       toast({

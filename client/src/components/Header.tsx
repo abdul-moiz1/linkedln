@@ -12,7 +12,7 @@ import {
 import { SiLinkedin } from "react-icons/si";
 import { Sparkles, LogOut, User, List, Calendar, ChevronDown, LayoutDashboard, Home, Plus, Layers } from "lucide-react";
 import type { SessionUser } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface HeaderProps {
   variant?: "home" | "app";
@@ -31,6 +31,7 @@ export default function Header({ variant = "home" }: HeaderProps) {
       await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
+      queryClient.clear();
       window.location.href = "/";
     },
   });

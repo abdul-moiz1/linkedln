@@ -2751,6 +2751,8 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     try {
       const { title, carouselType, slides } = req.body;
       const userId = req.session.user.profile.sub;
+      
+      console.log(`[Carousel Create] Creating carousel for user: ${userId}, authType: ${req.session.authType || 'unknown'}, email: ${req.session.user.profile.email || 'N/A'}`);
 
       const { createCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
       
@@ -2815,6 +2817,8 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
 
     try {
       const userId = req.session.user.profile.sub;
+      console.log(`[Carousels Fetch] Fetching carousels for user: ${userId}, authType: ${req.session.authType || 'unknown'}, email: ${req.session.user.profile.email || 'N/A'}`);
+      
       const { getUserCarousels, isFirebaseConfigured } = await import("./lib/firebase-admin");
       
       if (!isFirebaseConfigured) {
