@@ -1,12 +1,14 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import { useState } from "react";
+import { useLocation, useSearch } from "wouter";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Image as ImageIcon, FileText, Download, Upload, ArrowLeft, Calendar, Layers, ChevronLeft, ChevronRight, Trash2, AlertCircle, RefreshCw, User, Sparkles, Plus, Clock, CheckCircle2, FileImage } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Image as ImageIcon, FileText, Download, Upload, ArrowLeft, Calendar, Layers, ChevronLeft, ChevronRight, Trash2, AlertCircle, RefreshCw, User, Sparkles, Plus, Clock, CheckCircle2, FileImage, SortAsc, Filter, Link2 } from "lucide-react";
+import { SiLinkedin } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -45,15 +47,49 @@ interface Carousel {
   updatedAt: any;
 }
 
+interface AuthStatus {
+  authenticated: boolean;
+  authType: 'linkedin' | 'firebase' | null;
+  hasLinkedInAuth: boolean;
+}
+
+type SortOption = 'newest' | 'oldest' | 'alphabetical';
+type FilterOption = 'all' | 'pdf_ready' | 'images_ready' | 'draft';
+
 export default function MyCarousels() {
   const [, navigate] = useLocation();
+  const searchString = useSearch();
   const { toast } = useToast();
   const [selectedCarousel, setSelectedCarousel] = useState<Carousel | null>(null);
   const [previewSlideIndex, setPreviewSlideIndex] = useState(0);
   const [deleteCarouselId, setDeleteCarouselId] = useState<string | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [filterBy, setFilterBy] = useState<FilterOption>('all');
+
+  // Parse URL params for highlight
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const highlightParam = params.get('highlight');
+    if (highlightParam) {
+      setHighlightedId(highlightParam);
+      // Clear highlight after 5 seconds
+      const timer = setTimeout(() => {
+        setHighlightedId(null);
+        // Clean up URL
+        navigate('/my-carousels', { replace: true });
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchString, navigate]);
 
   const { data: user } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
+    retry: false,
+  });
+
+  const { data: authStatus } = useQuery<AuthStatus>({
+    queryKey: ["/api/auth/status"],
     retry: false,
   });
 
@@ -204,7 +240,39 @@ export default function MyCarousels() {
     }
   };
 
-  const carousels = data?.carousels || [];
+  const rawCarousels = data?.carousels || [];
+  
+  const filteredAndSortedCarousels = useMemo(() => {
+    let result = [...rawCarousels];
+    
+    // Filter
+    if (filterBy !== 'all') {
+      result = result.filter(c => {
+        const hasImages = c.slides.some(s => s.base64Image || s.imageUrl);
+        switch (filterBy) {
+          case 'pdf_ready': return c.status === 'pdf_created';
+          case 'images_ready': return (c.status === 'images_generated' || hasImages) && c.status !== 'pdf_created';
+          case 'draft': return c.status !== 'pdf_created' && c.status !== 'images_generated' && !hasImages;
+          default: return true;
+        }
+      });
+    }
+    
+    // Sort
+    result.sort((a, b) => {
+      const getDate = (d: any) => d?._seconds ? d._seconds * 1000 : new Date(d).getTime();
+      switch (sortBy) {
+        case 'newest': return getDate(b.updatedAt) - getDate(a.updatedAt);
+        case 'oldest': return getDate(a.updatedAt) - getDate(b.updatedAt);
+        case 'alphabetical': return a.title.localeCompare(b.title);
+        default: return 0;
+      }
+    });
+    
+    return result;
+  }, [rawCarousels, filterBy, sortBy]);
+
+  const carousels = filteredAndSortedCarousels;
   const slidesWithImages = selectedCarousel?.slides.filter(s => s.base64Image || s.imageUrl) || [];
 
   if (isLoading) {
@@ -276,18 +344,65 @@ export default function MyCarousels() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => refetch()}
-              className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="rounded-xl"
               data-testid="button-refresh-carousels"
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
+            
+            {/* Sort Control */}
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <SelectTrigger className="w-[100px] sm:w-[130px] h-9 rounded-xl text-xs" data-testid="select-sort">
+                <SortAsc className="h-3.5 w-3.5 mr-1 sm:mr-1.5 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+                <SelectItem value="alphabetical">A-Z</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Filter Control */}
+            <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterOption)}>
+              <SelectTrigger className="w-[100px] sm:w-[130px] h-9 rounded-xl text-xs" data-testid="select-filter">
+                <Filter className="h-3.5 w-3.5 mr-1 sm:mr-1.5 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pdf_ready">PDF Ready</SelectItem>
+                <SelectItem value="images_ready">Images Ready</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* LinkedIn Status */}
+            {authStatus?.hasLinkedInAuth ? (
+              <Badge className="gap-1.5 bg-[#0A66C2]/10 text-[#0A66C2] dark:bg-[#0A66C2]/20 dark:text-[#0A66C2] border-0 hidden sm:flex" data-testid="badge-linkedin-connected">
+                <SiLinkedin className="h-3 w-3" />
+                Connected
+              </Badge>
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.location.href = '/auth/linkedin'}
+                className="gap-1.5 text-xs hidden sm:flex"
+                data-testid="button-connect-linkedin"
+              >
+                <SiLinkedin className="h-3 w-3" />
+                Connect LinkedIn
+              </Button>
+            )}
+            
             {user && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-sm text-slate-600 dark:text-slate-300" data-testid="text-current-user">
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-sm text-slate-600 dark:text-slate-300" data-testid="text-current-user">
                 <User className="h-4 w-4" />
                 <span className="max-w-[150px] truncate">{user.profile?.email || user.profile?.sub}</span>
               </div>
@@ -340,10 +455,16 @@ export default function MyCarousels() {
               const statusInfo = getStatusInfo(carousel.status, hasImages);
               const StatusIcon = statusInfo.icon;
               
+              const isHighlighted = carousel.id === highlightedId;
+              
               return (
                 <Card 
                   key={carousel.id} 
-                  className="group overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 cursor-pointer bg-white dark:bg-slate-900"
+                  className={`group overflow-hidden border transition-all duration-300 cursor-pointer bg-white dark:bg-slate-900 ${
+                    isHighlighted 
+                      ? "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-900 border-blue-400 dark:border-blue-600 shadow-xl shadow-blue-500/20" 
+                      : "border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl hover:shadow-blue-500/10"
+                  }`}
                   onClick={() => {
                     setSelectedCarousel(carousel);
                     setPreviewSlideIndex(0);
@@ -368,7 +489,13 @@ export default function MyCarousels() {
                     )}
                     
                     {/* Status Badge */}
-                    <div className="absolute top-3 right-3">
+                    <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                      {isHighlighted && (
+                        <Badge className="gap-1.5 px-2.5 py-1 font-medium border-0 bg-gradient-to-r from-green-500 to-emerald-600 text-white animate-pulse" data-testid={`badge-just-created-${carousel.id}`}>
+                          <Sparkles className="h-3 w-3" />
+                          Just Created
+                        </Badge>
+                      )}
                       <Badge className={`gap-1.5 px-2.5 py-1 font-medium border-0 ${statusInfo.bgClass}`}>
                         <StatusIcon className={`h-3 w-3 ${statusInfo.label === 'Processing' ? 'animate-spin' : ''}`} />
                         {statusInfo.label}

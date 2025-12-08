@@ -220,8 +220,16 @@ export default function Preview() {
         
         toast({
           title: "Downloaded!",
-          description: "Your PDF carousel has been downloaded",
+          description: "Your PDF carousel has been downloaded. Taking you to My Carousels...",
         });
+        
+        // Clear draft and redirect to My Carousels with highlight parameter
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+        clearCarouselData();
+        const carouselId = draft?.carouselId;
+        setTimeout(() => {
+          navigate(carouselId ? `/my-carousels?highlight=${carouselId}` : "/my-carousels");
+        }, 1500);
       }
     } catch (error) {
       toast({
