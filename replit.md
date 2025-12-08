@@ -84,6 +84,13 @@ A professional SaaS application that allows users to create AI-generated LinkedI
   - URL input view with carousel style selector
   - Processing view with animated loading states
   - Integrates with existing editor for slide refinement and image generation
+- **Dec 8**: Fixed PDF not appearing in "My Carousels" page
+  - Updated `/api/pdf/create` to create carousel documents in Firestore when PDF is generated
+  - Previously PDFs were uploaded to Firebase Storage but no carousel document was created
+  - Now carousel documents are automatically created with pdfUrl, userId, title, and status
+- **Dec 8**: Fixed signup/login redirect issue
+  - Added query cache invalidation after successful authentication
+  - Prevents race condition where /create page would redirect back to login
 
 ## Architecture
 
