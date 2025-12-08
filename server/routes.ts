@@ -53,6 +53,54 @@ declare module "express-session" {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Test endpoint to verify Firebase Storage is working
+  app.get("/api/test-storage", async (req: Request, res: Response) => {
+    try {
+      const { isStorageConfigured, adminStorage } = await import("./lib/firebase-admin");
+      
+      const configured = isStorageConfigured();
+      const storageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET;
+      
+      if (!configured) {
+        return res.json({
+          success: false,
+          error: "Storage not configured",
+          details: {
+            adminStorage: !!adminStorage,
+            storageBucket: storageBucket || "NOT SET",
+          }
+        });
+      }
+      
+      // Try to upload a test file
+      const testContent = Buffer.from("Test file content - " + new Date().toISOString());
+      const storage = adminStorage!;
+      const bucket = storage.bucket(storageBucket);
+      const testFile = bucket.file("test/test-upload.txt");
+      
+      await testFile.save(testContent, {
+        metadata: { contentType: "text/plain" },
+        public: true,
+      });
+      
+      const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent("test/test-upload.txt")}?alt=media`;
+      
+      res.json({
+        success: true,
+        message: "Storage upload test successful!",
+        testFileUrl: publicUrl,
+        bucket: storageBucket,
+      });
+    } catch (error: any) {
+      console.error("[Test Storage] Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Unknown error",
+        stack: error.stack,
+      });
+    }
+  });
+
   /**
    * STEP 1: Initiate LinkedIn OAuth2 Authorization Flow
    * 
@@ -1935,12 +1983,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pdfBase64 = pdfBuffer.toString("base64");
       const pdfDataUrl = `data:application/pdf;base64,${pdfBase64}`;
 
+      // Try to upload to Firebase Storage if configured
+      let pdfUrl: string | undefined;
+      let storageUsed = false;
+      
+      try {
+        const { isStorageConfigured, uploadPdfToStorage } = await import("./lib/firebase-admin");
+        
+        if (isStorageConfigured()) {
+          // Generate a unique ID for this carousel PDF
+          const carouselId = `guest-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          console.log(`[PDF Create] Uploading to storage with carouselId: ${carouselId}`);
+          
+          pdfUrl = await uploadPdfToStorage(pdfBase64, carouselId);
+          storageUsed = true;
+          console.log(`[PDF Create] Uploaded to Firebase Storage: ${pdfUrl}`);
+        } else {
+          console.log("[PDF Create] Storage not configured, returning base64");
+        }
+      } catch (storageError: any) {
+        console.error("[PDF Create] Storage upload failed:", storageError.message);
+        // Fall back to base64 - don't fail the whole request
+      }
+
       res.json({
         success: true,
-        pdfUrl: pdfDataUrl,
+        pdfUrl: pdfUrl || pdfDataUrl,
         pdfBase64: pdfDataUrl,
         pageCount: imageArray.length,
         title: title || "LinkedIn Carousel",
+        storageUsed,
       });
     } catch (error: any) {
       console.error("PDF creation error:", error);
