@@ -513,173 +513,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // GUEST CAROUSEL ENDPOINTS (No Auth Required)
+  // CAROUSEL MIGRATION ENDPOINT
   // ============================================
 
   /**
-   * API: Create Guest Carousel
-   * Creates a carousel for guests, stored with a guest ID
-   * Guest can later claim these carousels after logging in
+   * API: Migrate Guest Carousels
+   * Allows authenticated users to claim their guest carousels by providing a guest ID
    */
-  app.post("/api/guest/carousel", async (req: Request, res: Response) => {
+  app.post("/api/carousels/migrate-guest", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     try {
-      const { guestId, title, carouselType, slides } = req.body;
+      const { guestId } = req.body;
       
       if (!guestId) {
         return res.status(400).json({ error: "Guest ID is required" });
       }
 
-      const { createCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      const { migrateGuestCarousels, isFirebaseConfigured } = await import("./lib/firebase-admin");
       
       if (!isFirebaseConfigured) {
-        // Return a mock response for local storage fallback
-        return res.json({ 
-          success: true, 
-          carousel: {
-            id: `local-${Date.now()}`,
-            userId: `guest-${guestId}`,
-            title: title || "Untitled Carousel",
-            carouselType: carouselType || "story-flow",
-            slides: slides || [],
-            status: "draft",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          isLocal: true
-        });
+        return res.status(503).json({ error: "Firebase not configured" });
       }
 
-      // Store guest ID in session for later migration
-      req.session.guestId = guestId;
+      const userId = req.session.user.profile.sub;
+      const migratedCount = await migrateGuestCarousels(guestId, userId);
 
-      // Deep sanitize function for Firestore
-      const deepSanitize = (obj: any): any => {
-        if (obj === undefined) return null;
-        if (obj === null) return null;
-        if (Array.isArray(obj)) return obj.map(item => deepSanitize(item));
-        if (typeof obj === 'object' && obj !== null) {
-          const cleanObj: Record<string, any> = {};
-          for (const [key, value] of Object.entries(obj)) {
-            if (value !== undefined) cleanObj[key] = deepSanitize(value);
-          }
-          return cleanObj;
-        }
-        return obj;
-      };
-
-      const sanitizedSlides = slides ? deepSanitize(slides) : [];
-
-      const carousel = await createCarousel({
-        userId: `guest-${guestId}`,
-        title: title || "Untitled Carousel",
-        carouselType: carouselType || "story-flow",
-        slides: sanitizedSlides,
-        status: "draft",
+      res.json({ 
+        success: true, 
+        migratedCount,
+        message: migratedCount > 0 
+          ? `Successfully migrated ${migratedCount} carousel(s) to your account` 
+          : "No guest carousels found with that ID"
       });
-
-      res.json({ success: true, carousel });
     } catch (error: any) {
-      console.error("Create guest carousel error:", error);
-      res.status(500).json({ error: error.message || "Failed to create carousel" });
+      console.error("Migrate guest carousels error:", error);
+      res.status(500).json({ error: error.message || "Failed to migrate carousels" });
     }
   });
 
   /**
-   * API: Get Guest Carousel
-   * Retrieves a carousel by ID for guests
-   */
-  app.get("/api/guest/carousel/:carouselId", async (req: Request, res: Response) => {
-    try {
-      const { carouselId } = req.params;
-      const { guestId } = req.query;
-      
-      const { getCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
-      
-      if (!isFirebaseConfigured) {
-        return res.status(404).json({ error: "Carousel not found" });
-      }
-
-      const carousel = await getCarousel(carouselId);
-      
-      if (!carousel) {
-        return res.status(404).json({ error: "Carousel not found" });
-      }
-
-      // Verify guest ownership
-      if (carousel.userId !== `guest-${guestId}`) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      res.json(carousel);
-    } catch (error: any) {
-      console.error("Get guest carousel error:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch carousel" });
-    }
-  });
-
-  /**
-   * API: Update Guest Carousel
-   * Updates a carousel for guests (e.g., adding base64 images)
-   */
-  app.patch("/api/guest/carousel/:carouselId", async (req: Request, res: Response) => {
-    try {
-      const { carouselId } = req.params;
-      const { guestId, ...updates } = req.body;
-      
-      if (!guestId) {
-        return res.status(400).json({ error: "Guest ID is required" });
-      }
-
-      const { getCarousel, updateCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
-      
-      if (!isFirebaseConfigured) {
-        return res.json({ success: true, message: "Local update only" });
-      }
-
-      const carousel = await getCarousel(carouselId);
-      
-      if (!carousel) {
-        return res.status(404).json({ error: "Carousel not found" });
-      }
-
-      if (carousel.userId !== `guest-${guestId}`) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      // Deep sanitize for Firestore
-      const deepSanitize = (obj: any): any => {
-        if (obj === undefined) return null;
-        if (obj === null) return null;
-        if (Array.isArray(obj)) return obj.map(item => deepSanitize(item));
-        if (typeof obj === 'object' && obj !== null) {
-          const cleanObj: Record<string, any> = {};
-          for (const [key, value] of Object.entries(obj)) {
-            if (value !== undefined) cleanObj[key] = deepSanitize(value);
-          }
-          return cleanObj;
-        }
-        return obj;
-      };
-
-      const sanitizedUpdates = deepSanitize(updates) || {};
-      await updateCarousel(carouselId, sanitizedUpdates);
-      const updated = await getCarousel(carouselId);
-
-      res.json({ success: true, carousel: updated });
-    } catch (error: any) {
-      console.error("Update guest carousel error:", error);
-      res.status(500).json({ error: error.message || "Failed to update carousel" });
-    }
-  });
-
-  /**
-   * API: Save Slide Base64 Image (Guest-friendly)
-   * Saves a generated base64 image to a specific slide
+   * API: Save Slide Base64 Image
+   * Saves a generated base64 image to a specific slide (requires authentication)
    */
   app.post("/api/carousel/:carouselId/slide/:slideNumber/image", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     try {
       const { carouselId, slideNumber } = req.params;
-      const { base64Image, guestId } = req.body;
+      const { base64Image } = req.body;
       
       if (!base64Image) {
         return res.status(400).json({ error: "Base64 image is required" });
@@ -697,12 +583,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Carousel not found" });
       }
 
-      // Check authorization
-      const isGuest = carousel.userId.startsWith("guest-");
-      const isOwner = req.session.user?.profile.sub === carousel.userId;
-      const isGuestOwner = isGuest && carousel.userId === `guest-${guestId}`;
-
-      if (!isOwner && !isGuestOwner) {
+      // Check ownership
+      if (carousel.userId !== req.session.user.profile.sub) {
         return res.status(403).json({ error: "Access denied" });
       }
 
@@ -716,14 +598,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * API: Check Existing Slide Images (Guest-friendly)
-   * Returns existing base64 images from Firestore for a carousel
-   * Allows checking before regenerating images to avoid unnecessary API calls
+   * API: Check Existing Slide Images
+   * Returns existing base64 images from Firestore for a carousel (requires authentication)
    */
   app.get("/api/carousel/:carouselId/images", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     try {
       const { carouselId } = req.params;
-      const { guestId } = req.query;
       
       const { getCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
       
@@ -741,12 +625,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Carousel not found" });
       }
 
-      // Check authorization
-      const isGuest = carousel.userId.startsWith("guest-");
-      const isOwner = req.session.user?.profile.sub === carousel.userId;
-      const isGuestOwner = isGuest && carousel.userId === `guest-${guestId}`;
-
-      if (!isOwner && !isGuestOwner) {
+      // Check ownership
+      if (carousel.userId !== req.session.user.profile.sub) {
         return res.status(403).json({ error: "Access denied" });
       }
 
@@ -776,12 +656,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   /**
    * API: Check if Slide Needs Regeneration
-   * Compares current slide text with stored text to determine if image needs regeneration
+   * Compares current slide text with stored text to determine if image needs regeneration (requires authentication)
    */
   app.post("/api/carousel/:carouselId/check-regeneration", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     try {
       const { carouselId } = req.params;
-      const { slides, guestId } = req.body;
+      const { slides } = req.body;
       
       if (!slides || !Array.isArray(slides)) {
         return res.status(400).json({ error: "Slides array is required" });
@@ -815,12 +699,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Check authorization
-      const isGuest = carousel.userId.startsWith("guest-");
-      const isOwner = req.session.user?.profile.sub === carousel.userId;
-      const isGuestOwner = isGuest && carousel.userId === `guest-${guestId}`;
-
-      if (!isOwner && !isGuestOwner) {
+      // Check ownership
+      if (carousel.userId !== req.session.user.profile.sub) {
         return res.status(403).json({ error: "Access denied" });
       }
 
@@ -1713,15 +1593,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * API: Generate AI Images (Guest-friendly)
+   * API: Generate AI Images
    * 
    * Generates images using OpenAI's DALL-E, Google's Gemini, or Stability AI based on slide content.
    * Each slide becomes an image in the carousel, with context-aware prompts.
    * Provider can be "openai", "gemini", or "stability" (auto selects first available)
-   * No authentication required - allows guests to create carousels
+   * Requires authentication
    */
   app.post("/api/images/generate", async (req: Request, res: Response) => {
-    // Guest-friendly endpoint - no auth required for carousel creation
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     try {
       // Support new format (slides array with context) and legacy format (messages array)
       const { slides, messages, title = "", carouselType = "", provider = "auto" } = req.body;
@@ -1921,14 +1804,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * API: Create PDF from Images (Guest-friendly)
+   * API: Create PDF from Images
    * 
    * Converts an array of image URLs into a multi-page PDF document.
    * Each image becomes a page in the carousel PDF.
-   * No authentication required - allows guests to create and download PDFs
+   * Requires authentication
    */
   app.post("/api/pdf/create", async (req: Request, res: Response) => {
-    // Guest-friendly endpoint - no auth required for PDF creation
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     try {
       const { imageUrls, images, title } = req.body;
       
@@ -2387,11 +2273,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * API: Create Carousel from URL (Guest-friendly)
+   * API: Create Carousel from URL
    * Scrapes a URL, extracts text content, and uses AI to summarize into 7-10 carousel slides
-   * No authentication required - allows guests to create carousels from blog URLs
+   * Requires authentication
    */
   app.post("/api/carousel/from-url", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     try {
       const { url, carouselType = "tips-howto", aiProvider } = req.body;
 
@@ -2686,13 +2576,16 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
   });
 
   /**
-   * API: Process Text (Guest-friendly)
+   * API: Process Text
    * Takes raw text + carousel type and returns formatted slides (NO AI text processing)
    * AI is only used for image generation, not text processing
-   * No authentication required - allows guests to create carousels
+   * Requires authentication
    */
   app.post("/api/carousel/process", async (req: Request, res: Response) => {
-    // Guest-friendly endpoint - no auth required for carousel creation
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     try {
       const { rawTexts, carouselType, title } = req.body;
 
