@@ -1918,28 +1918,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`[PDF Create] Updated carousel ${requestCarouselId} with PDF URL`);
             }
           } else {
-            // Create new carousel document with slides from image data
-            const slidesFromImages = imageArray.map((imgData: string, idx: number) => ({
-              number: idx + 1,
-              rawText: "",
-              finalText: "",
-              imagePrompt: "",
-              layout: "big_text_center" as const,
-              base64Image: imgData.startsWith("data:") ? imgData : undefined,
-              imageUrl: imgData.startsWith("http") ? imgData : undefined,
-            }));
+            // Create new carousel document
+            // Upload images to Firebase Storage to get URLs (base64 in arrays causes Firestore nested entity error)
+            const { uploadImageToStorage, isStorageConfigured: checkStorage } = await import("./lib/firebase-admin");
+            const tempCarouselId = `${userId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+            
+            const slidesForFirestore = await Promise.all(
+              imageArray.map(async (imgData: string, idx: number) => {
+                const slideNumber = idx + 1;
+                let imageUrl: string | undefined;
+                
+                // If it's base64 data and storage is configured, upload to get URL
+                if (imgData.startsWith("data:") && checkStorage()) {
+                  try {
+                    imageUrl = await uploadImageToStorage(imgData, tempCarouselId, slideNumber);
+                    console.log(`[PDF Create] Uploaded slide ${slideNumber} to Storage: ${imageUrl}`);
+                  } catch (uploadErr: any) {
+                    console.error(`[PDF Create] Failed to upload slide ${slideNumber}:`, uploadErr.message);
+                  }
+                } else if (imgData.startsWith("http")) {
+                  // Already a URL, use it directly
+                  imageUrl = imgData;
+                }
+                
+                return {
+                  number: slideNumber,
+                  rawText: "",
+                  finalText: "",
+                  imagePrompt: "",
+                  layout: "big_text_center" as const,
+                  imageUrl, // Store URL instead of base64
+                };
+              })
+            );
             
             const newCarousel = await createCarousel({
               userId,
               title: title || "LinkedIn Carousel",
-              slides: slidesFromImages,
+              slides: slidesForFirestore,
               carouselType: req.body.carouselType || "custom",
               status: "pdf_created",
               pdfUrl: pdfUrl || pdfDataUrl,
             });
             carouselCreated = true;
             savedCarouselId = newCarousel.id;
-            console.log(`[PDF Create] Created new carousel ${newCarousel.id} for user ${userId} with ${slidesFromImages.length} slides`);
+            console.log(`[PDF Create] Created new carousel ${newCarousel.id} for user ${userId} with ${slidesForFirestore.length} slides`);
           }
         }
       } catch (updateError: any) {
