@@ -1918,18 +1918,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`[PDF Create] Updated carousel ${requestCarouselId} with PDF URL`);
             }
           } else {
-            // Create new carousel document
+            // Create new carousel document with slides from image data
+            const slidesFromImages = imageArray.map((imgData: string, idx: number) => ({
+              number: idx + 1,
+              rawText: "",
+              finalText: "",
+              imagePrompt: "",
+              layout: "big_text_center" as const,
+              base64Image: imgData.startsWith("data:") ? imgData : undefined,
+              imageUrl: imgData.startsWith("http") ? imgData : undefined,
+            }));
+            
             const newCarousel = await createCarousel({
               userId,
               title: title || "LinkedIn Carousel",
-              slides: [],
+              slides: slidesFromImages,
               carouselType: req.body.carouselType || "custom",
               status: "pdf_created",
               pdfUrl: pdfUrl || pdfDataUrl,
             });
             carouselCreated = true;
             savedCarouselId = newCarousel.id;
-            console.log(`[PDF Create] Created new carousel ${newCarousel.id} for user ${userId}`);
+            console.log(`[PDF Create] Created new carousel ${newCarousel.id} for user ${userId} with ${slidesFromImages.length} slides`);
           }
         }
       } catch (updateError: any) {

@@ -38,6 +38,7 @@ interface Carousel {
   carouselType: string;
   slides: CarouselSlide[];
   pdfBase64?: string;
+  pdfUrl?: string;
   status: string;
   createdAt: any;
   updatedAt: any;
@@ -59,11 +60,15 @@ export default function MyCarousels() {
       const response = await apiRequest("POST", `/api/carousel/${carouselId}/create-pdf`);
       return await response.json();
     },
-    onSuccess: (data: { pdfBase64: string }) => {
+    onSuccess: (data: { pdfBase64?: string; pdfUrl?: string }) => {
       toast({ title: "PDF Generated", description: "Your carousel PDF is ready for download." });
       queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
       if (selectedCarousel) {
-        setSelectedCarousel({ ...selectedCarousel, pdfBase64: data.pdfBase64 });
+        setSelectedCarousel({ 
+          ...selectedCarousel, 
+          pdfBase64: data.pdfBase64,
+          pdfUrl: data.pdfUrl 
+        });
       }
     },
     onError: (error: any) => {
@@ -85,10 +90,13 @@ export default function MyCarousels() {
     },
   });
 
-  const handleDownloadPdf = (pdfBase64: string, title: string) => {
+  const handleDownloadPdf = (pdfSource: string, title: string) => {
     const link = document.createElement("a");
-    link.href = pdfBase64;
+    link.href = pdfSource;
     link.download = `${title.replace(/\s+/g, "_")}_carousel.pdf`;
+    if (pdfSource.startsWith("http")) {
+      link.target = "_blank";
+    }
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -305,7 +313,7 @@ export default function MyCarousels() {
                   </ScrollArea>
 
                   <div className="flex gap-2 justify-center flex-wrap">
-                    {!selectedCarousel.pdfBase64 ? (
+                    {!(selectedCarousel.pdfBase64 || selectedCarousel.pdfUrl) ? (
                       <Button
                         onClick={() => generatePdfMutation.mutate(selectedCarousel.id)}
                         disabled={generatePdfMutation.isPending}
@@ -326,7 +334,7 @@ export default function MyCarousels() {
                     ) : (
                       <>
                         <Button
-                          onClick={() => handleDownloadPdf(selectedCarousel.pdfBase64!, selectedCarousel.title)}
+                          onClick={() => handleDownloadPdf(selectedCarousel.pdfBase64 || selectedCarousel.pdfUrl!, selectedCarousel.title)}
                           data-testid="button-download-pdf"
                         >
                           <Download className="h-4 w-4 mr-2" />
