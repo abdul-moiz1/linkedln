@@ -1877,11 +1877,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { isStorageConfigured, uploadPdfToStorage } = await import("./lib/firebase-admin");
         
         if (isStorageConfigured()) {
-          // Generate a unique ID for this carousel PDF
-          const carouselId = `guest-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-          console.log(`[PDF Create] Uploading to storage with carouselId: ${carouselId}`);
+          // Use user ID from session for the storage path (user is authenticated at this point)
+          const userId = req.session.user!.profile.sub;
+          // Use carouselId from request if provided, otherwise generate one with user ID prefix
+          const storageCarouselId = req.body.carouselId || `${userId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          console.log(`[PDF Create] Uploading to storage with carouselId: ${storageCarouselId} for user: ${userId}`);
           
-          pdfUrl = await uploadPdfToStorage(pdfBase64, carouselId);
+          pdfUrl = await uploadPdfToStorage(pdfBase64, storageCarouselId);
           storageUsed = true;
           console.log(`[PDF Create] Uploaded to Firebase Storage: ${pdfUrl}`);
         } else {
