@@ -237,9 +237,9 @@ export interface User {
   linkedinId: string;
   email: string;
   name: string;
-  profilePicture?: string;
+  profilePicture?: string | null;
   accessToken: string;
-  refreshToken?: string;
+  refreshToken?: string | null;
   tokenExpiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -260,6 +260,7 @@ export interface Project {
 
 // Carousel Types for LinkedIn-style carousels
 export type CarouselType = 
+  | "custom"
   | "story-flow"
   | "educational"
   | "before-after"
@@ -269,7 +270,9 @@ export type CarouselType =
   | "portfolio"
   | "comparison"
   | "achievement"
-  | "framework";
+  | "framework"
+  | "tips-howto"
+  | "quote-inspiration";
 
 export interface CarouselTypeInfo {
   id: CarouselType;
@@ -279,6 +282,7 @@ export interface CarouselTypeInfo {
 }
 
 export const CAROUSEL_TYPES: CarouselTypeInfo[] = [
+  { id: "custom", name: "Custom", description: "Any length you need (min 2 slides)", slideCount: { min: 2, max: 20 } },
   { id: "story-flow", name: "Story-Flow", description: "Tell a narrative across slides", slideCount: { min: 3, max: 5 } },
   { id: "educational", name: "Educational", description: "Teach concepts step by step", slideCount: { min: 3, max: 5 } },
   { id: "before-after", name: "Before/After", description: "Show transformation or comparison", slideCount: { min: 2, max: 4 } },
@@ -289,6 +293,8 @@ export const CAROUSEL_TYPES: CarouselTypeInfo[] = [
   { id: "comparison", name: "Comparison", description: "Compare options or choices", slideCount: { min: 2, max: 4 } },
   { id: "achievement", name: "Achievement", description: "Highlight accomplishments", slideCount: { min: 2, max: 5 } },
   { id: "framework", name: "Framework", description: "Present a methodology or process", slideCount: { min: 3, max: 5 } },
+  { id: "tips-howto", name: "Tips & How-To", description: "Share actionable advice", slideCount: { min: 3, max: 5 } },
+  { id: "quote-inspiration", name: "Quote", description: "Feature powerful quotes", slideCount: { min: 2, max: 4 } },
 ];
 
 // Layout types for slides
@@ -333,15 +339,21 @@ export async function saveUser(userData: Omit<User, "id" | "createdAt" | "update
   const now = new Date();
   const userRef = db.collection("users").doc(userData.linkedinId);
   
+  // Sanitize user data to convert undefined to null for Firestore
+  const sanitizedData: Record<string, any> = {};
+  for (const [key, value] of Object.entries(userData)) {
+    sanitizedData[key] = value === undefined ? null : value;
+  }
+  
   await userRef.set({
-    ...userData,
+    ...sanitizedData,
     updatedAt: now,
   }, { merge: true });
 
   const doc = await userRef.get();
   if (!doc.exists) {
     await userRef.set({
-      ...userData,
+      ...sanitizedData,
       createdAt: now,
       updatedAt: now,
     });

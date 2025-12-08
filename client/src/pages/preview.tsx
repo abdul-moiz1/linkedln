@@ -458,25 +458,11 @@ export default function Preview() {
             <Button
               variant="outline"
               onClick={() => navigate("/create")}
-              className="flex-1 gap-2"
+              className="w-full gap-2"
               data-testid="button-edit-carousel"
             >
               <Edit className="w-4 h-4" />
               Edit Carousel
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleDownloadPdf}
-              disabled={isCreatingPdf || createPdfMutation.isPending}
-              className="flex-1 gap-2"
-              data-testid="button-download-pdf"
-            >
-              {(isCreatingPdf || createPdfMutation.isPending) ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              Download PDF
             </Button>
           </div>
         </div>

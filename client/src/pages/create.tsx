@@ -81,6 +81,14 @@ interface CarouselDraft {
 
 const DEFAULT_CAROUSEL_TYPES: CarouselTypeInfo[] = [
   { 
+    id: "custom", 
+    name: "Custom", 
+    shortDescription: "Any length you need",
+    fullDescription: "Create a carousel with any number of slides (minimum 2). Perfect when you have specific content that doesn't fit other templates.",
+    outputExample: "You decide the structure. Add as many slides as you need - minimum 2 slides required.",
+    slideCount: { min: 2, max: 20 } 
+  },
+  { 
     id: "story-flow", 
     name: "Story", 
     shortDescription: "Tell a narrative",
@@ -413,6 +421,12 @@ export default function Create() {
 
   const generateImagesMutation = useMutation({
     mutationFn: async () => {
+      // Validate minimum 2 slides with content
+      const filledSlideCount = processedSlides.filter(s => s.finalText?.trim()).length;
+      if (filledSlideCount < 2) {
+        throw new Error("You need at least 2 slides with content to generate images. Please add more slides.");
+      }
+      
       // Explicit provider validation - reject if not valid
       const validProviders = ["gemini", "openai", "stability"];
       if (!validProviders.includes(aiProvider)) {

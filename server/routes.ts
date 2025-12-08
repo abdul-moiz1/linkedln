@@ -408,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           linkedinId: `firebase-${uid}`,
           email: email || "",
           name: name || email?.split('@')[0] || "User",
-          profilePicture: picture,
+          profilePicture: picture || null,
           accessToken: idToken,
           tokenExpiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour
         });

@@ -8,6 +8,7 @@ interface ProcessedSlide {
   imagePrompt: string;
   layout: string;
   base64Image?: string;
+  imageUrl?: string;
 }
 
 interface SlideMessage {
