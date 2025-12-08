@@ -32,7 +32,7 @@ const STORAGE_KEY = "carousel_generated_images";
 const STORAGE_TITLE_KEY = "carousel_title";
 
 type CarouselStep = "type-select" | "input" | "processing" | "preview" | "review";
-type AIProvider = "auto" | "gemini" | "openai" | "stability";
+type AIProvider = "gemini" | "openai" | "stability";
 
 interface CarouselTypeInfo {
   id: string;
@@ -53,6 +53,7 @@ interface ProcessedSlide {
   imagePrompt: string;
   layout: string;
   base64Image?: string;
+  imageUrl?: string;
 }
 
 interface Carousel {
@@ -62,6 +63,7 @@ interface Carousel {
   carouselType: string;
   slides: ProcessedSlide[];
   pdfBase64?: string;
+  pdfUrl?: string;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -80,6 +82,7 @@ interface CreatePdfResponse {
   success: boolean;
   carousel?: Carousel;
   pdfBase64: string;
+  pdfUrl?: string;
   pageCount: number;
 }
 
@@ -112,7 +115,7 @@ export default function CarouselCreator() {
   const { toast } = useToast();
   const [step, setStep] = useState<CarouselStep>("type-select");
   const [selectedCarouselType, setSelectedCarouselType] = useState<string>("");
-  const [aiProvider, setAiProvider] = useState<AIProvider>("auto");
+  const [aiProvider, setAiProvider] = useState<AIProvider | "">("");
   const [slides, setSlides] = useState<SlideMessage[]>([
     { id: 1, text: "" },
     { id: 2, text: "" },
@@ -191,7 +194,8 @@ export default function CarouselCreator() {
         finalText: "",
         imagePrompt: "",
         layout: "big_text_center",
-        base64Image: img,
+        imageUrl: img.startsWith("https://") ? img : undefined,
+        base64Image: img.startsWith("data:") ? img : undefined,
       })));
       setCarouselTitle(cached.title);
       setCurrentImageIndex(0);
@@ -206,9 +210,10 @@ export default function CarouselCreator() {
 
   const downloadAllImages = useCallback((slides: ProcessedSlide[], title: string) => {
     slides.forEach((slide, index) => {
-      if (slide.base64Image) {
+      const imageSource = slide.imageUrl || slide.base64Image;
+      if (imageSource) {
         const link = document.createElement("a");
-        link.href = slide.base64Image;
+        link.href = imageSource;
         link.download = `${title || "slide"}_${index + 1}.png`;
         document.body.appendChild(link);
         link.click();
@@ -283,7 +288,8 @@ export default function CarouselCreator() {
       if (data.imageUrls && data.imageUrls.length > 0) {
         const updatedSlides = processedSlides.map((slide, idx) => ({
           ...slide,
-          base64Image: data.imageUrls[idx] || undefined,
+          imageUrl: data.imageUrls[idx]?.startsWith("https://") ? data.imageUrls[idx] : undefined,
+          base64Image: data.imageUrls[idx]?.startsWith("data:") ? data.imageUrls[idx] : undefined,
         }));
         return {
           success: true,
@@ -312,9 +318,9 @@ export default function CarouselCreator() {
         setUsedProvider(data.provider || "");
         setStep("preview");
         
-        const imagesWithData = data.carousel.slides.filter(s => s.base64Image);
+        const imagesWithData = data.carousel.slides.filter(s => s.imageUrl || s.base64Image);
         if (imagesWithData.length > 0) {
-          saveToLocalStorage(imagesWithData.map(s => s.base64Image!), carouselTitle);
+          saveToLocalStorage(imagesWithData.map(s => s.imageUrl || s.base64Image!), carouselTitle);
         }
         setHasCachedImages(false);
         
@@ -341,7 +347,7 @@ export default function CarouselCreator() {
   const createPdfMutation = useMutation({
     mutationFn: async (): Promise<CreatePdfResponse> => {
       if (!currentCarouselId) {
-        const imageUrls = processedSlides.filter(s => s.base64Image).map(s => s.base64Image!);
+        const imageUrls = processedSlides.filter(s => s.imageUrl || s.base64Image).map(s => s.imageUrl || s.base64Image!);
         const response = await apiRequest("POST", "/api/pdf/create", {
           imageUrls,
           title: carouselTitle || "LinkedIn Carousel",
@@ -355,8 +361,8 @@ export default function CarouselCreator() {
       return data as CreatePdfResponse;
     },
     onSuccess: (data) => {
-      if (data.pdfBase64) {
-        setPdfDataUrl(data.pdfBase64);
+      if (data.pdfUrl || data.pdfBase64) {
+        setPdfDataUrl(data.pdfUrl || data.pdfBase64);
         setStep("review");
         toast({
           title: "PDF Created!",
@@ -379,10 +385,13 @@ export default function CarouselCreator() {
       if (!pdfDataUrl) {
         throw new Error("PDF data is required");
       }
+      const isStorageUrl = pdfDataUrl.startsWith("https://");
       const response = await apiRequest("POST", "/api/linkedin/upload", {
-        pdfBase64: pdfDataUrl,
+        pdfBase64: isStorageUrl ? undefined : pdfDataUrl,
+        pdfUrl: isStorageUrl ? pdfDataUrl : undefined,
         caption: caption,
         title: carouselTitle || "LinkedIn Carousel",
+        carouselId: currentCarouselId,
       });
       const data = await response.json();
       return data as UploadResponse;
@@ -430,10 +439,10 @@ export default function CarouselCreator() {
     setSelectedCarouselType(carousel.carouselType);
     setProcessedSlides(carousel.slides);
     
-    if (carousel.pdfBase64) {
-      setPdfDataUrl(carousel.pdfBase64);
+    if (carousel.pdfBase64 || carousel.pdfUrl) {
+      setPdfDataUrl(carousel.pdfBase64 || carousel.pdfUrl || null);
       setStep("review");
-    } else if (carousel.slides.some(s => s.base64Image)) {
+    } else if (carousel.slides.some(s => s.imageUrl || s.base64Image)) {
       setStep("preview");
     } else if (carousel.slides.length > 0) {
       setStep("processing");
@@ -498,11 +507,19 @@ export default function CarouselCreator() {
   };
 
   const handleGenerateImages = () => {
+    if (!aiProvider) {
+      toast({
+        title: "AI Provider Required",
+        description: "Please select an AI provider before generating images",
+        variant: "destructive",
+      });
+      return;
+    }
     generateImagesMutation.mutate();
   };
 
   const handleCreatePdf = () => {
-    const hasImages = processedSlides.some(s => s.base64Image);
+    const hasImages = processedSlides.some(s => s.imageUrl || s.base64Image);
     if (!hasImages) {
       toast({
         title: "No images",
@@ -541,12 +558,13 @@ export default function CarouselCreator() {
     setCarouselTitle("");
     setCaption("");
     setUsedProvider("");
+    setAiProvider("");
     clearLocalStorage();
     setHasCachedImages(false);
   };
 
   const navigateImage = (direction: "prev" | "next") => {
-    const imagesWithData = processedSlides.filter(s => s.base64Image);
+    const imagesWithData = processedSlides.filter(s => s.imageUrl || s.base64Image);
     if (direction === "prev" && currentImageIndex > 0) {
       setCurrentImageIndex(currentImageIndex - 1);
     } else if (direction === "next" && currentImageIndex < imagesWithData.length - 1) {
@@ -565,7 +583,7 @@ export default function CarouselCreator() {
 
   const isLoading = processTextMutation.isPending || generateImagesMutation.isPending || createPdfMutation.isPending || uploadToLinkedInMutation.isPending;
 
-  const imagesWithData = processedSlides.filter(s => s.base64Image);
+  const imagesWithData = processedSlides.filter(s => s.imageUrl || s.base64Image);
 
   return (
     <Card data-testid="card-carousel-creator">
@@ -708,15 +726,9 @@ export default function CarouselCreator() {
                   <Label htmlFor="ai-provider-select" className="text-sm font-medium">AI Provider (for images)</Label>
                   <Select value={aiProvider} onValueChange={(v) => setAiProvider(v as AIProvider)}>
                     <SelectTrigger id="ai-provider-select" className="border-slate-200" data-testid="select-ai-provider-type">
-                      <SelectValue placeholder="Select AI provider" />
+                      <SelectValue placeholder="Select AI provider (required)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="auto" data-testid="select-option-ai-auto">
-                        <div className="flex items-center gap-2">
-                          <Wand2 className="w-4 h-4 text-blue-600" />
-                          <span>Auto (Best Available)</span>
-                        </div>
-                      </SelectItem>
                       <SelectItem value="gemini" data-testid="select-option-ai-gemini">
                         <div className="flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-blue-500" />
@@ -738,7 +750,7 @@ export default function CarouselCreator() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    {aiProvider === "auto" && "Automatically selects the best available AI"}
+                    {!aiProvider && "Please select an AI provider for image generation"}
                     {aiProvider === "gemini" && "Google's Gemini for high-quality images"}
                     {aiProvider === "openai" && "OpenAI DALL-E 3 for creative images"}
                     {aiProvider === "stability" && "Stability AI for artistic images"}
@@ -779,9 +791,9 @@ export default function CarouselCreator() {
                 {carouselTypes.find(t => t.id === selectedCarouselType)?.name || selectedCarouselType}
               </Badge>
               <Badge variant="outline" className="text-muted-foreground">
-                {aiProvider === "auto" ? "Auto AI" : 
-                 aiProvider === "gemini" ? "Gemini" :
-                 aiProvider === "openai" ? "DALL-E" : "Stability AI"}
+                {aiProvider === "gemini" ? "Gemini" :
+                 aiProvider === "openai" ? "DALL-E" : 
+                 aiProvider === "stability" ? "Stability AI" : "No AI Selected"}
               </Badge>
             </div>
 
@@ -967,7 +979,7 @@ export default function CarouselCreator() {
                     data-testid={`card-slide-preview-${idx}`}
                   >
                     <img
-                      src={slide.base64Image}
+                      src={slide.imageUrl || slide.base64Image}
                       alt={`Slide ${idx + 1}`}
                       className="w-full aspect-square object-cover rounded-md"
                       data-testid={`image-slide-${idx}`}
@@ -986,7 +998,7 @@ export default function CarouselCreator() {
                   </Label>
                   <div className="relative aspect-square max-w-md mx-auto rounded-lg overflow-hidden border bg-muted">
                     <img
-                      src={imagesWithData[currentImageIndex].base64Image}
+                      src={imagesWithData[currentImageIndex].imageUrl || imagesWithData[currentImageIndex].base64Image}
                       alt={`Slide ${currentImageIndex + 1} - Large Preview`}
                       className="w-full h-full object-cover"
                       data-testid="image-slide-large-preview"

@@ -1947,18 +1947,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { pdfBase64, caption, title, carouselId } = req.body;
+      const { pdfBase64, pdfUrl, caption, title, carouselId } = req.body;
 
-      if (!pdfBase64) {
-        return res.status(400).json({ error: "PDF data is required" });
+      if (!pdfBase64 && !pdfUrl) {
+        return res.status(400).json({ error: "PDF data (pdfBase64 or pdfUrl) is required" });
       }
 
       const { accessToken, profile } = req.session.user;
       const personId = profile.sub.replace(/^linkedin-person-/, '');
       const authorUrn = `urn:li:person:${personId}`;
 
-      const base64Data = pdfBase64.includes(",") ? pdfBase64.split(",")[1] : pdfBase64;
-      const pdfBuffer = Buffer.from(base64Data, "base64");
+      let pdfBuffer: Buffer;
+      
+      if (pdfUrl) {
+        // Fetch PDF from Firebase Storage URL
+        console.log("Fetching PDF from Storage URL:", pdfUrl);
+        const pdfResponse = await fetch(pdfUrl);
+        if (!pdfResponse.ok) {
+          return res.status(500).json({ error: "Failed to fetch PDF from storage" });
+        }
+        const arrayBuffer = await pdfResponse.arrayBuffer();
+        pdfBuffer = Buffer.from(arrayBuffer);
+      } else {
+        // Use base64 data directly
+        const base64Data = pdfBase64.includes(",") ? pdfBase64.split(",")[1] : pdfBase64;
+        pdfBuffer = Buffer.from(base64Data, "base64");
+      }
 
       const linkedInVersion = "202501";
 
