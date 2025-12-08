@@ -32,7 +32,7 @@ export default function Home() {
       <Header />
 
       {/* Hero Section */}
-      <section id="home" className="relative overflow-hidden py-20 lg:py-32">
+      <section id="home" className="relative overflow-hidden pt-8 pb-20 lg:pt-16 lg:pb-32">
         {/* Background Image with Overlay - Darkened for better readability */}
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
