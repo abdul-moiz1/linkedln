@@ -28,6 +28,7 @@ interface CarouselSlide {
   imagePrompt: string;
   layout: string;
   base64Image?: string;
+  imageUrl?: string;
 }
 
 interface Carousel {
@@ -119,7 +120,7 @@ export default function MyCarousels() {
   };
 
   const carousels = data?.carousels || [];
-  const slidesWithImages = selectedCarousel?.slides.filter(s => s.base64Image) || [];
+  const slidesWithImages = selectedCarousel?.slides.filter(s => s.base64Image || s.imageUrl) || [];
 
   if (isLoading) {
     return (
@@ -167,8 +168,9 @@ export default function MyCarousels() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {carousels.map((carousel) => {
-              const hasImages = carousel.slides.some(s => s.base64Image);
-              const firstImageSlide = carousel.slides.find(s => s.base64Image);
+              const hasImages = carousel.slides.some(s => s.base64Image || s.imageUrl);
+              const firstImageSlide = carousel.slides.find(s => s.base64Image || s.imageUrl);
+              const firstImageSrc = firstImageSlide?.base64Image || firstImageSlide?.imageUrl;
               
               return (
                 <Card 
@@ -181,9 +183,9 @@ export default function MyCarousels() {
                   data-testid={`card-carousel-${carousel.id}`}
                 >
                   <div className="aspect-square bg-muted relative overflow-hidden">
-                    {firstImageSlide?.base64Image ? (
+                    {firstImageSrc ? (
                       <img 
-                        src={firstImageSlide.base64Image} 
+                        src={firstImageSrc} 
                         alt={carousel.title}
                         className="w-full h-full object-cover"
                       />
@@ -245,7 +247,7 @@ export default function MyCarousels() {
                 <>
                   <div className="relative aspect-square max-h-[50vh] mx-auto w-full max-w-lg bg-muted rounded-lg overflow-hidden">
                     <img 
-                      src={slidesWithImages[previewSlideIndex]?.base64Image}
+                      src={slidesWithImages[previewSlideIndex]?.base64Image || slidesWithImages[previewSlideIndex]?.imageUrl}
                       alt={`Slide ${previewSlideIndex + 1}`}
                       className="w-full h-full object-contain"
                       data-testid="img-preview-slide"
@@ -293,7 +295,7 @@ export default function MyCarousels() {
                           data-testid={`button-thumbnail-${index}`}
                         >
                           <img 
-                            src={slide.base64Image}
+                            src={slide.base64Image || slide.imageUrl}
                             alt={`Thumbnail ${index + 1}`}
                             className="w-full h-full object-cover"
                           />
