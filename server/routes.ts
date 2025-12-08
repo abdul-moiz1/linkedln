@@ -2967,6 +2967,107 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
   });
 
   /**
+   * API: Recover Carousel Images from Storage
+   * Recovers slide images from Firebase Storage for carousels with empty slides array
+   * This is useful for carousels that have PDFs but lost their slide image references
+   */
+  app.post("/api/carousel/:carouselId/recover-images", async (req: Request, res: Response) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { carouselId } = req.params;
+      
+      const { 
+        getCarousel, 
+        recoverCarouselImages,
+        listCarouselImages,
+        isFirebaseConfigured,
+        isStorageConfigured
+      } = await import("./lib/firebase-admin");
+      
+      if (!isFirebaseConfigured) {
+        return res.status(503).json({ error: "Firebase not configured." });
+      }
+
+      if (!isStorageConfigured()) {
+        return res.status(503).json({ error: "Firebase Storage not configured." });
+      }
+
+      // Get the carousel first to verify ownership
+      const carousel = await getCarousel(carouselId);
+      if (!carousel) {
+        return res.status(404).json({ error: "Carousel not found" });
+      }
+      if (carousel.userId !== req.session.user.profile.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Try to recover images from storage (the function handles all status checks)
+      const recoveryResult = await recoverCarouselImages(carouselId);
+      
+      switch (recoveryResult.status) {
+        case "not_found":
+          return res.status(404).json({ error: "Carousel not found during recovery" });
+          
+        case "storage_error":
+          return res.json({
+            success: false,
+            status: "storage_error",
+            message: recoveryResult.errorMessage || "Error accessing storage",
+            recovered: false,
+            recoveredCount: 0,
+            storageImageCount: 0,
+            carousel: recoveryResult.carousel
+          });
+          
+        case "already_has_images":
+          const existingImageCount = carousel.slides?.filter(s => s.imageUrl || s.base64Image).length || 0;
+          return res.json({ 
+            success: true, 
+            status: "already_has_images",
+            message: `Carousel already has ${existingImageCount} image(s)`,
+            recovered: false,
+            recoveredCount: 0,
+            storageImageCount: recoveryResult.storageImageCount,
+            carousel: recoveryResult.carousel
+          });
+          
+        case "no_storage_images":
+          return res.json({
+            success: true,
+            status: "no_storage_images",
+            message: "No images found in storage to recover",
+            recovered: false,
+            recoveredCount: 0,
+            storageImageCount: 0,
+            carousel: recoveryResult.carousel
+          });
+          
+        case "recovered":
+          const totalSlidesAfterRecovery = recoveryResult.carousel?.slides?.length || 0;
+          return res.json({
+            success: true,
+            status: "recovered",
+            recovered: true,
+            recoveredCount: recoveryResult.recoveredCount,
+            totalSlides: totalSlidesAfterRecovery,
+            storageImageCount: recoveryResult.storageImageCount,
+            carousel: recoveryResult.carousel,
+            message: `Successfully recovered ${recoveryResult.recoveredCount} images (${totalSlidesAfterRecovery} total slides)`
+          });
+          
+        default:
+          return res.status(500).json({ error: "Unknown recovery status" });
+      }
+    } catch (error: any) {
+      console.error("Recover carousel images error:", error);
+      res.status(500).json({ error: error.message || "Failed to recover images" });
+    }
+  });
+
+  /**
    * API: Generate Images for Carousel with Firebase Storage
    * Generates images and uploads them to Firebase Storage, storing URLs in Firestore
    */

@@ -229,6 +229,224 @@ export async function deleteCarouselFiles(carouselId: string): Promise<void> {
 }
 
 /**
+ * Storage listing result 
+ */
+export interface StorageListResult {
+  success: boolean;
+  images: { slideNumber: number; imageUrl: string }[];
+  error?: string;
+}
+
+/**
+ * List all image files for a carousel from Firebase Storage
+ * Returns image URLs sorted by slide number with explicit success/error status
+ * @param carouselId - The carousel ID
+ * @returns StorageListResult with success status and images
+ */
+export async function listCarouselImages(carouselId: string): Promise<StorageListResult> {
+  if (!adminStorage || !storageBucket) {
+    console.warn("Firebase Storage not configured");
+    return { success: false, images: [], error: "Firebase Storage not configured" };
+  }
+
+  const bucket = getStorageBucket();
+  const prefix = `carousels/${carouselId}/`;
+  
+  try {
+    const [files] = await bucket.getFiles({ prefix });
+    
+    const imageFiles = files
+      .filter(file => {
+        const name = file.name;
+        return name.includes("slide_") && (name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".webp"));
+      })
+      .map(file => {
+        const name = file.name;
+        const slideMatch = name.match(/slide_(\d+)_/);
+        const slideNumber = slideMatch ? parseInt(slideMatch[1], 10) : 0;
+        const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(file.name)}?alt=media`;
+        return { slideNumber, imageUrl };
+      })
+      .sort((a, b) => a.slideNumber - b.slideNumber);
+    
+    console.log(`[listCarouselImages] Found ${imageFiles.length} images for carousel ${carouselId}`);
+    return { success: true, images: imageFiles };
+  } catch (error: any) {
+    console.error(`Error listing images for carousel ${carouselId}:`, error);
+    return { success: false, images: [], error: error.message || "Unknown storage error" };
+  }
+}
+
+/**
+ * Recovery result status types
+ */
+export type RecoveryStatus = 
+  | "recovered"           // Successfully recovered images from storage
+  | "already_has_images"  // All slides already have images
+  | "no_storage_images"   // No images found in storage to recover
+  | "storage_error"       // Error listing/accessing storage
+  | "not_found";          // Carousel not found
+
+/**
+ * Recovery result with explicit status
+ */
+export interface RecoveryResult {
+  status: RecoveryStatus;
+  carousel: Carousel | null;
+  recoveredCount: number;
+  storageImageCount: number;
+  errorMessage?: string;
+}
+
+/**
+ * Recover slide images from Firebase Storage for a carousel with empty slides
+ * This is useful for carousels that have PDFs but lost their slide image references
+ * @param carouselId - The carousel ID
+ * @returns Recovery result with explicit status
+ */
+export async function recoverCarouselImages(carouselId: string): Promise<RecoveryResult> {
+  const db = getDb();
+  const carouselRef = db.collection("carousels").doc(carouselId);
+  const doc = await carouselRef.get();
+  
+  if (!doc.exists) {
+    return { status: "not_found", carousel: null, recoveredCount: 0, storageImageCount: 0 };
+  }
+  
+  const carousel = { id: doc.id, ...doc.data() } as Carousel;
+  
+  // Get images from storage
+  const storageResult = await listCarouselImages(carouselId);
+  
+  // Handle storage errors
+  if (!storageResult.success) {
+    console.error(`[recoverCarouselImages] Storage error for carousel ${carouselId}: ${storageResult.error}`);
+    return { 
+      status: "storage_error", 
+      carousel, 
+      recoveredCount: 0, 
+      storageImageCount: 0,
+      errorMessage: storageResult.error
+    };
+  }
+  
+  const storageImages = storageResult.images;
+  
+  // Check if slides already have images
+  // Only skip recovery if ALL slides have images, not just some
+  const totalSlides = carousel.slides?.length || 0;
+  const slidesWithImages = carousel.slides?.filter(s => s.imageUrl || s.base64Image) || [];
+  const allSlidesHaveImages = totalSlides > 0 && slidesWithImages.length === totalSlides;
+  
+  if (allSlidesHaveImages) {
+    console.log(`[recoverCarouselImages] All ${slidesWithImages.length} slides already have images for carousel ${carouselId}`);
+    return { 
+      status: "already_has_images", 
+      carousel, 
+      recoveredCount: 0, 
+      storageImageCount: storageImages.length 
+    };
+  }
+  
+  // Log when partial images exist but we'll still proceed with recovery
+  if (slidesWithImages.length > 0) {
+    console.log(`[recoverCarouselImages] Only ${slidesWithImages.length}/${totalSlides} slides have images - proceeding with full recovery for carousel ${carouselId}`);
+  }
+  
+  if (storageImages.length === 0) {
+    console.log(`[recoverCarouselImages] No images found in storage for carousel ${carouselId}`);
+    return { 
+      status: "no_storage_images", 
+      carousel, 
+      recoveredCount: 0, 
+      storageImageCount: 0 
+    };
+  }
+  
+  console.log(`[recoverCarouselImages] Recovering ${storageImages.length} images for carousel ${carouselId}`);
+  
+  // Merge storage images with existing slides to preserve text content
+  // Create a map of storage images by slide number for easy lookup
+  const storageImageMap = new Map<number, string>();
+  storageImages.forEach(img => {
+    storageImageMap.set(img.slideNumber, img.imageUrl);
+  });
+  
+  let recoveredSlides: CarouselSlide[];
+  let imagesAddedCount = 0;
+  
+  if (carousel.slides && carousel.slides.length > 0) {
+    // Merge images into existing slides, preserving text content
+    recoveredSlides = carousel.slides.map((slide, idx) => {
+      const slideNum = slide.number || idx + 1;
+      const storageImageUrl = storageImageMap.get(slideNum);
+      
+      if (storageImageUrl && !slide.imageUrl && !slide.base64Image) {
+        imagesAddedCount++;
+        return {
+          ...slide,
+          number: slideNum,
+          imageUrl: storageImageUrl,
+        };
+      }
+      return { ...slide, number: slideNum };
+    });
+    
+    // Add any storage images that don't have matching slides
+    storageImages.forEach((img, idx) => {
+      const existingSlide = recoveredSlides.find(s => s.number === img.slideNumber);
+      if (!existingSlide) {
+        recoveredSlides.push({
+          number: img.slideNumber || idx + 1,
+          rawText: "",
+          finalText: "",
+          imagePrompt: "",
+          layout: "big_text_center" as const,
+          imageUrl: img.imageUrl,
+        });
+        imagesAddedCount++;
+      }
+    });
+    
+    // Sort by slide number
+    recoveredSlides.sort((a, b) => (a.number || 0) - (b.number || 0));
+  } else {
+    // No existing slides, create new ones from storage images
+    recoveredSlides = storageImages.map((img, idx) => ({
+      number: img.slideNumber || idx + 1,
+      rawText: "",
+      finalText: "",
+      imagePrompt: "",
+      layout: "big_text_center" as const,
+      imageUrl: img.imageUrl,
+    }));
+    imagesAddedCount = recoveredSlides.length;
+  }
+  
+  // Update the carousel with recovered slides
+  await carouselRef.update({
+    slides: recoveredSlides,
+    status: "images_generated",
+    updatedAt: new Date(),
+  });
+  
+  console.log(`[recoverCarouselImages] Recovered ${imagesAddedCount} images (${recoveredSlides.length} total slides) for carousel ${carouselId}`);
+  
+  const updatedCarousel = {
+    ...carousel,
+    slides: recoveredSlides,
+    status: "images_generated" as const,
+  };
+  
+  return { 
+    status: "recovered", 
+    carousel: updatedCarousel, 
+    recoveredCount: imagesAddedCount, 
+    storageImageCount: storageImages.length 
+  };
+}
+
+/**
  * Get a signed URL for a file (useful for temporary access to private files)
  * @param filePath - The path to the file in Storage
  * @param expiresInMinutes - How long the URL should be valid (default: 60 minutes)

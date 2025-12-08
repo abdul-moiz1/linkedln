@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Image as ImageIcon, FileText, Download, Upload, ArrowLeft, Calendar, Layers, ChevronLeft, ChevronRight, Trash2, AlertCircle } from "lucide-react";
+import { Loader2, Image as ImageIcon, FileText, Download, Upload, ArrowLeft, Calendar, Layers, ChevronLeft, ChevronRight, Trash2, AlertCircle, RefreshCw } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -87,6 +87,77 @@ export default function MyCarousels() {
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to delete carousel", variant: "destructive" });
+    },
+  });
+
+  const recoverImagesMutation = useMutation({
+    mutationFn: async (carouselId: string) => {
+      const response = await apiRequest("POST", `/api/carousel/${carouselId}/recover-images`);
+      return await response.json();
+    },
+    onSuccess: (data: { 
+      status?: string; 
+      recovered: boolean; 
+      recoveredCount?: number; 
+      storageImageCount?: number;
+      carousel?: Carousel; 
+      message?: string;
+      success?: boolean;
+    }) => {
+      switch (data.status) {
+        case "recovered":
+          toast({ title: "Images Recovered", description: data.message || `Recovered ${data.recoveredCount} images from storage.` });
+          queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
+          if (data.carousel) {
+            setSelectedCarousel(data.carousel);
+            setPreviewSlideIndex(0);
+          }
+          break;
+          
+        case "already_has_images":
+          toast({ title: "Images Available", description: data.message });
+          queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
+          if (data.carousel) {
+            setSelectedCarousel(data.carousel);
+            setPreviewSlideIndex(0);
+          }
+          break;
+          
+        case "no_storage_images":
+          toast({ 
+            title: "No Images in Storage", 
+            description: "No images found in storage to recover. Try generating new images.",
+            variant: "destructive" 
+          });
+          break;
+          
+        case "storage_error":
+          toast({ 
+            title: "Storage Error", 
+            description: data.message || "Could not access storage. Please try again later.",
+            variant: "destructive" 
+          });
+          break;
+          
+        default:
+          if (data.recovered && data.recoveredCount && data.recoveredCount > 0) {
+            toast({ title: "Images Recovered", description: data.message });
+            queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
+            if (data.carousel) {
+              setSelectedCarousel(data.carousel);
+              setPreviewSlideIndex(0);
+            }
+          } else {
+            toast({ 
+              title: "Recovery Issue", 
+              description: data.message || "Could not recover images.",
+              variant: "destructive" 
+            });
+          }
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to recover images", variant: "destructive" });
     },
   });
 
@@ -363,16 +434,50 @@ export default function MyCarousels() {
                   <p className="text-muted-foreground text-center">
                     No images generated yet for this carousel.
                   </p>
-                  <Button 
-                    onClick={() => {
-                      setSelectedCarousel(null);
-                      navigate(`/preview?carouselId=${selectedCarousel.id}`);
-                    }}
-                    data-testid="button-generate-images"
-                  >
-                    <ImageIcon className="h-4 w-4 mr-2" />
-                    Generate Images
-                  </Button>
+                  <div className="flex gap-2 flex-wrap justify-center">
+                    {(selectedCarousel.pdfBase64 || selectedCarousel.pdfUrl) && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => recoverImagesMutation.mutate(selectedCarousel.id)}
+                        disabled={recoverImagesMutation.isPending}
+                        data-testid="button-recover-images"
+                      >
+                        {recoverImagesMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Recovering...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Recover Images
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    <Button 
+                      onClick={() => {
+                        setSelectedCarousel(null);
+                        navigate(`/preview?carouselId=${selectedCarousel.id}`);
+                      }}
+                      data-testid="button-generate-images"
+                    >
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Generate Images
+                    </Button>
+                  </div>
+                  {(selectedCarousel.pdfBase64 || selectedCarousel.pdfUrl) && (
+                    <div className="mt-4">
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleDownloadPdf(selectedCarousel.pdfBase64 || selectedCarousel.pdfUrl!, selectedCarousel.title)}
+                        data-testid="button-download-pdf-no-images"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download PDF Anyway
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
