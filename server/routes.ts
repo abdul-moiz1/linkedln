@@ -1894,23 +1894,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Fall back to base64 - don't fail the whole request
       }
 
-      // If a carouselId was provided, update the carousel with the PDF URL
+      // Create or update carousel document in Firestore
       let carouselUpdated = false;
+      let carouselCreated = false;
+      let savedCarouselId: string | undefined;
       const requestCarouselId = req.body.carouselId;
-      if (requestCarouselId && pdfUrl) {
-        try {
-          const { updateCarousel, getCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
-          if (isFirebaseConfigured) {
+      const userId = req.session.user!.profile.sub;
+      
+      try {
+        const { updateCarousel, getCarousel, createCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+        
+        if (isFirebaseConfigured) {
+          if (requestCarouselId) {
+            // Update existing carousel
             const carousel = await getCarousel(requestCarouselId);
-            if (carousel && carousel.userId === req.session.user!.profile.sub) {
-              await updateCarousel(requestCarouselId, { pdfUrl, status: "pdf_created" });
+            if (carousel && carousel.userId === userId) {
+              await updateCarousel(requestCarouselId, { 
+                pdfUrl: pdfUrl || pdfDataUrl, 
+                status: "pdf_created" 
+              });
               carouselUpdated = true;
+              savedCarouselId = requestCarouselId;
               console.log(`[PDF Create] Updated carousel ${requestCarouselId} with PDF URL`);
             }
+          } else {
+            // Create new carousel document
+            const newCarousel = await createCarousel({
+              userId,
+              title: title || "LinkedIn Carousel",
+              slides: [],
+              carouselType: req.body.carouselType || "custom",
+              status: "pdf_created",
+              pdfUrl: pdfUrl || pdfDataUrl,
+            });
+            carouselCreated = true;
+            savedCarouselId = newCarousel.id;
+            console.log(`[PDF Create] Created new carousel ${newCarousel.id} for user ${userId}`);
           }
-        } catch (updateError: any) {
-          console.error("[PDF Create] Failed to update carousel with PDF URL:", updateError.message);
         }
+      } catch (updateError: any) {
+        console.error("[PDF Create] Failed to create/update carousel:", updateError.message);
       }
 
       res.json({
@@ -1921,6 +1944,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: title || "LinkedIn Carousel",
         storageUsed,
         carouselUpdated,
+        carouselCreated,
+        carouselId: savedCarouselId,
       });
     } catch (error: any) {
       console.error("PDF creation error:", error);

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import type { SessionUser } from "@shared/schema";
 
 const isFirebaseConfigured = Boolean(
@@ -106,6 +107,9 @@ export default function Signup() {
       if (!response.ok) {
         throw new Error("Failed to verify authentication with server");
       }
+
+      // Invalidate user query to ensure the new session is recognized
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
 
       toast({
         title: "Account created!",

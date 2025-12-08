@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sparkles, Loader2 } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import type { SessionUser } from "@shared/schema";
 
 const isFirebaseConfigured = Boolean(
@@ -65,6 +66,9 @@ export default function Login() {
         throw new Error("Failed to verify authentication with server");
       }
       
+      // Invalidate user query to ensure the new session is recognized
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      
       toast({
         title: "Welcome!",
         description: "You're now signed in. Let's create a carousel!",
@@ -119,6 +123,9 @@ export default function Login() {
       if (!response.ok) {
         throw new Error("Failed to verify authentication with server");
       }
+      
+      // Invalidate user query to ensure the new session is recognized
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       
       toast({
         title: "Welcome back!",
