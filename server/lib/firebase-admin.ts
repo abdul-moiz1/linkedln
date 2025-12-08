@@ -95,6 +95,8 @@ export async function uploadImageToStorage(
     throw new Error("Firebase Storage not configured. Please set VITE_FIREBASE_STORAGE_BUCKET");
   }
 
+  console.log(`[uploadImageToStorage] Starting upload for carousel: ${carouselId}, slide: ${slideNumber}`);
+
   const bucket = getStorageBucket();
   
   // Remove data URI prefix if present (e.g., "data:image/png;base64,")
@@ -109,6 +111,7 @@ export async function uploadImageToStorage(
 
   // Convert base64 to buffer
   const buffer = Buffer.from(imageData, "base64");
+  console.log(`[uploadImageToStorage] Image buffer size: ${buffer.length} bytes`);
   
   // Generate unique file path: carousels/{carouselId}/slide_{slideNumber}_{timestamp}.png
   const timestamp = Date.now();
@@ -117,22 +120,26 @@ export async function uploadImageToStorage(
   
   const file = bucket.file(filePath);
   
-  // Upload the file
-  await file.save(buffer, {
-    metadata: {
-      contentType,
-      cacheControl: "public, max-age=31536000", // Cache for 1 year
-    },
-  });
+  try {
+    // Upload the file with public read access
+    await file.save(buffer, {
+      metadata: {
+        contentType,
+        cacheControl: "public, max-age=31536000",
+      },
+      public: true, // Make file public during upload
+    });
+    console.log(`[uploadImageToStorage] File saved successfully`);
 
-  // Make the file publicly accessible
-  await file.makePublic();
-
-  // Return the public URL
-  const publicUrl = `https://storage.googleapis.com/${storageBucket}/${filePath}`;
-  console.log(`Uploaded image to Firebase Storage: ${publicUrl}`);
-  
-  return publicUrl;
+    // Return the public URL using Firebase Storage URL format
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+    console.log(`[uploadImageToStorage] Public URL: ${publicUrl}`);
+    
+    return publicUrl;
+  } catch (uploadError: any) {
+    console.error(`[uploadImageToStorage] Upload failed:`, uploadError.message || uploadError);
+    throw uploadError;
+  }
 }
 
 /**
@@ -149,6 +156,9 @@ export async function uploadPdfToStorage(
     throw new Error("Firebase Storage not configured. Please set VITE_FIREBASE_STORAGE_BUCKET");
   }
 
+  console.log(`[uploadPdfToStorage] Starting upload for carousel: ${carouselId}`);
+  console.log(`[uploadPdfToStorage] Bucket name: ${storageBucket}`);
+
   const bucket = getStorageBucket();
   
   // Remove data URI prefix if present
@@ -162,29 +172,35 @@ export async function uploadPdfToStorage(
 
   // Convert base64 to buffer
   const buffer = Buffer.from(pdfData, "base64");
+  console.log(`[uploadPdfToStorage] PDF buffer size: ${buffer.length} bytes`);
   
   // Generate unique file path: carousels/{carouselId}/carousel_{timestamp}.pdf
   const timestamp = Date.now();
   const filePath = `carousels/${carouselId}/carousel_${timestamp}.pdf`;
+  console.log(`[uploadPdfToStorage] File path: ${filePath}`);
   
   const file = bucket.file(filePath);
   
-  // Upload the file
-  await file.save(buffer, {
-    metadata: {
-      contentType: "application/pdf",
-      cacheControl: "public, max-age=31536000",
-    },
-  });
+  try {
+    // Upload the file with public read access
+    await file.save(buffer, {
+      metadata: {
+        contentType: "application/pdf",
+        cacheControl: "public, max-age=31536000",
+      },
+      public: true, // Make file public during upload
+    });
+    console.log(`[uploadPdfToStorage] File saved successfully`);
 
-  // Make the file publicly accessible
-  await file.makePublic();
-
-  // Return the public URL
-  const publicUrl = `https://storage.googleapis.com/${storageBucket}/${filePath}`;
-  console.log(`Uploaded PDF to Firebase Storage: ${publicUrl}`);
-  
-  return publicUrl;
+    // Return the public URL using Firebase Storage URL format
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+    console.log(`[uploadPdfToStorage] Public URL: ${publicUrl}`);
+    
+    return publicUrl;
+  } catch (uploadError: any) {
+    console.error(`[uploadPdfToStorage] Upload failed:`, uploadError.message || uploadError);
+    throw uploadError;
+  }
 }
 
 /**
