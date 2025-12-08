@@ -1894,6 +1894,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Fall back to base64 - don't fail the whole request
       }
 
+      // If a carouselId was provided, update the carousel with the PDF URL
+      let carouselUpdated = false;
+      const requestCarouselId = req.body.carouselId;
+      if (requestCarouselId && pdfUrl) {
+        try {
+          const { updateCarousel, getCarousel, isFirebaseConfigured } = await import("./lib/firebase-admin");
+          if (isFirebaseConfigured) {
+            const carousel = await getCarousel(requestCarouselId);
+            if (carousel && carousel.userId === req.session.user!.profile.sub) {
+              await updateCarousel(requestCarouselId, { pdfUrl, status: "pdf_created" });
+              carouselUpdated = true;
+              console.log(`[PDF Create] Updated carousel ${requestCarouselId} with PDF URL`);
+            }
+          }
+        } catch (updateError: any) {
+          console.error("[PDF Create] Failed to update carousel with PDF URL:", updateError.message);
+        }
+      }
+
       res.json({
         success: true,
         pdfUrl: pdfUrl || pdfDataUrl,
@@ -1901,6 +1920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pageCount: imageArray.length,
         title: title || "LinkedIn Carousel",
         storageUsed,
+        carouselUpdated,
       });
     } catch (error: any) {
       console.error("PDF creation error:", error);

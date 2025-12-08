@@ -77,6 +77,7 @@ interface CarouselDraft {
   processedSlides: ProcessedSlide[];
   step: CreatorStep;
   savedAt: number;
+  carouselId?: string;
 }
 
 const DEFAULT_CAROUSEL_TYPES: CarouselTypeInfo[] = [
@@ -211,6 +212,7 @@ export default function Create() {
         processedSlides: slidesWithoutImages,
         step,
         savedAt: Date.now(),
+        carouselId: currentCarouselId || undefined,
       };
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
       toast({
@@ -274,6 +276,11 @@ export default function Create() {
         setProcessedSlides(normalizedProcessedSlides);
         setHasDraft(false);
         
+        // Restore carouselId if available
+        if (draft.carouselId) {
+          setCurrentCarouselId(draft.carouselId);
+        }
+        
         const hasImages = normalizedProcessedSlides.some(slide => slide.base64Image || slide.imageUrl);
         if (draft.step === "images" && !hasImages) {
           setStep("processing");
@@ -330,11 +337,18 @@ export default function Create() {
         throw new Error("No images available");
       }
 
-      const response = await apiRequest("POST", "/api/pdf/create", {
-        images,
-        title: carouselTitle || "LinkedIn Carousel"
-      });
-      const data = await response.json();
+      // Use dedicated carousel PDF endpoint if we have a carouselId, otherwise fall back to generic endpoint
+      let data;
+      if (currentCarouselId) {
+        const response = await apiRequest("POST", `/api/carousel/${currentCarouselId}/create-pdf`, {});
+        data = await response.json();
+      } else {
+        const response = await apiRequest("POST", "/api/pdf/create", {
+          images,
+          title: carouselTitle || "LinkedIn Carousel"
+        });
+        data = await response.json();
+      }
 
       if (data.pdfBase64) {
         const base64Data = data.pdfBase64.includes(",") 

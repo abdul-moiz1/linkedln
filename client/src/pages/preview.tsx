@@ -47,6 +47,7 @@ interface CarouselDraft {
   processedSlides: ProcessedSlide[];
   step: string;
   savedAt: number;
+  carouselId?: string;
 }
 
 export default function Preview() {
@@ -110,6 +111,14 @@ export default function Preview() {
   const createPdfMutation = useMutation({
     mutationFn: async () => {
       if (!draft) return null;
+      
+      // Use dedicated carousel PDF endpoint if we have a carouselId
+      if (draft.carouselId) {
+        const response = await apiRequest("POST", `/api/carousel/${draft.carouselId}/create-pdf`, {});
+        return await response.json();
+      }
+      
+      // Fallback to generic endpoint
       const imageArray = draft.processedSlides
         .filter(s => s.base64Image || s.imageUrl)
         .map(s => s.base64Image || s.imageUrl);
