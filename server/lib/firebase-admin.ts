@@ -6,8 +6,12 @@ const isFirebaseConfigured = Boolean(
   process.env.FIREBASE_PRIVATE_KEY
 );
 
+// Storage bucket from env var (VITE_ prefix for frontend, but we also use it on backend)
+const storageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET;
+
 let adminDb: admin.firestore.Firestore | null = null;
 let adminAuth: admin.auth.Auth | null = null;
+let adminStorage: admin.storage.Storage | null = null;
 
 if (isFirebaseConfigured) {
   try {
@@ -20,11 +24,19 @@ if (isFirebaseConfigured) {
     if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+        storageBucket: storageBucket,
       });
     }
 
     adminDb = admin.firestore();
     adminAuth = admin.auth();
+    adminStorage = admin.storage();
+    
+    if (storageBucket) {
+      console.log(`Firebase Storage configured with bucket: ${storageBucket}`);
+    } else {
+      console.warn("Firebase Storage bucket not configured. Set VITE_FIREBASE_STORAGE_BUCKET or FIREBASE_STORAGE_BUCKET");
+    }
   } catch (error) {
     console.warn("Firebase initialization failed:", error);
   }
@@ -37,7 +49,188 @@ function getDb() {
   return adminDb;
 }
 
-export { adminDb, adminAuth, isFirebaseConfigured };
+export { adminDb, adminAuth, adminStorage, isFirebaseConfigured };
+
+// ============================================
+// FIREBASE STORAGE OPERATIONS
+// ============================================
+
+/**
+ * Check if Firebase Storage is properly configured
+ */
+export function isStorageConfigured(): boolean {
+  return !!(adminStorage && storageBucket);
+}
+
+/**
+ * Get the Storage bucket instance
+ */
+function getStorageBucket() {
+  if (!adminStorage) {
+    throw new Error("Firebase Storage not configured");
+  }
+  return adminStorage.bucket();
+}
+
+/**
+ * Upload a base64 image to Firebase Storage and return the public URL
+ * @param base64Data - Base64 encoded image data (with or without data URI prefix)
+ * @param carouselId - The carousel ID for organizing files
+ * @param slideNumber - The slide number
+ * @param contentType - MIME type of the image (default: image/png)
+ * @returns Public download URL for the uploaded image
+ */
+export async function uploadImageToStorage(
+  base64Data: string,
+  carouselId: string,
+  slideNumber: number,
+  contentType: string = "image/png"
+): Promise<string> {
+  if (!adminStorage || !storageBucket) {
+    throw new Error("Firebase Storage not configured. Please set VITE_FIREBASE_STORAGE_BUCKET");
+  }
+
+  const bucket = getStorageBucket();
+  
+  // Remove data URI prefix if present (e.g., "data:image/png;base64,")
+  let imageData = base64Data;
+  if (base64Data.startsWith("data:")) {
+    const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+    if (matches) {
+      contentType = matches[1];
+      imageData = matches[2];
+    }
+  }
+
+  // Convert base64 to buffer
+  const buffer = Buffer.from(imageData, "base64");
+  
+  // Generate unique file path: carousels/{carouselId}/slide_{slideNumber}_{timestamp}.png
+  const timestamp = Date.now();
+  const extension = contentType.split("/")[1] || "png";
+  const filePath = `carousels/${carouselId}/slide_${slideNumber}_${timestamp}.${extension}`;
+  
+  const file = bucket.file(filePath);
+  
+  // Upload the file
+  await file.save(buffer, {
+    metadata: {
+      contentType,
+      cacheControl: "public, max-age=31536000", // Cache for 1 year
+    },
+  });
+
+  // Make the file publicly accessible
+  await file.makePublic();
+
+  // Return the public URL
+  const publicUrl = `https://storage.googleapis.com/${storageBucket}/${filePath}`;
+  console.log(`Uploaded image to Firebase Storage: ${publicUrl}`);
+  
+  return publicUrl;
+}
+
+/**
+ * Upload a PDF to Firebase Storage and return the public URL
+ * @param base64Data - Base64 encoded PDF data (with or without data URI prefix)
+ * @param carouselId - The carousel ID for organizing files
+ * @returns Public download URL for the uploaded PDF
+ */
+export async function uploadPdfToStorage(
+  base64Data: string,
+  carouselId: string
+): Promise<string> {
+  if (!adminStorage || !storageBucket) {
+    throw new Error("Firebase Storage not configured. Please set VITE_FIREBASE_STORAGE_BUCKET");
+  }
+
+  const bucket = getStorageBucket();
+  
+  // Remove data URI prefix if present
+  let pdfData = base64Data;
+  if (base64Data.startsWith("data:")) {
+    const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+    if (matches) {
+      pdfData = matches[2];
+    }
+  }
+
+  // Convert base64 to buffer
+  const buffer = Buffer.from(pdfData, "base64");
+  
+  // Generate unique file path: carousels/{carouselId}/carousel_{timestamp}.pdf
+  const timestamp = Date.now();
+  const filePath = `carousels/${carouselId}/carousel_${timestamp}.pdf`;
+  
+  const file = bucket.file(filePath);
+  
+  // Upload the file
+  await file.save(buffer, {
+    metadata: {
+      contentType: "application/pdf",
+      cacheControl: "public, max-age=31536000",
+    },
+  });
+
+  // Make the file publicly accessible
+  await file.makePublic();
+
+  // Return the public URL
+  const publicUrl = `https://storage.googleapis.com/${storageBucket}/${filePath}`;
+  console.log(`Uploaded PDF to Firebase Storage: ${publicUrl}`);
+  
+  return publicUrl;
+}
+
+/**
+ * Delete all files for a carousel from Firebase Storage
+ * @param carouselId - The carousel ID
+ */
+export async function deleteCarouselFiles(carouselId: string): Promise<void> {
+  if (!adminStorage || !storageBucket) {
+    console.warn("Firebase Storage not configured, skipping file deletion");
+    return;
+  }
+
+  const bucket = getStorageBucket();
+  const prefix = `carousels/${carouselId}/`;
+  
+  try {
+    const [files] = await bucket.getFiles({ prefix });
+    
+    if (files.length > 0) {
+      await Promise.all(files.map(file => file.delete()));
+      console.log(`Deleted ${files.length} files for carousel ${carouselId}`);
+    }
+  } catch (error) {
+    console.error(`Error deleting files for carousel ${carouselId}:`, error);
+  }
+}
+
+/**
+ * Get a signed URL for a file (useful for temporary access to private files)
+ * @param filePath - The path to the file in Storage
+ * @param expiresInMinutes - How long the URL should be valid (default: 60 minutes)
+ * @returns Signed URL that expires after the specified time
+ */
+export async function getSignedUrl(
+  filePath: string,
+  expiresInMinutes: number = 60
+): Promise<string> {
+  if (!adminStorage || !storageBucket) {
+    throw new Error("Firebase Storage not configured");
+  }
+
+  const bucket = getStorageBucket();
+  const file = bucket.file(filePath);
+  
+  const [url] = await file.getSignedUrl({
+    action: "read",
+    expires: Date.now() + expiresInMinutes * 60 * 1000,
+  });
+  
+  return url;
+}
 
 export interface User {
   id: string;
@@ -108,7 +301,8 @@ export interface CarouselSlide {
   finalText: string;
   imagePrompt: string;
   layout: SlideLayout;
-  base64Image?: string; // data:image/png;base64,...
+  base64Image?: string; // data:image/png;base64,... (legacy, for backward compatibility)
+  imageUrl?: string; // Firebase Storage URL (preferred)
 }
 
 // Carousel document structure for Firestore
@@ -118,7 +312,8 @@ export interface Carousel {
   title: string;
   carouselType: CarouselType;
   slides: CarouselSlide[];
-  pdfBase64?: string; // data:application/pdf;base64,...
+  pdfBase64?: string; // data:application/pdf;base64,... (legacy, for backward compatibility)
+  pdfUrl?: string; // Firebase Storage URL (preferred)
   status: "draft" | "processing" | "images_generated" | "pdf_created" | "published";
   linkedinPostId?: string;
   createdAt: Date;

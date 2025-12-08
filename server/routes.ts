@@ -2903,8 +2903,8 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
   });
 
   /**
-   * API: Generate Images for Carousel with Base64 Storage
-   * Generates images and stores them as Base64 in Firestore
+   * API: Generate Images for Carousel with Firebase Storage
+   * Generates images and uploads them to Firebase Storage, storing URLs in Firestore
    */
   app.post("/api/carousel/:carouselId/generate-images", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -2913,12 +2913,14 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
 
     try {
       const { carouselId } = req.params;
-      const { provider = "auto" } = req.body;
+      const { provider } = req.body;
       
       const { 
         getCarousel, 
         updateCarousel, 
-        isFirebaseConfigured 
+        isFirebaseConfigured,
+        uploadImageToStorage,
+        isStorageConfigured
       } = await import("./lib/firebase-admin");
       
       if (!isFirebaseConfigured) {
@@ -2941,46 +2943,60 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       const openaiApiKey = process.env.OPENAI_API_KEY;
       const stabilityApiKey = process.env.STABILITY_API_KEY;
 
-      let selectedProvider = provider;
-      if (provider === "auto") {
-        selectedProvider = stabilityApiKey ? "stability" : geminiApiKey ? "gemini" : openaiApiKey ? "openai" : null;
+      // STRICT provider selection - no auto-fallback
+      // User must explicitly select a provider
+      const selectedProvider = provider;
+
+      if (!selectedProvider) {
+        await updateCarousel(carouselId, { status: "draft" });
+        return res.status(400).json({ 
+          error: "Please select an AI provider (gemini, stability, or openai)"
+        });
       }
 
-      if (!selectedProvider || 
-          (selectedProvider === "gemini" && !geminiApiKey) || 
-          (selectedProvider === "openai" && !openaiApiKey) ||
-          (selectedProvider === "stability" && !stabilityApiKey)) {
+      // Check if the selected provider's API key is configured
+      if (selectedProvider === "gemini" && !geminiApiKey) {
         await updateCarousel(carouselId, { status: "draft" });
         return res.status(503).json({ 
-          error: selectedProvider && selectedProvider !== "auto"
-            ? `${selectedProvider.toUpperCase()} API key not configured. Please add the required API key to your secrets.`
-            : "No AI API key configured. Please add STABILITY_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY to your secrets." 
+          error: "Gemini API key not configured. Please add GEMINI_API_KEY to your secrets."
+        });
+      }
+      if (selectedProvider === "openai" && !openaiApiKey) {
+        await updateCarousel(carouselId, { status: "draft" });
+        return res.status(503).json({ 
+          error: "OpenAI API key not configured. Please add OPENAI_API_KEY to your secrets."
+        });
+      }
+      if (selectedProvider === "stability" && !stabilityApiKey) {
+        await updateCarousel(carouselId, { status: "draft" });
+        return res.status(503).json({ 
+          error: "Stability API key not configured. Please add STABILITY_API_KEY to your secrets."
         });
       }
 
       const updatedSlides = [...carousel.slides];
       const errors: string[] = [];
+      const useStorage = isStorageConfigured();
 
       for (let i = 0; i < carousel.slides.length; i++) {
         const slide = carousel.slides[i];
         
-        // Skip if already has a Base64 image
-        if (slide.base64Image) {
+        // Skip if already has an image (URL or base64)
+        if (slide.imageUrl || slide.base64Image) {
           continue;
         }
 
         try {
-          // Process text for display - crop if too long for image
-          let displayText = (slide.finalText || "").trim();
-          const maxTextLength = 120;
-          if (displayText.length > maxTextLength) {
-            const truncated = displayText.substring(0, maxTextLength);
-            const lastSpace = truncated.lastIndexOf(" ");
-            displayText = (lastSpace > maxTextLength * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "...";
-          }
+          // Use raw text directly - NO text refining, use exactly what user provided
+          const prompt = (slide.rawText || slide.finalText || "").trim();
           
-          // Use the slide text directly as the prompt - no AI additions
-          const prompt = displayText;
+          if (!prompt) {
+            errors.push(`Slide ${i + 1}: No text provided for image generation`);
+            continue;
+          }
+
+          let base64Image: string | null = null;
+          let mimeType = "image/png";
 
           if (selectedProvider === "gemini") {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
@@ -3010,13 +3026,11 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
             );
             
             if (imagePart?.inlineData?.data) {
-              const mimeType = imagePart.inlineData.mimeType || 'image/png';
-              updatedSlides[i] = {
-                ...updatedSlides[i],
-                base64Image: `data:${mimeType};base64,${imagePart.inlineData.data}`
-              };
+              mimeType = imagePart.inlineData.mimeType || 'image/png';
+              base64Image = imagePart.inlineData.data;
             } else {
               errors.push(`Slide ${i + 1}: No image in Gemini response`);
+              continue;
             }
           } else if (selectedProvider === "stability") {
             const formData = new FormData();
@@ -3038,11 +3052,7 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
             }
 
             const buffer = await response.arrayBuffer();
-            const base64 = Buffer.from(buffer).toString("base64");
-            updatedSlides[i] = {
-              ...updatedSlides[i],
-              base64Image: `data:image/png;base64,${base64}`
-            };
+            base64Image = Buffer.from(buffer).toString("base64");
           } else if (selectedProvider === "openai") {
             const { OpenAI } = await import("openai");
             const openai = new OpenAI({ apiKey: openaiApiKey! });
@@ -3057,12 +3067,42 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
             });
 
             if (response.data?.[0]?.b64_json) {
-              updatedSlides[i] = {
-                ...updatedSlides[i],
-                base64Image: `data:image/png;base64,${response.data[0].b64_json}`
-              };
+              base64Image = response.data[0].b64_json;
             } else {
               errors.push(`Slide ${i + 1}: No image from OpenAI`);
+              continue;
+            }
+          }
+
+          // Upload to Firebase Storage if configured, otherwise fall back to base64
+          if (base64Image) {
+            if (useStorage) {
+              try {
+                const imageUrl = await uploadImageToStorage(
+                  base64Image,
+                  carouselId,
+                  slide.number,
+                  mimeType
+                );
+                updatedSlides[i] = {
+                  ...updatedSlides[i],
+                  imageUrl
+                };
+                console.log(`Slide ${i + 1}: Uploaded to Firebase Storage`);
+              } catch (uploadError: any) {
+                console.error(`Failed to upload slide ${i + 1} to Storage:`, uploadError);
+                // Fall back to base64 if upload fails
+                updatedSlides[i] = {
+                  ...updatedSlides[i],
+                  base64Image: `data:${mimeType};base64,${base64Image}`
+                };
+              }
+            } else {
+              // No storage configured, use base64
+              updatedSlides[i] = {
+                ...updatedSlides[i],
+                base64Image: `data:${mimeType};base64,${base64Image}`
+              };
             }
           }
         } catch (imgError: any) {
@@ -3072,16 +3112,14 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       }
 
       // Deep sanitize function to remove undefined values recursively for Firestore
-      // Keeps null, empty objects, and preserves array positions to avoid data loss
       const deepSanitize = (obj: any): any => {
         if (obj === undefined) {
-          return null; // Convert undefined to null (Firestore accepts null)
+          return null;
         }
         if (obj === null) {
           return null;
         }
         if (Array.isArray(obj)) {
-          // Preserve array positions - don't filter, just sanitize each item
           return obj.map(item => deepSanitize(item));
         }
         if (typeof obj === 'object' && obj !== null) {
@@ -3090,18 +3128,17 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
             if (value !== undefined) {
               cleanObj[key] = deepSanitize(value);
             }
-            // Skip undefined keys entirely - Firestore doesn't accept undefined
           }
-          return cleanObj; // Keep empty objects to preserve structure
+          return cleanObj;
         }
         return obj;
       };
 
-      // Sanitize slides for Firestore - remove undefined values and preserve all slides
+      // Sanitize slides for Firestore
       const sanitizedSlides = updatedSlides.map(slide => deepSanitize(slide));
 
-      // Save updated slides to Firestore
-      const hasAllImages = sanitizedSlides.every(s => s.base64Image);
+      // Check if all slides have images (either URL or base64)
+      const hasAllImages = sanitizedSlides.every(s => s.imageUrl || s.base64Image);
       await updateCarousel(carouselId, { 
         slides: sanitizedSlides as any,
         status: hasAllImages ? "images_generated" : "draft"
@@ -3112,9 +3149,10 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       res.json({
         success: true,
         carousel: updatedCarousel,
-        generatedCount: updatedSlides.filter(s => s.base64Image).length,
+        generatedCount: updatedSlides.filter(s => s.imageUrl || s.base64Image).length,
         totalSlides: updatedSlides.length,
         provider: selectedProvider,
+        storageUsed: useStorage,
         errors: errors.length > 0 ? errors : undefined
       });
     } catch (error: any) {
@@ -3125,7 +3163,7 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
 
   /**
    * API: Create and Save PDF for Carousel
-   * Creates PDF from Base64 images and saves it to Firestore
+   * Creates PDF from images (URLs or Base64) and uploads to Firebase Storage
    */
   app.post("/api/carousel/:carouselId/create-pdf", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -3137,8 +3175,11 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       
       const { 
         getCarousel, 
-        saveCarouselPdf, 
-        isFirebaseConfigured 
+        saveCarouselPdf,
+        updateCarousel,
+        isFirebaseConfigured,
+        uploadPdfToStorage,
+        isStorageConfigured
       } = await import("./lib/firebase-admin");
       
       if (!isFirebaseConfigured) {
@@ -3153,8 +3194,8 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         return res.status(403).json({ error: "Access denied" });
       }
 
-      // Check if all slides have images
-      const slidesWithImages = carousel.slides.filter(s => s.base64Image);
+      // Check if slides have images (either URL or base64)
+      const slidesWithImages = carousel.slides.filter(s => s.imageUrl || s.base64Image);
       if (slidesWithImages.length === 0) {
         return res.status(400).json({ error: "No images to create PDF from" });
       }
@@ -3180,34 +3221,65 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         }
 
         const slide = slidesWithImages[i];
-        if (slide.base64Image) {
-          try {
+        try {
+          let imgBuffer: Buffer | null = null;
+
+          if (slide.imageUrl) {
+            // Fetch image from URL
+            const response = await fetch(slide.imageUrl);
+            if (response.ok) {
+              const arrayBuffer = await response.arrayBuffer();
+              imgBuffer = Buffer.from(arrayBuffer);
+            }
+          } else if (slide.base64Image) {
             // Extract base64 data from data URL
             const base64Data = slide.base64Image.split(",")[1];
-            const imgBuffer = Buffer.from(base64Data, "base64");
-            doc.image(imgBuffer, 0, 0, { width: 1080, height: 1080 });
-          } catch (imgError: any) {
-            console.error(`Failed to add image ${i + 1} to PDF:`, imgError);
-            doc.rect(0, 0, 1080, 1080).fill("#f0f0f0");
-            doc.fill("#666").fontSize(24).text(`Slide ${i + 1}`, 100, 500);
+            imgBuffer = Buffer.from(base64Data, "base64");
           }
+
+          if (imgBuffer) {
+            doc.image(imgBuffer, 0, 0, { width: 1080, height: 1080 });
+          } else {
+            throw new Error("No image data");
+          }
+        } catch (imgError: any) {
+          console.error(`Failed to add image ${i + 1} to PDF:`, imgError);
+          doc.rect(0, 0, 1080, 1080).fill("#f0f0f0");
+          doc.fill("#666").fontSize(24).text(`Slide ${i + 1}`, 100, 500);
         }
       }
 
       doc.end();
       const pdfBuffer = await pdfPromise;
-      const pdfBase64 = `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
+      const pdfBase64 = pdfBuffer.toString("base64");
 
-      // Save PDF to Firestore
-      await saveCarouselPdf(carouselId, pdfBase64);
+      // Upload to Firebase Storage if configured
+      const useStorage = isStorageConfigured();
+      let pdfUrl: string | undefined;
+
+      if (useStorage) {
+        try {
+          pdfUrl = await uploadPdfToStorage(pdfBase64, carouselId);
+          await updateCarousel(carouselId, { pdfUrl, status: "pdf_created" });
+        } catch (uploadError: any) {
+          console.error("Failed to upload PDF to Storage:", uploadError);
+          // Fall back to base64 in Firestore
+          await saveCarouselPdf(carouselId, `data:application/pdf;base64,${pdfBase64}`);
+        }
+      } else {
+        // No storage, save base64 to Firestore
+        await saveCarouselPdf(carouselId, `data:application/pdf;base64,${pdfBase64}`);
+      }
 
       const updatedCarousel = await getCarousel(carouselId);
 
       res.json({
         success: true,
         carousel: updatedCarousel,
-        pdfBase64,
+        pdfUrl: pdfUrl || undefined,
+        pdfBase64: !pdfUrl ? `data:application/pdf;base64,${pdfBase64}` : undefined,
         pageCount: slidesWithImages.length,
+        storageUsed: !!pdfUrl,
       });
     } catch (error: any) {
       console.error("Create carousel PDF error:", error);
