@@ -71,6 +71,7 @@ A professional SaaS application that allows users to create AI-generated LinkedI
 - **Dec 5**: Updated Header to conditionally show LinkedIn-only features (My Profile, My Posts, Scheduled Posts) only for LinkedIn OAuth users
 - **Dec 5**: Redesigned create.tsx with elegant minimal professional look - progress indicator, cleaner cards, refined typography
 - **Dec 5**: Added PDF persistence to Firestore - when posting to LinkedIn, PDF is now saved to `carousels` collection with `pdfBase64`, `linkedinPostId`, and `status: published`
+- **Dec 8**: Fixed Firebase Storage - `/api/pdf/create` endpoint now uploads PDFs to Firebase Storage instead of only returning base64 data
 - **Dec 6**: Implemented comprehensive character limit enforcement (50 chars for hooks, 100 chars for body slides)
   - Frontend: Character counters show trimmed length, warnings when exceeded, Process button disabled
   - Backend: Server validates and truncates text inputs to enforce limits
