@@ -49,6 +49,16 @@ declare module "express-session" {
     guestId?: string; // For guest carousel tracking
     authType?: "linkedin" | "firebase"; // Track auth method
     firebaseUid?: string; // Firebase user ID
+    linkedLinkedIn?: {
+      accessToken: string;
+      linkedinId: string;
+      name?: string;
+      email?: string;
+      picture?: string;
+      linkedAt: Date;
+      expiresAt?: Date;
+    }; // Linked LinkedIn for publishing (separate from login)
+    pendingLinkedInLink?: boolean; // Flag to indicate linking mode vs login mode
   }
 }
 
@@ -104,8 +114,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * STEP 1: Initiate LinkedIn OAuth2 Authorization Flow
    * 
-   * When user clicks "Login with LinkedIn", redirect them to LinkedIn's
+   * When user clicks "Login with LinkedIn" or "Connect LinkedIn", redirect them to LinkedIn's
    * authorization page where they can grant permissions to our app.
+   * 
+   * Query parameters:
+   * - mode=link: Connect LinkedIn to existing account (don't replace current login)
    * 
    * OAuth2 Scopes requested:
    * - openid: Required for OpenID Connect authentication
@@ -132,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           </head>
           <body>
             <div class="error">
-              <h1>⚠️ LinkedIn OAuth Not Configured</h1>
+              <h1>LinkedIn OAuth Not Configured</h1>
               <p>This application requires LinkedIn OAuth credentials to function. Please set up the following:</p>
               <ol>
                 <li>Go to <a href="https://www.linkedin.com/developers/apps" target="_blank">LinkedIn Developers</a> and create a new app</li>
@@ -146,11 +159,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   </ul>
                 </li>
               </ol>
-              <p><a href="/">← Back to Home</a></p>
+              <p><a href="/">Back to Home</a></p>
             </div>
           </body>
         </html>
       `);
+    }
+
+    // Check if this is a "link" request (connect LinkedIn to existing account)
+    // If user is already logged in with Firebase, we should link LinkedIn instead of replacing the session
+    const isLinkMode = req.query.mode === 'link' || (req.session.user && req.session.authType === 'firebase');
+    
+    if (isLinkMode) {
+      // User is logged in with Firebase and wants to connect LinkedIn for publishing
+      req.session.pendingLinkedInLink = true;
+      console.log("[LinkedIn Auth] Link mode - will connect LinkedIn to existing Firebase account");
+    } else {
+      // Fresh login with LinkedIn
+      req.session.pendingLinkedInLink = false;
     }
 
     // Generate a random state parameter for CSRF protection
@@ -260,56 +286,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profile = linkedInUserSchema.parse(profileData);
 
       /**
-       * STEP 5: Store User Data in Session and Firestore
+       * STEP 5: Handle LinkedIn data based on mode (link vs login)
        * 
-       * Save the user's profile and access token in the session.
-       * This allows us to:
-       * 1. Display user information on the profile page
-       * 2. Use the access token for API calls (like creating posts)
-       * 3. Maintain authentication state across requests
-       * 
-       * Also persist to Firestore if configured for data durability.
+       * Two modes:
+       * 1. LINK MODE: User is already logged in with Firebase, just connect LinkedIn for publishing
+       *    - Keep the Firebase session intact
+       *    - Store LinkedIn tokens as a linked integration
+       * 2. LOGIN MODE: User is logging in with LinkedIn as their primary auth
+       *    - Replace session with LinkedIn user
        */
-      req.session.user = {
-        profile,
-        accessToken,
-        authProvider: "linkedin",
-      };
-      req.session.authType = "linkedin"; // Set auth type for LinkedIn OAuth
-
-      // Migrate any guest carousels if guestId exists
-      if (req.session.guestId) {
+      const isLinkMode = req.session.pendingLinkedInLink === true;
+      delete req.session.pendingLinkedInLink; // Clear the flag
+      
+      const expiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000);
+      
+      if (isLinkMode && req.session.user && req.session.authType === 'firebase') {
+        // LINK MODE: Keep Firebase session, add LinkedIn as linked integration
+        // Use firebaseUid for storage key (not profile.sub which is firebase-${uid})
+        const firebaseUserId = req.session.firebaseUid || req.session.user.profile.sub;
+        console.log("[LinkedIn Callback] Link mode - connecting LinkedIn to Firebase user:", firebaseUserId);
+        
+        // Store LinkedIn tokens as a linked integration (don't replace user session)
+        req.session.linkedLinkedIn = {
+          accessToken,
+          linkedinId: profile.sub, // This is the actual LinkedIn person ID for publishing
+          name: profile.name,
+          email: profile.email,
+          picture: profile.picture,
+          linkedAt: new Date(),
+          expiresAt,
+        };
+        
+        // Also add to session user for easy access
+        req.session.user.linkedLinkedIn = req.session.linkedLinkedIn;
+        
+        // Save LinkedIn connection to Firestore linked to Firebase user
+        // Use the user's profile.sub as key since that's what we use for carousels (firebase-${uid})
         try {
-          const { migrateGuestCarousels, isFirebaseConfigured } = await import("./lib/firebase-admin");
+          const { saveLinkedLinkedIn, isFirebaseConfigured } = await import("./lib/firebase-admin");
           if (isFirebaseConfigured) {
-            await migrateGuestCarousels(req.session.guestId, profile.sub);
-            delete req.session.guestId;
+            // Store under the profile.sub key (firebase-${uid}) for consistency with carousel ownership
+            await saveLinkedLinkedIn(req.session.user.profile.sub, {
+              linkedinId: profile.sub,
+              name: profile.name || "",
+              email: profile.email || "",
+              picture: profile.picture,
+              accessToken,
+              expiresAt,
+            });
+            console.log("[LinkedIn Callback] Saved LinkedIn connection for Firebase user:", req.session.user.profile.sub);
           }
-        } catch (migrateError) {
-          console.warn("Could not migrate guest carousels:", migrateError);
+        } catch (firestoreError) {
+          console.warn("Failed to save linked LinkedIn to Firestore:", firestoreError);
         }
-      }
+        
+        // Redirect back to where the user was (my-carousels or preview)
+        res.redirect("/my-carousels");
+      } else {
+        // LOGIN MODE: Replace session with LinkedIn user (existing behavior)
+        console.log("[LinkedIn Callback] Login mode - creating new LinkedIn session");
+        
+        req.session.user = {
+          profile,
+          accessToken,
+          authProvider: "linkedin",
+        };
+        req.session.authType = "linkedin";
 
-      // Try to persist user to Firestore (optional - will fail gracefully if not configured)
-      try {
-        const { saveUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
-        if (isFirebaseConfigured) {
-          await saveUser({
-            linkedinId: profile.sub,
-            email: profile.email || "",
-            name: profile.name || "",
-            profilePicture: profile.picture,
-            accessToken,
-            tokenExpiresAt: new Date(Date.now() + (tokenData.expires_in || 3600) * 1000),
-          });
+        // Migrate any guest carousels if guestId exists
+        if (req.session.guestId) {
+          try {
+            const { migrateGuestCarousels, isFirebaseConfigured } = await import("./lib/firebase-admin");
+            if (isFirebaseConfigured) {
+              await migrateGuestCarousels(req.session.guestId, profile.sub);
+              delete req.session.guestId;
+            }
+          } catch (migrateError) {
+            console.warn("Could not migrate guest carousels:", migrateError);
+          }
         }
-      } catch (firestoreError) {
-        // Firestore is optional - continue even if it fails
-        console.warn("Firestore save failed (Firebase may not be configured):", firestoreError);
-      }
 
-      // Redirect to the preview page so user can continue with their carousel
-      res.redirect("/preview");
+        // Try to persist user to Firestore (optional - will fail gracefully if not configured)
+        try {
+          const { saveUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
+          if (isFirebaseConfigured) {
+            await saveUser({
+              linkedinId: profile.sub,
+              email: profile.email || "",
+              name: profile.name || "",
+              profilePicture: profile.picture,
+              accessToken,
+              tokenExpiresAt: expiresAt,
+            });
+          }
+        } catch (firestoreError) {
+          console.warn("Firestore save failed (Firebase may not be configured):", firestoreError);
+        }
+
+        // Redirect to the preview page so user can continue with their carousel
+        res.redirect("/preview");
+      }
     } catch (error) {
       console.error("OAuth callback error:", error);
       res.status(500).send("Authentication failed. Please try again.");
@@ -495,14 +571,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * API: Check Auth Status
    * Returns whether user is authenticated and what type of auth they used
    */
-  app.get("/api/auth/status", (req: Request, res: Response) => {
+  app.get("/api/auth/status", async (req: Request, res: Response) => {
     const isAuthenticated = !!req.session.user;
-    const hasLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";
+    const isLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";
+    
+    // Check if user has linked LinkedIn (for Firebase users)
+    let hasLinkedLinkedIn = false;
+    let linkedLinkedInInfo: { linkedinId?: string; name?: string; email?: string } | null = null;
+    
+    if (isAuthenticated && req.session.authType === "firebase") {
+      // Check session first
+      if (req.session.linkedLinkedIn) {
+        hasLinkedLinkedIn = true;
+        linkedLinkedInInfo = {
+          linkedinId: req.session.linkedLinkedIn.linkedinId,
+          name: req.session.linkedLinkedIn.name,
+          email: req.session.linkedLinkedIn.email,
+        };
+      } else {
+        // Check Firestore for stored LinkedIn connection
+        try {
+          const { getLinkedLinkedIn, isFirebaseConfigured } = await import("./lib/firebase-admin");
+          if (isFirebaseConfigured && req.session.user) {
+            const linkedLinkedIn = await getLinkedLinkedIn(req.session.user.profile.sub);
+            if (linkedLinkedIn) {
+              hasLinkedLinkedIn = true;
+              linkedLinkedInInfo = {
+                linkedinId: linkedLinkedIn.linkedinId,
+                name: linkedLinkedIn.name,
+                email: linkedLinkedIn.email,
+              };
+              // Also restore to session for faster access next time
+              req.session.linkedLinkedIn = {
+                accessToken: linkedLinkedIn.accessToken,
+                linkedinId: linkedLinkedIn.linkedinId,
+                name: linkedLinkedIn.name,
+                email: linkedLinkedIn.email,
+                picture: linkedLinkedIn.picture,
+                linkedAt: new Date(),
+                expiresAt: linkedLinkedIn.expiresAt,
+              };
+            }
+          }
+        } catch (error) {
+          console.warn("Failed to check linked LinkedIn:", error);
+        }
+      }
+    }
+    
+    // Has LinkedIn auth if logged in with LinkedIn OR has linked LinkedIn
+    const hasLinkedInAuth = isLinkedInAuth || hasLinkedLinkedIn;
     
     res.json({
-      isAuthenticated,
+      authenticated: isAuthenticated,
       authType: req.session.authType || null,
       hasLinkedInAuth,
+      hasLinkedLinkedIn, // Separate flag for linked integration
+      linkedLinkedInInfo, // Info about linked LinkedIn (if any)
       canDownload: isAuthenticated,
       canPostToLinkedIn: hasLinkedInAuth,
       loginRequired: {
@@ -790,17 +915,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Validate request body
       const { text, media } = createPostSchema.parse(req.body);
-      const { accessToken, profile } = req.session.user;
+      
+      /**
+       * Get LinkedIn credentials - either from direct LinkedIn login or linked LinkedIn
+       * Priority:
+       * 1. If logged in with LinkedIn directly, use session tokens
+       * 2. If logged in with Firebase, use linked LinkedIn tokens
+       */
+      let accessToken: string;
+      let linkedinPersonId: string;
+      
+      if (req.session.authType === "linkedin") {
+        // Direct LinkedIn login
+        accessToken = req.session.user.accessToken;
+        linkedinPersonId = req.session.user.profile.sub;
+      } else if (req.session.authType === "firebase") {
+        // Firebase login - check for linked LinkedIn
+        const linkedLinkedIn = req.session.linkedLinkedIn || req.session.user.linkedLinkedIn;
+        
+        if (!linkedLinkedIn) {
+          // Try to fetch from Firestore
+          try {
+            const { getLinkedLinkedIn, isFirebaseConfigured } = await import("./lib/firebase-admin");
+            if (isFirebaseConfigured) {
+              const storedLinkedIn = await getLinkedLinkedIn(req.session.user.profile.sub);
+              if (storedLinkedIn) {
+                accessToken = storedLinkedIn.accessToken;
+                linkedinPersonId = storedLinkedIn.linkedinId;
+                // Cache in session
+                req.session.linkedLinkedIn = {
+                  accessToken: storedLinkedIn.accessToken,
+                  linkedinId: storedLinkedIn.linkedinId,
+                  name: storedLinkedIn.name,
+                  email: storedLinkedIn.email,
+                  picture: storedLinkedIn.picture,
+                  linkedAt: new Date(),
+                  expiresAt: storedLinkedIn.expiresAt,
+                };
+              } else {
+                return res.status(403).json({ 
+                  error: "LinkedIn not connected",
+                  message: "Please connect your LinkedIn account to publish posts.",
+                  action: "connect_linkedin"
+                });
+              }
+            } else {
+              return res.status(403).json({ 
+                error: "LinkedIn not connected",
+                message: "Please connect your LinkedIn account to publish posts.",
+                action: "connect_linkedin"
+              });
+            }
+          } catch (error) {
+            console.error("Error fetching linked LinkedIn:", error);
+            return res.status(403).json({ 
+              error: "LinkedIn not connected",
+              message: "Please connect your LinkedIn account to publish posts.",
+              action: "connect_linkedin"
+            });
+          }
+        } else {
+          accessToken = linkedLinkedIn.accessToken;
+          linkedinPersonId = linkedLinkedIn.linkedinId;
+        }
+      } else {
+        return res.status(403).json({ 
+          error: "LinkedIn not connected",
+          message: "Please connect your LinkedIn account to publish posts.",
+          action: "connect_linkedin"
+        });
+      }
 
       /**
-       * Extract LinkedIn Person ID from OpenID Connect 'sub' field
+       * Extract LinkedIn Person ID for the author URN
        */
-      const personId = profile.sub.replace(/^linkedin-person-/, '');
+      const personId = linkedinPersonId.replace(/^linkedin-person-/, '');
       const authorUrn = `urn:li:person:${personId}`;
 
-      // Extract locale data
+      // Extract locale data - use default since we may not have full profile from linked account
       let localeData: { country: string; language: string };
-      if (typeof profile.locale === 'object' && profile.locale !== null) {
+      const profile = req.session.user.profile;
+      if (profile && typeof profile.locale === 'object' && profile.locale !== null) {
         localeData = {
           country: profile.locale.country || "US",
           language: profile.locale.language || "en",

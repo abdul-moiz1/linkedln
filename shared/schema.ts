@@ -34,12 +34,24 @@ export type CreatePost = z.infer<typeof createPostSchema>;
 // Auth Provider type
 export type AuthProvider = "linkedin" | "firebase";
 
+// Linked LinkedIn Integration (for publishing only, not login)
+export interface LinkedLinkedIn {
+  accessToken: string;
+  linkedinId: string; // LinkedIn sub (user ID)
+  name?: string;
+  email?: string;
+  picture?: string;
+  linkedAt: Date;
+  expiresAt?: Date;
+}
+
 // Session User Data (stored in session)
 export interface SessionUser {
   profile: LinkedInUser;
   accessToken: string;
   profileUrl?: string;
   authProvider: AuthProvider;
+  linkedLinkedIn?: LinkedLinkedIn; // Linked LinkedIn for publishing (when using Firebase auth)
 }
 
 // LinkedIn Post from /rest/posts API

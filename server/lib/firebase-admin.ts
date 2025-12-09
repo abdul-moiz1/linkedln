@@ -913,3 +913,82 @@ export async function migrateGuestCarousels(guestId: string, newUserId: string):
   
   return migratedCount;
 }
+
+// ============================================
+// LINKED LINKEDIN INTEGRATION
+// ============================================
+
+interface LinkedLinkedInData {
+  linkedinId: string;
+  name: string;
+  email: string;
+  picture?: string;
+  accessToken: string;
+  expiresAt: Date;
+}
+
+/**
+ * Save linked LinkedIn credentials for a Firebase user
+ * This allows Firebase users to connect their LinkedIn for publishing without switching accounts
+ */
+export async function saveLinkedLinkedIn(firebaseUserId: string, linkedinData: LinkedLinkedInData): Promise<void> {
+  const db = getDb();
+  const userRef = db.collection("users").doc(firebaseUserId);
+  
+  await userRef.set({
+    linkedLinkedIn: {
+      linkedinId: linkedinData.linkedinId,
+      name: linkedinData.name,
+      email: linkedinData.email,
+      picture: linkedinData.picture,
+      accessToken: linkedinData.accessToken,
+      expiresAt: linkedinData.expiresAt,
+      linkedAt: new Date(),
+    },
+    updatedAt: new Date(),
+  }, { merge: true }); // Use merge to not overwrite existing user data
+  
+  console.log(`[saveLinkedLinkedIn] Saved LinkedIn connection for user: ${firebaseUserId}`);
+}
+
+/**
+ * Get linked LinkedIn credentials for a Firebase user
+ */
+export async function getLinkedLinkedIn(firebaseUserId: string): Promise<LinkedLinkedInData | null> {
+  const db = getDb();
+  const userRef = db.collection("users").doc(firebaseUserId);
+  const doc = await userRef.get();
+  
+  if (!doc.exists) {
+    return null;
+  }
+  
+  const data = doc.data();
+  if (!data?.linkedLinkedIn) {
+    return null;
+  }
+  
+  return {
+    linkedinId: data.linkedLinkedIn.linkedinId,
+    name: data.linkedLinkedIn.name,
+    email: data.linkedLinkedIn.email,
+    picture: data.linkedLinkedIn.picture,
+    accessToken: data.linkedLinkedIn.accessToken,
+    expiresAt: data.linkedLinkedIn.expiresAt?.toDate?.() || data.linkedLinkedIn.expiresAt,
+  };
+}
+
+/**
+ * Remove linked LinkedIn from a Firebase user
+ */
+export async function unlinkLinkedIn(firebaseUserId: string): Promise<void> {
+  const db = getDb();
+  const userRef = db.collection("users").doc(firebaseUserId);
+  
+  await userRef.update({
+    linkedLinkedIn: admin.firestore.FieldValue.delete(),
+    updatedAt: new Date(),
+  });
+  
+  console.log(`[unlinkLinkedIn] Removed LinkedIn connection for user: ${firebaseUserId}`);
+}
