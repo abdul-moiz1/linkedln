@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Image as ImageIcon, FileText, Download, Upload, ArrowLeft, Calendar, Layers, ChevronLeft, ChevronRight, Trash2, AlertCircle, RefreshCw, User, Sparkles, Plus, Clock, CheckCircle2, FileImage, SortAsc, Filter, Link2 } from "lucide-react";
+import { Loader2, Image as ImageIcon, FileText, Download, Upload, ArrowLeft, Calendar, Layers, ChevronLeft, ChevronRight, Trash2, AlertCircle, RefreshCw, User, Sparkles, Plus, Clock, CheckCircle2, FileImage, SortAsc, Filter, Link2, Eye } from "lucide-react";
 import { SiLinkedin } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -200,6 +200,39 @@ export default function MyCarousels() {
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to recover images", variant: "destructive" });
+    },
+  });
+
+  const postToLinkedInMutation = useMutation({
+    mutationFn: async ({ carouselId, pdfBase64, pdfUrl, title, caption }: { 
+      carouselId: string; 
+      pdfBase64?: string;
+      pdfUrl?: string;
+      title?: string;
+      caption?: string;
+    }) => {
+      const response = await apiRequest("POST", `/api/linkedin/upload`, {
+        carouselId,
+        pdfBase64,
+        pdfUrl,
+        title,
+        caption: caption || "Check out my new carousel!",
+      });
+      return await response.json();
+    },
+    onSuccess: (data: { success?: boolean; message?: string; postId?: string }) => {
+      toast({ 
+        title: "Posted to LinkedIn", 
+        description: data.message || "Your carousel has been shared on LinkedIn!" 
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "LinkedIn Post Failed", 
+        description: error.message || "Failed to post to LinkedIn. Please try again.", 
+        variant: "destructive" 
+      });
     },
   });
 
@@ -647,6 +680,20 @@ export default function MyCarousels() {
 
                   {/* Action Buttons */}
                   <div className="flex gap-3 justify-center flex-wrap pt-2">
+                    {/* Preview/Edit Button - Always visible */}
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => {
+                        setSelectedCarousel(null);
+                        navigate(`/preview?carouselId=${selectedCarousel.id}`);
+                      }}
+                      data-testid="button-preview-edit"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Preview / Edit
+                    </Button>
+                    
                     {!(selectedCarousel.pdfBase64 || selectedCarousel.pdfUrl) ? (
                       <Button
                         onClick={() => generatePdfMutation.mutate(selectedCarousel.id)}
@@ -676,20 +723,41 @@ export default function MyCarousels() {
                           <Download className="h-4 w-4" />
                           Download PDF
                         </Button>
-                        <Button
-                          variant="outline"
-                          className="gap-2"
-                          onClick={() => {
-                            toast({ 
-                              title: "Coming Soon", 
-                              description: "LinkedIn upload feature will be available soon." 
-                            });
-                          }}
-                          data-testid="button-upload-linkedin"
-                        >
-                          <Upload className="h-4 w-4" />
-                          Upload to LinkedIn
-                        </Button>
+                        {authStatus?.hasLinkedInAuth ? (
+                          <Button
+                            className="gap-2 bg-[#0A66C2] hover:bg-[#004182] text-white shadow-lg"
+                            onClick={() => postToLinkedInMutation.mutate({ 
+                              carouselId: selectedCarousel.id,
+                              pdfBase64: selectedCarousel.pdfBase64,
+                              pdfUrl: selectedCarousel.pdfUrl,
+                              title: selectedCarousel.title,
+                            })}
+                            disabled={postToLinkedInMutation.isPending}
+                            data-testid="button-post-linkedin"
+                          >
+                            {postToLinkedInMutation.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Posting...
+                              </>
+                            ) : (
+                              <>
+                                <SiLinkedin className="h-4 w-4" />
+                                Post to LinkedIn
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="gap-2 border-[#0A66C2] text-[#0A66C2] hover:bg-[#0A66C2]/10"
+                            onClick={() => window.location.href = '/auth/linkedin?mode=link'}
+                            data-testid="button-connect-linkedin-post"
+                          >
+                            <SiLinkedin className="h-4 w-4" />
+                            Connect LinkedIn to Post
+                          </Button>
+                        )}
                       </>
                     )}
                   </div>
