@@ -51,6 +51,7 @@ interface AuthStatus {
   authenticated: boolean;
   authType: 'linkedin' | 'firebase' | null;
   hasLinkedInAuth: boolean;
+  linkedLinkedInExpired?: boolean;
 }
 
 type SortOption = 'newest' | 'oldest' | 'alphabetical';
@@ -432,7 +433,18 @@ export default function MyCarousels() {
 
             <div className="flex items-center gap-2">
               {/* LinkedIn Status */}
-              {authStatus?.hasLinkedInAuth ? (
+              {authStatus?.linkedLinkedInExpired ? (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => window.location.href = '/auth/linkedin?mode=link'}
+                  className="gap-1.5 text-xs hidden sm:flex border-amber-500 text-amber-600 dark:border-amber-400 dark:text-amber-400"
+                  data-testid="button-reconnect-linkedin"
+                >
+                  <SiLinkedin className="h-3 w-3" />
+                  Reconnect LinkedIn
+                </Button>
+              ) : authStatus?.hasLinkedInAuth ? (
                 <Badge className="gap-1.5 bg-[#0A66C2]/10 text-[#0A66C2] dark:bg-[#0A66C2]/20 dark:text-[#0A66C2] border-0 hidden sm:flex" data-testid="badge-linkedin-connected">
                   <SiLinkedin className="h-3 w-3" />
                   Connected
@@ -723,7 +735,17 @@ export default function MyCarousels() {
                           <Download className="h-4 w-4" />
                           Download PDF
                         </Button>
-                        {authStatus?.hasLinkedInAuth ? (
+                        {authStatus?.linkedLinkedInExpired ? (
+                          <Button
+                            variant="outline"
+                            className="gap-2 border-amber-500 text-amber-600 dark:border-amber-400 dark:text-amber-400"
+                            onClick={() => window.location.href = '/auth/linkedin?mode=link'}
+                            data-testid="button-reconnect-linkedin-post"
+                          >
+                            <SiLinkedin className="h-4 w-4" />
+                            Reconnect LinkedIn
+                          </Button>
+                        ) : authStatus?.hasLinkedInAuth ? (
                           <Button
                             className="gap-2 bg-[#0A66C2] hover:bg-[#004182] text-white shadow-lg"
                             onClick={() => postToLinkedInMutation.mutate({ 

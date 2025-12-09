@@ -577,17 +577,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Check if user has linked LinkedIn (for Firebase users)
     let hasLinkedLinkedIn = false;
+    let linkedLinkedInExpired = false;
     let linkedLinkedInInfo: { linkedinId?: string; name?: string; email?: string } | null = null;
+    
+    // Helper function to check if a date is expired
+    const isExpired = (expiresAt: Date | undefined): boolean => {
+      if (!expiresAt) return false; // If no expiry, assume valid
+      return new Date(expiresAt) < new Date();
+    };
     
     if (isAuthenticated && req.session.authType === "firebase") {
       // Check session first
       if (req.session.linkedLinkedIn) {
-        hasLinkedLinkedIn = true;
-        linkedLinkedInInfo = {
-          linkedinId: req.session.linkedLinkedIn.linkedinId,
-          name: req.session.linkedLinkedIn.name,
-          email: req.session.linkedLinkedIn.email,
-        };
+        // Validate accessToken exists
+        if (!req.session.linkedLinkedIn.accessToken || !req.session.linkedLinkedIn.linkedinId) {
+          // Token data is incomplete/invalid
+          hasLinkedLinkedIn = false;
+        } else if (req.session.linkedLinkedIn.expiresAt && isExpired(new Date(req.session.linkedLinkedIn.expiresAt))) {
+          // Token is expired
+          linkedLinkedInExpired = true;
+          hasLinkedLinkedIn = false;
+        } else {
+          hasLinkedLinkedIn = true;
+          linkedLinkedInInfo = {
+            linkedinId: req.session.linkedLinkedIn.linkedinId,
+            name: req.session.linkedLinkedIn.name,
+            email: req.session.linkedLinkedIn.email,
+          };
+        }
       } else {
         // Check Firestore for stored LinkedIn connection
         try {
@@ -595,22 +612,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (isFirebaseConfigured && req.session.user) {
             const linkedLinkedIn = await getLinkedLinkedIn(req.session.user.profile.sub);
             if (linkedLinkedIn) {
-              hasLinkedLinkedIn = true;
-              linkedLinkedInInfo = {
-                linkedinId: linkedLinkedIn.linkedinId,
-                name: linkedLinkedIn.name,
-                email: linkedLinkedIn.email,
-              };
-              // Also restore to session for faster access next time
-              req.session.linkedLinkedIn = {
-                accessToken: linkedLinkedIn.accessToken,
-                linkedinId: linkedLinkedIn.linkedinId,
-                name: linkedLinkedIn.name,
-                email: linkedLinkedIn.email,
-                picture: linkedLinkedIn.picture,
-                linkedAt: new Date(),
-                expiresAt: linkedLinkedIn.expiresAt,
-              };
+              // Validate accessToken exists
+              if (!linkedLinkedIn.accessToken || !linkedLinkedIn.linkedinId) {
+                // Token data is incomplete/invalid - treat as not connected
+                hasLinkedLinkedIn = false;
+              } else if (linkedLinkedIn.expiresAt && isExpired(new Date(linkedLinkedIn.expiresAt))) {
+                // Token is expired
+                linkedLinkedInExpired = true;
+                hasLinkedLinkedIn = false;
+              } else {
+                hasLinkedLinkedIn = true;
+                linkedLinkedInInfo = {
+                  linkedinId: linkedLinkedIn.linkedinId,
+                  name: linkedLinkedIn.name,
+                  email: linkedLinkedIn.email,
+                };
+                // Also restore to session for faster access next time
+                req.session.linkedLinkedIn = {
+                  accessToken: linkedLinkedIn.accessToken,
+                  linkedinId: linkedLinkedIn.linkedinId,
+                  name: linkedLinkedIn.name,
+                  email: linkedLinkedIn.email,
+                  picture: linkedLinkedIn.picture,
+                  linkedAt: new Date(),
+                  expiresAt: linkedLinkedIn.expiresAt,
+                };
+              }
             }
           }
         } catch (error) {
@@ -619,7 +646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
     
-    // Has LinkedIn auth if logged in with LinkedIn OR has linked LinkedIn
+    // Has LinkedIn auth if logged in with LinkedIn OR has linked (non-expired) LinkedIn
     const hasLinkedInAuth = isLinkedInAuth || hasLinkedLinkedIn;
     
     res.json({
@@ -627,6 +654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       authType: req.session.authType || null,
       hasLinkedInAuth,
       hasLinkedLinkedIn, // Separate flag for linked integration
+      linkedLinkedInExpired, // Flag indicating if the linked LinkedIn token is expired
       linkedLinkedInInfo, // Info about linked LinkedIn (if any)
       canDownload: isAuthenticated,
       canPostToLinkedIn: hasLinkedInAuth,
@@ -2199,8 +2227,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "PDF data (pdfBase64 or pdfUrl) is required" });
       }
 
-      const { accessToken, profile } = req.session.user;
-      const personId = profile.sub.replace(/^linkedin-person-/, '');
+      // Determine the correct LinkedIn access token based on auth type
+      let linkedInAccessToken: string | undefined;
+      let linkedInPersonId: string | undefined;
+
+      if (req.session.authType === "linkedin") {
+        // User logged in directly with LinkedIn - validate token exists
+        if (!req.session.user.accessToken) {
+          return res.status(401).json({ 
+            error: "LinkedIn token missing",
+            message: "Your LinkedIn session is invalid. Please log in again with LinkedIn.",
+            needsReconnect: true
+          });
+        }
+        linkedInAccessToken = req.session.user.accessToken;
+        linkedInPersonId = req.session.user.profile.sub.replace(/^linkedin-person-/, '');
+      } else if (req.session.authType === "firebase" && req.session.linkedLinkedIn) {
+        // Firebase user with linked LinkedIn account - validate token exists
+        if (!req.session.linkedLinkedIn.accessToken || !req.session.linkedLinkedIn.linkedinId) {
+          return res.status(401).json({ 
+            error: "LinkedIn connection invalid",
+            message: "Your LinkedIn connection is invalid. Please reconnect your LinkedIn account.",
+            needsReconnect: true
+          });
+        }
+        linkedInAccessToken = req.session.linkedLinkedIn.accessToken;
+        linkedInPersonId = req.session.linkedLinkedIn.linkedinId;
+        
+        // Check if the linked token might be expired
+        if (req.session.linkedLinkedIn.expiresAt) {
+          const expiresAt = new Date(req.session.linkedLinkedIn.expiresAt);
+          if (expiresAt < new Date()) {
+            return res.status(401).json({ 
+              error: "LinkedIn connection expired",
+              message: "Your LinkedIn connection has expired. Please reconnect your LinkedIn account to post carousels.",
+              needsReconnect: true
+            });
+          }
+        }
+      } else if (req.session.authType === "firebase") {
+        // Firebase user but no LinkedIn linked - try to get from Firestore
+        try {
+          const { getLinkedLinkedIn, isFirebaseConfigured } = await import("./lib/firebase-admin");
+          if (isFirebaseConfigured) {
+            const linkedLinkedIn = await getLinkedLinkedIn(req.session.user.profile.sub);
+            if (linkedLinkedIn) {
+              linkedInAccessToken = linkedLinkedIn.accessToken;
+              linkedInPersonId = linkedLinkedIn.linkedinId;
+              
+              // Check expiration
+              if (linkedLinkedIn.expiresAt) {
+                const expiresAt = new Date(linkedLinkedIn.expiresAt);
+                if (expiresAt < new Date()) {
+                  return res.status(401).json({ 
+                    error: "LinkedIn connection expired",
+                    message: "Your LinkedIn connection has expired. Please reconnect your LinkedIn account to post carousels.",
+                    needsReconnect: true
+                  });
+                }
+              }
+              
+              // Cache in session for future requests
+              req.session.linkedLinkedIn = {
+                accessToken: linkedLinkedIn.accessToken,
+                linkedinId: linkedLinkedIn.linkedinId,
+                name: linkedLinkedIn.name,
+                email: linkedLinkedIn.email,
+                picture: linkedLinkedIn.picture,
+                linkedAt: new Date(),
+                expiresAt: linkedLinkedIn.expiresAt,
+              };
+            }
+          }
+        } catch (error) {
+          console.warn("Failed to fetch linked LinkedIn from Firestore:", error);
+        }
+      }
+
+      if (!linkedInAccessToken || !linkedInPersonId) {
+        return res.status(401).json({ 
+          error: "LinkedIn not connected",
+          message: "Please connect your LinkedIn account to post carousels.",
+          needsReconnect: true
+        });
+      }
+
+      const accessToken = linkedInAccessToken;
+      const personId = linkedInPersonId;
       const authorUrn = `urn:li:person:${personId}`;
 
       let pdfBuffer: Buffer;
@@ -2372,8 +2485,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } = await import("./lib/firebase-admin");
         
         if (isFirebaseConfigured) {
-          const userId = profile.sub;
-          const pdfDataUrl = pdfBase64.includes(",") ? pdfBase64 : `data:application/pdf;base64,${pdfBase64}`;
+          const userId = req.session.user!.profile.sub;
+          const pdfDataUrl = pdfBase64 ? (pdfBase64.includes(",") ? pdfBase64 : `data:application/pdf;base64,${pdfBase64}`) : "";
           
           if (carouselId) {
             // Update existing carousel with PDF and LinkedIn post ID
