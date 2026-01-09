@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Sparkles, Loader2 } from "lucide-react";
-import { SiGoogle } from "react-icons/si";
+import { SiGoogle, SiLinkedin } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import type { SessionUser } from "@shared/schema";
@@ -183,6 +183,10 @@ export default function Login() {
     }
   };
 
+  const handleLinkedInLogin = () => {
+    window.location.href = "/auth/linkedin";
+  };
+
   if (isLoadingUser) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
@@ -221,20 +225,33 @@ export default function Login() {
           </CardHeader>
           <CardContent className="space-y-4">
             {isFirebaseConfigured && (
-              <Button
-                onClick={handleGoogleLogin}
-                disabled={isGoogleLoading || isLoading}
-                variant="outline"
-                className="w-full gap-3 py-6 text-base font-medium"
-                data-testid="button-google-login"
-              >
-                {isGoogleLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <SiGoogle className="w-5 h-5" />
-                )}
-                Continue with Google
-              </Button>
+              <div className="space-y-3">
+                <Button
+                  onClick={handleGoogleLogin}
+                  disabled={isGoogleLoading || isLoading}
+                  variant="outline"
+                  className="w-full gap-3 py-6 text-base font-medium"
+                  data-testid="button-google-login"
+                >
+                  {isGoogleLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <SiGoogle className="w-5 h-5 text-red-500" />
+                  )}
+                  Continue with Google
+                </Button>
+
+                <Button
+                  onClick={handleLinkedInLogin}
+                  disabled={isGoogleLoading || isLoading}
+                  variant="outline"
+                  className="w-full gap-3 py-6 text-base font-medium border-slate-200"
+                  data-testid="button-linkedin-login"
+                >
+                  <SiLinkedin className="w-5 h-5 text-[#0A66C2]" />
+                  Continue with LinkedIn
+                </Button>
+              </div>
             )}
 
             <div className="relative my-4">

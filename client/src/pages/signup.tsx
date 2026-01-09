@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sparkles, Loader2 } from "lucide-react";
+import { SiGoogle, SiLinkedin } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import type { SessionUser } from "@shared/schema";
@@ -140,6 +141,29 @@ export default function Signup() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    if (!isFirebaseConfigured) return;
+    try {
+      const { auth } = await import("@/lib/firebase");
+      const { signInWithPopup, GoogleAuthProvider } = await import("firebase/auth");
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+      const idToken = await userCredential.user.getIdToken();
+      await fetch("/api/auth/firebase/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      queryClient.clear();
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      navigate("/create");
+    } catch (error) {}
+  };
+
+  const handleLinkedInLogin = () => {
+    window.location.href = "/auth/linkedin";
+  };
+
   if (isLoadingUser) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
@@ -176,7 +200,42 @@ export default function Signup() {
               Create a new account to get started.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {isFirebaseConfigured && (
+              <div className="space-y-3 mb-4">
+                <Button
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full gap-3 py-6 text-base font-medium"
+                  data-testid="button-google-signup"
+                >
+                  <SiGoogle className="w-5 h-5 text-red-500" />
+                  Continue with Google
+                </Button>
+
+                <Button
+                  onClick={handleLinkedInLogin}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full gap-3 py-6 text-base font-medium border-slate-200"
+                  data-testid="button-linkedin-signup"
+                >
+                  <SiLinkedin className="w-5 h-5 text-[#0A66C2]" />
+                  Continue with LinkedIn
+                </Button>
+
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-slate-200" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white dark:bg-slate-950 px-2 text-slate-500">or</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSignup} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
