@@ -348,10 +348,13 @@ export default function CarouselCreator() {
 
   const createPdfMutation = useMutation({
     mutationFn: async (): Promise<CreatePdfResponse> => {
+      const imagesToUse = processedSlides
+        .filter(s => s.imageUrl || s.base64Image)
+        .map(s => s.imageUrl || s.base64Image!);
+
       if (!currentCarouselId) {
-        const imageUrls = processedSlides.filter(s => s.imageUrl || s.base64Image).map(s => s.imageUrl || s.base64Image!);
         const response = await apiRequest("POST", "/api/pdf/create", {
-          imageUrls,
+          imageUrls: imagesToUse,
           title: carouselTitle || "LinkedIn Carousel",
         });
         const data = await response.json();
@@ -365,6 +368,12 @@ export default function CarouselCreator() {
     onSuccess: (data) => {
       if (data.pdfUrl || data.pdfBase64) {
         setPdfDataUrl(data.pdfUrl || data.pdfBase64 || null);
+        
+        // If we got back a carousel with updated slides (with storage URLs), update local state
+        if (data.carousel?.slides) {
+          setProcessedSlides(data.carousel.slides);
+        }
+        
         setStep("review");
         toast({
           title: "PDF Created!",
@@ -439,14 +448,22 @@ export default function CarouselCreator() {
     setCurrentCarouselId(carousel.id);
     setCarouselTitle(carousel.title);
     setSelectedCarouselType(carousel.carouselType);
-    setProcessedSlides(carousel.slides);
+    
+    // Ensure slides have correct image mapping for preview
+    const updatedSlides = carousel.slides.map(slide => ({
+      ...slide,
+      imageUrl: slide.imageUrl || undefined,
+      base64Image: slide.base64Image || undefined
+    }));
+    
+    setProcessedSlides(updatedSlides);
     
     if (carousel.pdfBase64 || carousel.pdfUrl) {
       setPdfDataUrl(carousel.pdfBase64 || carousel.pdfUrl || null);
       setStep("review");
-    } else if (carousel.slides.some(s => s.imageUrl || s.base64Image)) {
+    } else if (updatedSlides.some(s => s.imageUrl || s.base64Image)) {
       setStep("preview");
-    } else if (carousel.slides.length > 0) {
+    } else if (updatedSlides.length > 0) {
       setStep("processing");
     } else {
       setStep("input");

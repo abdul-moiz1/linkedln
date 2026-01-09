@@ -2202,6 +2202,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         carouselUpdated,
         carouselCreated,
         carouselId: savedCarouselId,
+        carousel: {
+          id: savedCarouselId,
+          slides: slidesForFirestore
+        }
       });
     } catch (error: any) {
       console.error("PDF creation error:", error);
