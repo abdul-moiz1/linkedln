@@ -2321,12 +2321,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (pdfUrl) {
         // Fetch PDF from Firebase Storage URL
         console.log("Fetching PDF from Storage URL:", pdfUrl);
-        const pdfResponse = await fetch(pdfUrl);
-        if (!pdfResponse.ok) {
-          return res.status(500).json({ error: "Failed to fetch PDF from storage" });
+        try {
+          const { isStorageConfigured, adminStorage } = await import("./lib/firebase-admin");
+          if (isStorageConfigured() && pdfUrl.includes("firebasestorage.googleapis.com")) {
+            console.log("[LinkedIn Upload] Using Firebase Admin to fetch private file");
+            // Extract file path from URL
+            const urlPath = new URL(pdfUrl).pathname;
+            const filePathMatch = urlPath.match(/\/o\/(.+)$/);
+            if (filePathMatch) {
+              const filePath = decodeURIComponent(filePathMatch[1]);
+              const bucket = adminStorage!.bucket();
+              const [content] = await bucket.file(filePath).download();
+              pdfBuffer = content;
+            } else {
+              throw new Error("Could not parse file path from URL");
+            }
+          } else {
+            const pdfResponse = await fetch(pdfUrl);
+            if (!pdfResponse.ok) {
+              throw new Error(`Failed to fetch PDF from storage: ${pdfResponse.statusText}`);
+            }
+            const arrayBuffer = await pdfResponse.arrayBuffer();
+            pdfBuffer = Buffer.from(arrayBuffer);
+          }
+        } catch (fetchError: any) {
+          console.error("[LinkedIn Upload] Error fetching PDF:", fetchError.message);
+          return res.status(500).json({ error: "Failed to fetch PDF from storage", details: fetchError.message });
         }
-        const arrayBuffer = await pdfResponse.arrayBuffer();
-        pdfBuffer = Buffer.from(arrayBuffer);
       } else {
         // Use base64 data directly
         const base64Data = pdfBase64.includes(",") ? pdfBase64.split(",")[1] : pdfBase64;
