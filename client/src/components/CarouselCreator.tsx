@@ -316,7 +316,6 @@ export default function CarouselCreator() {
         setProcessedSlides(data.carousel.slides);
         setCurrentImageIndex(0);
         setUsedProvider(data.provider || "");
-        setStep("preview");
         
         const imagesWithData = data.carousel.slides.filter(s => s.imageUrl || s.base64Image);
         if (imagesWithData.length > 0) {
@@ -327,12 +326,15 @@ export default function CarouselCreator() {
         const providerName = data.provider === "gemini" ? "Gemini" : data.provider === "openai" ? "OpenAI" : data.provider === "stability" ? "Stability AI" : "AI";
         toast({
           title: "Images Generated!",
-          description: `Created ${data.generatedCount}/${data.totalSlides} slides using ${providerName}`,
+          description: `Created ${data.generatedCount}/${data.totalSlides} slides using ${providerName}. Creating PDF...`,
         });
 
         if (currentCarouselId) {
           refetchCarousels();
         }
+
+        // Automatically trigger PDF creation after successful image generation
+        handleCreatePdf();
       }
     },
     onError: (error: Error) => {
