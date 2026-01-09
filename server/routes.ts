@@ -1900,7 +1900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             const prompt = getSlidePrompt(slideData[i]);
             
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateContent?key=${geminiApiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
             
             const response = await fetch(url, {
               method: "POST",
@@ -3499,7 +3499,7 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
           let mimeType = "image/png";
 
           if (selectedProvider === "gemini") {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateContent?key=${geminiApiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`;
             
             const response = await fetch(url, {
               method: "POST",
