@@ -7,6 +7,7 @@ import {
   repostSchema,
   createScheduledPostSchema,
   scheduledPosts,
+  users,
   type SelectScheduledPost,
 } from "@shared/schema";
 import { neon } from "@neondatabase/serverless";
@@ -399,6 +400,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * Also fetches profileUrl from Firestore if available.
    * Used by the frontend to display user information.
    */
+  app.post("/api/onboarding", async (req: Request, res: Response) => {
+    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+    const userId = req.session.user.profile.sub;
+    const { fullName, email, phone, plan } = req.body;
+    
+    try {
+      const db = getDb();
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+      await db.insert(users).values({
+        id: userId,
+        fullName,
+        email,
+        phone,
+        plan,
+        subscriptionStatus: "trialing",
+        trialEndDate,
+        onboardingCompleted: "true",
+      }).onConflictDoUpdate({
+        target: users.id,
+        set: { fullName, email, phone, plan, subscriptionStatus: "trialing", trialEndDate, onboardingCompleted: "true" }
+      });
+
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to save profile" });
+    }
+  });
+
   app.get("/api/user", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -406,16 +437,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Try to fetch profileUrl from Firestore
     let profileUrl: string | undefined;
+    let dbUser: any = null;
+
+    try {
+      const db = getDb();
+      const result = await db.select().from(users).where(eq(users.id, req.session.user.profile.sub)).limit(1);
+      dbUser = result[0] || null;
+    } catch (e) {
+      console.error("Failed to fetch user from DB:", e);
+    }
+
     try {
       const { getUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
       const userId = req.session.user.profile.sub;
-      console.log(`Fetching user data from Firestore for ${userId}, Firebase configured: ${isFirebaseConfigured}`);
       if (isFirebaseConfigured) {
         const userData = await getUser(userId);
-        console.log(`Firestore user data:`, userData ? JSON.stringify(userData) : 'not found');
         if (userData && (userData as any).profileUrl) {
           profileUrl = (userData as any).profileUrl;
-          console.log(`Found stored profileUrl: ${profileUrl}`);
         }
       }
     } catch (firestoreError) {
@@ -425,6 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({
       ...req.session.user,
       profileUrl,
+      ...(dbUser || {}),
     });
   });
 

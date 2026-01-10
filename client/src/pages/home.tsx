@@ -17,8 +17,20 @@ import {
   RefreshCw
 } from "lucide-react";
 import Header from "@/components/Header";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Home() {
+  const [, setLocation] = useLocation();
+  const { data: user, isLoading } = useQuery({ queryKey: ["/api/user"] });
+
+  useEffect(() => {
+    if (!isLoading && user && user.onboardingCompleted !== "true") {
+      setLocation("/onboarding");
+    }
+  }, [user, isLoading, setLocation]);
+
   const handleLinkedInLogin = () => {
     window.location.href = "/auth/linkedin";
   };
