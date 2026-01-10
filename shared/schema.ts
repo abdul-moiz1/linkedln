@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, varchar, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 // LinkedIn User Profile from /v2/userinfo endpoint (OpenID Connect)
@@ -128,6 +128,7 @@ export const users = pgTable("users", {
 
 export const insertUserSchema = createInsertSchema(users).omit({
   onboardingCompleted: true,
+  carouselCount: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
