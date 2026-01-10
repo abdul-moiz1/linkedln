@@ -112,6 +112,26 @@ export const scheduledPostSchema = z.object({
 
 export type ScheduledPost = z.infer<typeof scheduledPostSchema>;
 
+// User Profile Table (for additional info and subscription)
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey(), // LinkedIn sub or Firebase UID
+  fullName: varchar("full_name"),
+  email: varchar("email"),
+  phone: varchar("phone"),
+  plan: varchar("plan", { length: 20 }).default("free"), // "free", "starter", "intermediate", "pro"
+  subscriptionStatus: varchar("subscription_status", { length: 20 }).default("none"), // "none", "trialing", "active", "canceled"
+  stripeCustomerId: varchar("stripe_customer_id"),
+  trialEndDate: timestamp("trial_end_date", { withTimezone: true }),
+  onboardingCompleted: varchar("onboarding_completed", { length: 10 }).default("false"),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  onboardingCompleted: true,
+});
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type SelectUser = typeof users.$inferSelect;
+
 // Create Scheduled Post Request
 export const createScheduledPostSchema = z.object({
   content: z.string().min(1, "Post content is required").max(3000, "Post content must be less than 3000 characters"),
