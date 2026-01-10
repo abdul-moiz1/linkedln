@@ -123,6 +123,7 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripe_customer_id"),
   trialEndDate: timestamp("trial_end_date", { withTimezone: true }),
   onboardingCompleted: varchar("onboarding_completed", { length: 10 }).default("false"),
+  carouselCount: integer("carousel_count").default(0),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
