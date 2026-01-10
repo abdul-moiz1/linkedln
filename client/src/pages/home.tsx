@@ -107,19 +107,23 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Minimal How It Works */}
-        <section id="how-it-works" className="py-32 border-t">
+        {/* Minimal How It Works with Color Accents */}
+        <section id="how-it-works" className="py-32 border-t bg-slate-50/30">
           <div className="container mx-auto px-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-16 max-w-5xl mx-auto">
               {[
-                { title: "Connect", description: "Connect your LinkedIn profile in one click." },
-                { title: "Generate", description: "Describe your idea and let AI handle the design." },
-                { title: "Publish", description: "Download or post directly to your feed." }
+                { title: "Connect", description: "Connect your LinkedIn profile in one click.", color: "text-blue-500", bg: "bg-blue-500/10" },
+                { title: "Generate", description: "Describe your idea and let AI handle the design.", color: "text-purple-500", bg: "bg-purple-500/10" },
+                { title: "Publish", description: "Download or post directly to your feed.", color: "text-emerald-500", bg: "bg-emerald-500/10" }
               ].map((step, idx) => (
-                <div key={idx} className="space-y-4">
-                  <div className="text-4xl font-light text-primary/20 italic">0{idx + 1}</div>
-                  <h3 className="text-xl font-semibold">{step.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">{step.description}</p>
+                <div key={idx} className="space-y-6 group">
+                  <div className={`w-12 h-12 rounded-2xl ${step.bg} flex items-center justify-center font-bold ${step.color} text-xl group-hover:scale-110 transition-transform`}>
+                    0{idx + 1}
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className={`text-xl font-bold ${step.color}`}>{step.title}</h3>
+                    <p className="text-muted-foreground leading-relaxed font-medium">{step.description}</p>
+                  </div>
                 </div>
               ))}
             </div>
