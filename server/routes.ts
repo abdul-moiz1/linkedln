@@ -430,6 +430,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/create-checkout-session", async (req: Request, res: Response) => {
+    if (!req.session.user) return res.status(401).send("Unauthorized");
+    const { planId, priceId } = req.body;
+    
+    try {
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [{
+          price: priceId,
+          quantity: 1,
+        }],
+        mode: "subscription",
+        subscription_data: {
+          trial_period_days: 7,
+        },
+        success_url: `${process.env.BASE_URL || 'http://localhost:5000'}/create?success=true`,
+        cancel_url: `${process.env.BASE_URL || 'http://localhost:5000'}/pricing`,
+        client_reference_id: req.session.user.profile.sub,
+        metadata: { planId }
+      });
+
+      res.json({ url: session.url });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/user", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
