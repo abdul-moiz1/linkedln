@@ -42,23 +42,23 @@ export default function Header() {
           className="flex items-center gap-2 cursor-pointer group" 
           onClick={() => navigate("/")}
         >
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-            <Sparkles className="w-4 h-4 text-primary" />
+          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors backdrop-blur-md border border-white/10">
+            <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <span className="text-lg font-medium tracking-tight">Carousel.AI</span>
+          <span className="text-lg font-medium tracking-tight text-white drop-shadow-md">Carousel.AI</span>
         </div>
         
         <nav className="flex items-center gap-8">
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
-            <a href="#how-it-works" className="hover:text-foreground transition-colors">Process</a>
-            <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+            <a href="#how-it-works" className="hover:text-white transition-colors drop-shadow-sm">Process</a>
+            <a href="#pricing" className="hover:text-white transition-colors drop-shadow-sm">Pricing</a>
           </div>
           
           {!user ? (
             <Button 
               onClick={() => navigate("/login")}
               size="sm"
-              className="rounded-full px-6"
+              className="rounded-full px-6 bg-white text-slate-900 hover:bg-slate-100 transition-all"
             >
               Get Started
             </Button>

@@ -62,44 +62,48 @@ export default function Home() {
       <Header />
 
       <main>
-        {/* Elegant Hero Section */}
-        <section className="relative min-h-[90vh] flex items-center pt-20 overflow-hidden">
-          <div className="container mx-auto px-6 relative z-10">
+        {/* Elegant Hero Section with Image Background */}
+        <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+          {/* Background Image with Dark Wash Overlay */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+            style={{
+              backgroundImage: `url('https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2074&q=80')`
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-950/80 via-slate-900/60 to-slate-950/80 z-10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent z-10" />
+
+          <div className="container mx-auto px-6 relative z-20">
             <div className="max-w-4xl mx-auto text-center">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/10 text-primary text-xs font-medium mb-8">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white text-xs font-medium mb-8 backdrop-blur-md">
                   <Sparkles className="w-3 h-3" />
                   <span>The new standard for LinkedIn content</span>
                 </div>
                 
-                <h1 className="text-5xl md:text-8xl font-bold tracking-tight mb-8 leading-[1.1] bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
+                <h1 className="text-5xl md:text-8xl font-bold tracking-tight mb-8 leading-[1.1] text-white drop-shadow-2xl">
                   Stunning carousels <br /> powered by AI.
                 </h1>
                 
-                <p className="text-lg md:text-xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-lg md:text-xl text-slate-200 mb-12 max-w-2xl mx-auto leading-relaxed">
                   Join 10,000+ creators using Carousel.AI to transform their ideas into professional LinkedIn content in seconds.
                 </p>
                 
                 <div className="flex flex-col sm:flex-row justify-center gap-6">
-                  <Button size="lg" onClick={handleAction} className="h-14 px-10 text-base font-semibold rounded-full shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-transform">
+                  <Button size="lg" onClick={handleAction} className="h-14 px-10 text-base font-semibold rounded-full shadow-2xl bg-white text-slate-900 hover:bg-slate-100 transition-all hover:scale-[1.02]">
                     Get Started Free <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
-                  <Button size="lg" variant="ghost" onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="h-14 px-10 text-base font-semibold rounded-full">
+                  <Button size="lg" variant="outline" onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="h-14 px-10 text-base font-semibold rounded-full bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm">
                     View Pricing
                   </Button>
                 </div>
               </motion.div>
             </div>
-          </div>
-          
-          {/* Abstract background elements */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 overflow-hidden">
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px]" />
           </div>
         </section>
 
