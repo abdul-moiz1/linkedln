@@ -1,0 +1,207 @@
+1️⃣ Stripe Setup Requirements
+
+Use Stripe Subscriptions, not one-time payments
+
+Plans:
+
+Starter: $50 / month
+
+Intermediate: $100 / month
+
+Pro: $150 / month
+
+Each plan includes a 7-day free trial
+
+No payment should be charged upfront
+
+Users must be redirected to Stripe Checkout
+
+After checkout, users are redirected back to the Replit app
+
+Environment variables:
+
+STRIPE_SECRET_KEY
+
+STRIPE_WEBHOOK_SECRET
+
+STRIPE_STARTER_PRICE_ID
+
+STRIPE_INTERMEDIATE_PRICE_ID
+
+STRIPE_PRO_PRICE_ID
+
+APP_URL (Replit app public URL)
+
+Do NOT expose Stripe secret keys on the frontend.
+
+2️⃣ Database Schema Changes (shared/schema.ts)
+
+Update the users table to include:
+
+fullName (string, nullable)
+
+phone (string, nullable)
+
+plan (enum: starter | intermediate | pro)
+
+subscriptionStatus (enum: trialing | active | canceled | past_due)
+
+stripeCustomerId (string, nullable)
+
+trialEndDate (timestamp, nullable)
+
+subscriptionId (string, nullable)
+
+Ensure migrations or schema sync are handled correctly.
+
+3️⃣ Backend Stripe Integration (server/)
+Install Stripe
+
+Use the official Stripe Node SDK
+
+Create Stripe Service
+
+Create a Stripe helper file to:
+
+Initialize Stripe with secret key
+
+Create or retrieve Stripe customers
+
+Create subscription checkout sessions with:
+
+mode: subscription
+
+trial_period_days: 7
+
+payment_method_collection: if_required
+
+API Routes
+POST /api/stripe/create-checkout-session
+
+Input: selected plan
+
+Create Stripe customer if not exists
+
+Create Stripe Checkout session
+
+Redirect user to Stripe hosted checkout
+
+POST /api/stripe/webhook
+
+Verify webhook signature
+
+Handle events:
+
+checkout.session.completed
+
+customer.subscription.created
+
+customer.subscription.updated
+
+customer.subscription.deleted
+
+Update user:
+
+subscriptionStatus
+
+plan
+
+trialEndDate
+
+subscriptionId
+
+Use raw body for webhook verification.
+
+4️⃣ Frontend Flow (client/src/)
+Onboarding Flow
+
+Create a multi-step onboarding UI:
+
+Step 1: Personal Info
+
+Full name
+
+Phone number
+
+Save to backend
+
+Step 2: Plan Selection
+
+Starter ($50)
+
+Intermediate ($100)
+
+Pro ($150)
+
+On select → call /api/stripe/create-checkout-session
+
+Redirect user to Stripe Checkout URL
+
+After Stripe Redirect
+
+Handle:
+
+/billing/success
+
+/billing/cancel
+
+On success:
+
+Fetch user subscription status
+
+Show trial countdown if trialing
+
+5️⃣ Subscription Dashboard
+
+Add a dashboard section that shows:
+
+Current plan
+
+Trial days remaining
+
+Subscription status
+
+Button: “Manage Billing” (opens Stripe Customer Portal)
+
+6️⃣ Stripe Customer Portal
+
+Create endpoint:
+
+POST /api/stripe/create-portal-session
+
+This should:
+
+Create a Stripe Customer Portal session
+
+Redirect user to Stripe to manage billing
+
+7️⃣ Security & Best Practices
+
+Never trust frontend for plan or price
+
+All Stripe logic must be server-side
+
+Use Stripe price IDs, not amounts
+
+Webhooks are the source of truth
+
+Handle retries and idempotency
+
+8️⃣ Deliverables
+
+Generate:
+
+Backend routes
+
+Stripe service
+
+Schema updates
+
+Frontend onboarding components
+
+Redirect handling
+
+Clear comments explaining each step
+
+Do NOT remove existing auth or user logic.
+Do NOT mock Stripe.
