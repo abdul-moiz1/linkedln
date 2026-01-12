@@ -31,7 +31,7 @@ function getDb() {
 // LinkedIn OAuth2 Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
-const BASE_URL = process.env.BASE_URL;
+const BASE_URL = process.env.BASE_URL?.endsWith('/') ? process.env.BASE_URL.slice(0, -1) : process.env.BASE_URL;
 const REDIRECT_URI = `${BASE_URL}/api/auth/linkedin/callback`;
 
 // LinkedIn API endpoints
