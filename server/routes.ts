@@ -2832,8 +2832,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 2. Reuse carousel processing logic (calling the existing internal handler or similar)
       // Since we are in build mode and want to keep it simple, we'll call the existing /api/carousel/process logic style
-      const publicUrl = process.env.BASE_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
-      const processResponse = await fetch(`${publicUrl}/api/carousel/process`, {
+      // Use internal loopback to avoid DNS/SSL issues in local environment
+      const loopbackUrl = "http://0.0.0.0:5000";
+      console.log(`[Voice Process] Sending transcription to: ${loopbackUrl}/api/carousel/process`);
+      const processResponse = await fetch(`${loopbackUrl}/api/carousel/process`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2848,6 +2850,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!processResponse.ok) {
+        const errorData = await processResponse.json().catch(() => ({}));
+        console.error("[Voice Process] Structure Error:", errorData);
         throw new Error("Failed to structure carousel from transcription");
       }
 
