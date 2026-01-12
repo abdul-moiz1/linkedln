@@ -2774,30 +2774,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { carouselType, aiProvider } = req.body;
       const audioBuffer = file.buffer;
 
-      // 1. Transcription using OpenAI Whisper (or similar via Replit AI)
-      // NOTE: We still use OpenAI Whisper for transcription because it's a specialized model,
-      // but we ensure the subsequent carousel structuring respects the user's aiProvider choice.
-      const transcriptionResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: (() => {
-          const form = new FormData();
-          const blob = new Blob([audioBuffer], { type: "audio/webm" });
-          form.append("file", blob, "recording.webm");
-          form.append("model", "whisper-1");
-          return form;
-        })()
-      });
+      // 1. Transcription using Gemini (if selected) or falling back to OpenAI Whisper
+      let text = "";
+      if (aiProvider === "gemini") {
+        console.log("[Voice Process] Using Gemini for transcription");
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: "Transcribe this audio accurately. Return only the transcription text." },
+                {
+                  inlineData: {
+                    mimeType: file.mimetype,
+                    data: audioBuffer.toString("base64")
+                  }
+                }
+              ]
+            }]
+          }),
+        });
 
-      if (!transcriptionResponse.ok) {
-        const error = await transcriptionResponse.json();
-        throw new Error(error.error?.message || "Transcription failed");
+        if (!response.ok) {
+          const error = await response.json();
+          console.error("Gemini Transcription Error:", error);
+          throw new Error(error.error?.message || "Gemini transcription failed");
+        }
+
+        const json = await response.json();
+        text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      } else {
+        console.log("[Voice Process] Using OpenAI Whisper for transcription");
+        const transcriptionResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: (() => {
+            const form = new FormData();
+            const blob = new Blob([audioBuffer], { type: file.mimetype });
+            form.append("file", blob, "recording.webm");
+            form.append("model", "whisper-1");
+            return form;
+          })()
+        });
+
+        if (!transcriptionResponse.ok) {
+          const error = await transcriptionResponse.json();
+          throw new Error(error.error?.message || "OpenAI transcription failed");
+        }
+
+        const transcription = await transcriptionResponse.json();
+        text = transcription.text;
       }
-
-      const transcription = await transcriptionResponse.json();
-      const text = transcription.text;
 
       // 2. Reuse carousel processing logic (calling the existing internal handler or similar)
       // Since we are in build mode and want to keep it simple, we'll call the existing /api/carousel/process logic style
