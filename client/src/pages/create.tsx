@@ -753,7 +753,7 @@ export default function Create() {
     <div className="min-h-screen bg-background">
       <Header variant="app" />
       
-      <main className="container mx-auto max-w-3xl py-12 px-4">
+      <main className="container mx-auto max-w-3xl py-12 px-4 relative z-0">
         {/* Dashboard View - Choose creation method */}
         {workspaceView === "dashboard" && (
           <div className="space-y-8">
