@@ -29,6 +29,9 @@ import {
   PenTool,
   Globe,
   Download,
+  Mic,
+  Square,
+  RefreshCcw,
 } from "lucide-react";
 import { SiLinkedin } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
@@ -38,7 +41,7 @@ import type { SessionUser } from "@shared/schema";
 
 const DRAFT_STORAGE_KEY = "carousel_draft";
 
-type WorkspaceView = "dashboard" | "manual" | "url-input" | "url-processing" | "editor";
+type WorkspaceView = "dashboard" | "manual" | "url-input" | "url-processing" | "voice-input" | "voice-processing" | "editor";
 type CreatorStep = "type-select" | "input" | "processing" | "images";
 type AIProvider = "gemini" | "openai" | "stability" | "";
 
@@ -158,6 +161,107 @@ export default function Create() {
   const [urlCarouselType, setUrlCarouselType] = useState<string>("tips-howto");
   const [currentCarouselId, setCurrentCarouselId] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Voice Recording State
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        setAudioBlob(blob);
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      setRecordingTime(0);
+    } catch (err) {
+      toast({
+        title: "Microphone Access Denied",
+        description: "Please allow microphone access to record voice notes.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+    }
+  };
+
+  const voiceProcessMutation = useMutation({
+    mutationFn: async (blob: Blob) => {
+      const formData = new FormData();
+      formData.append("audio", blob, "recording.webm");
+      formData.append("carouselType", urlCarouselType);
+      
+      const response = await fetch("/api/carousel/from-voice", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to process voice recording");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      if (data.slides && data.slides.length > 0) {
+        setCarouselTitle(data.title || "Voice-to-Carousel");
+        setSelectedCarouselType(data.carouselType || urlCarouselType);
+        setProcessedSlides(data.slides);
+        const slideMessages = data.slides.map((s: ProcessedSlide, idx: number) => ({
+          id: idx + 1,
+          text: s.rawText || s.finalText,
+        }));
+        setSlides(slideMessages);
+        setStep("input");
+        setWorkspaceView("manual");
+        toast({
+          title: "Voice Processed",
+          description: `Transcribed and generated ${data.slides.length} slides.`,
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Processing Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setWorkspaceView("voice-input");
+    },
+  });
+
+  const handleVoiceSubmit = () => {
+    if (!audioBlob) return;
+    setWorkspaceView("voice-processing");
+    voiceProcessMutation.mutate(audioBlob);
+  };
 
   const { data: user, isLoading: isLoadingUser } = useQuery<SessionUser>({
     queryKey: ["/api/user"],
@@ -682,7 +786,7 @@ export default function Create() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Manual Creation Option */}
               <Card 
                 className="hover-elevate cursor-pointer border-2 border-transparent hover:border-primary/20 transition-all"
@@ -725,6 +829,29 @@ export default function Create() {
                   <div className="flex flex-wrap gap-2 pt-2">
                     <Badge variant="default">AI-Powered</Badge>
                     <Badge variant="outline">7-10 Slides</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Voice-based Creation Option */}
+              <Card 
+                className="hover-elevate cursor-pointer border-2 border-transparent hover:border-primary/20 transition-all"
+                onClick={() => setWorkspaceView("voice-input")}
+                data-testid="card-voice-create"
+              >
+                <CardContent className="pt-6 space-y-4">
+                  <div className="w-14 h-14 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                    <Mic className="w-7 h-7 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-foreground">Create from Voice</h3>
+                    <p className="text-muted-foreground mt-1">
+                      Record a voice note and let AI turn it into a LinkedIn carousel.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-none">AI-Powered</Badge>
+                    <Badge variant="outline">5-10 Slides</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -841,54 +968,138 @@ export default function Create() {
           </div>
         )}
 
-        {/* URL Processing View */}
-        {workspaceView === "url-processing" && (
+        {/* Voice Input View */}
+        {workspaceView === "voice-input" && (
           <div className="space-y-8">
-            <div className="text-center space-y-4">
-              <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-              </div>
-              <h1 className="text-3xl font-semibold tracking-tight" data-testid="text-processing-title">
-                Creating Your Carousel
+            <div className="text-center space-y-2">
+              <h1 className="text-3xl font-semibold tracking-tight" data-testid="text-voice-title">
+                Create from Voice
               </h1>
-              <p className="text-muted-foreground max-w-md mx-auto" data-testid="text-processing-subtitle">
-                We're reading the article and generating 7-10 slides with key insights. This may take a moment...
+              <p className="text-muted-foreground" data-testid="text-voice-subtitle">
+                Record a voice note and let AI structure it into a carousel
               </p>
             </div>
 
-            <Card className="border-0 shadow-sm">
-              <CardContent className="py-8">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                      <Check className="w-4 h-4 text-primary" />
-                    </div>
-                    <span className="text-foreground">Fetching article content</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                      <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                    </div>
-                    <span className="text-foreground">AI is summarizing into slides...</span>
-                  </div>
-                  <div className="flex items-center gap-3 opacity-50">
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                      <FileText className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <span className="text-muted-foreground">Ready for review</span>
-                  </div>
+            <Card className="border-0 shadow-sm max-w-md mx-auto">
+              <CardContent className="pt-8 pb-8 flex flex-col items-center space-y-8">
+                <div className="relative">
+                  {isRecording && (
+                    <div className="absolute -inset-4 bg-purple-500/20 rounded-full animate-ping" />
+                  )}
+                  <Button
+                    size="icon"
+                    className={`w-24 h-24 rounded-full transition-all duration-300 ${
+                      isRecording 
+                        ? 'bg-red-500 hover:bg-red-600' 
+                        : 'bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-500/30'
+                    }`}
+                    onClick={isRecording ? stopRecording : startRecording}
+                    data-testid="button-record-toggle"
+                  >
+                    {isRecording ? (
+                      <Square className="w-10 h-10 fill-white" />
+                    ) : (
+                      <Mic className="w-10 h-10" />
+                    )}
+                  </Button>
                 </div>
+
+                <div className="text-center space-y-2">
+                  <div className="text-3xl font-mono font-medium">
+                    {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {isRecording ? "Recording... tap to stop" : audioBlob ? "Recording complete!" : "Tap microphone to start recording"}
+                  </p>
+                </div>
+
+                {audioBlob && !isRecording && (
+                  <div className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Carousel Style</Label>
+                        <Select value={urlCarouselType} onValueChange={setUrlCarouselType}>
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select style" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DEFAULT_CAROUSEL_TYPES.map((type) => (
+                              <SelectItem key={type.id} value={type.id}>
+                                {type.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">AI Provider</Label>
+                        <Select value={aiProvider} onValueChange={(v) => setAiProvider(v as AIProvider)}>
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select AI Provider" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="gemini">Google Gemini</SelectItem>
+                            <SelectItem value="openai">OpenAI DALL-E</SelectItem>
+                            <SelectItem value="stability">Stability AI</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => { setAudioBlob(null); setRecordingTime(0); }}
+                      >
+                        <RefreshCcw className="w-4 h-4 mr-2" />
+                        Retry
+                      </Button>
+                      <Button 
+                        className="flex-1 bg-purple-600 hover:bg-purple-700"
+                        onClick={handleVoiceSubmit}
+                        disabled={!aiProvider || voiceProcessMutation.isPending}
+                      >
+                        <Wand2 className="w-4 h-4 mr-2" />
+                        Generate
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {!audioBlob && !isRecording && (
+                   <Button 
+                    variant="ghost" 
+                    onClick={() => setWorkspaceView("dashboard")}
+                    className="mt-4"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Back to Dashboard
+                  </Button>
+                )}
               </CardContent>
             </Card>
+          </div>
+        )}
 
-            <div className="text-center">
-              <Button 
-                variant="ghost"
-                onClick={() => setWorkspaceView("url-input")}
-                data-testid="button-cancel-processing"
-              >
-                Cancel
-              </Button>
+        {(workspaceView === "url-processing" || workspaceView === "voice-processing") && (
+          <div className="min-h-[400px] flex flex-col items-center justify-center space-y-8 text-center">
+            <div className="relative">
+              <div className={`w-24 h-24 border-4 ${workspaceView === 'voice-processing' ? 'border-purple-500/20 border-t-purple-500' : 'border-primary/20 border-t-primary'} rounded-full animate-spin`} />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Sparkles className={`w-10 h-10 ${workspaceView === 'voice-processing' ? 'text-purple-500' : 'text-primary'}`} />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <h2 className="text-3xl font-semibold animate-pulse tracking-tight">
+                {workspaceView === "voice-processing" ? "Transcribing & Designing..." : "Designing your carousel..."}
+              </h2>
+              <p className="text-muted-foreground max-w-sm mx-auto">
+                {workspaceView === "voice-processing" 
+                  ? "We're turning your voice note into professional LinkedIn slides." 
+                  : "Our AI is analyzing the content and creating slides for you."}
+              </p>
             </div>
           </div>
         )}

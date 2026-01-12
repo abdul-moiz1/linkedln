@@ -2756,6 +2756,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * Scrapes a URL, extracts text content, and uses AI to summarize into 7-10 carousel slides
    * Requires authentication
    */
+  // Carousel from Voice
+  const multer = await import("multer");
+  const upload = multer.default({ storage: multer.memoryStorage() });
+
+  app.post("/api/carousel/from-voice", upload.single("audio"), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No audio file provided" });
+      }
+
+      const { carouselType } = req.body;
+      const audioBuffer = req.file.buffer;
+
+      // 1. Transcription using OpenAI Whisper (or similar via Replit AI)
+      const transcriptionResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: (() => {
+          const form = new FormData();
+          const blob = new Blob([audioBuffer], { type: "audio/webm" });
+          form.append("file", blob, "recording.webm");
+          form.append("model", "whisper-1");
+          return form;
+        })()
+      });
+
+      if (!transcriptionResponse.ok) {
+        const error = await transcriptionResponse.json();
+        throw new Error(error.error?.message || "Transcription failed");
+      }
+
+      const transcription = await transcriptionResponse.json();
+      const text = transcription.text;
+
+      // 2. Reuse carousel processing logic (calling the existing internal handler or similar)
+      // Since we are in build mode and want to keep it simple, we'll call the existing /api/carousel/process logic style
+      const processResponse = await fetch(`${process.env.BASE_URL || "http://localhost:5000"}/api/carousel/process`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Cookie": req.headers.cookie || "",
+        },
+        body: JSON.stringify({
+          rawTexts: [text],
+          carouselType,
+          title: "Voice Transcription",
+        }),
+      });
+
+      if (!processResponse.ok) {
+        throw new Error("Failed to structure carousel from transcription");
+      }
+
+      const data = await processResponse.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("[Voice Process] Error:", error);
+      res.status(500).json({ error: error.message || "Failed to process voice" });
+    }
+  });
+
   app.post("/api/carousel/from-url", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
