@@ -216,6 +216,7 @@ export default function Create() {
       const formData = new FormData();
       formData.append("audio", blob, "recording.webm");
       formData.append("carouselType", urlCarouselType);
+      formData.append("aiProvider", aiProvider);
       
       const response = await fetch("/api/carousel/from-voice", {
         method: "POST",

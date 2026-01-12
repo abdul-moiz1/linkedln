@@ -2770,7 +2770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No audio file provided" });
       }
 
-      const { carouselType } = req.body;
+      const { carouselType, aiProvider } = req.body;
       const audioBuffer = req.file.buffer;
 
       // 1. Transcription using OpenAI Whisper (or similar via Replit AI)
@@ -2807,6 +2807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         body: JSON.stringify({
           rawTexts: [text],
           carouselType,
+          aiProvider,
           title: "Voice Transcription",
         }),
       });
