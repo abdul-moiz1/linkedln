@@ -45,11 +45,11 @@ export default function Header() {
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center group-hover:scale-110 transition-transform">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <span className="text-lg font-bold tracking-tight text-white">Carousel.AI</span>
+          <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Carousel.AI</span>
         </div>
         
         <nav className="flex items-center gap-8">
-          <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-200">
+          <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600 dark:text-slate-200">
             <a href="#how-it-works" className="hover:text-primary transition-colors">Process</a>
             <a href="#pricing" className="hover:text-primary transition-colors">Pricing</a>
           </div>
