@@ -31,7 +31,7 @@ function getDb() {
 // LinkedIn OAuth2 Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
-const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
+const BASE_URL = process.env.BASE_URL;
 const REDIRECT_URI = `${BASE_URL}/api/auth/linkedin/callback`;
 
 // LinkedIn API endpoints
@@ -186,7 +186,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Store state in session to verify in callback
     req.session.oauth_state = state;
 
-    // Build the authorization URL with all required parameters
     const authUrl = new URL(LINKEDIN_AUTH_URL);
     authUrl.searchParams.append("response_type", "code");
     authUrl.searchParams.append("client_id", LINKEDIN_CLIENT_ID!);
@@ -194,6 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     authUrl.searchParams.append("state", state);
     authUrl.searchParams.append("scope", "openid profile email w_member_social");
 
+    console.log("[LinkedIn Auth] Redirecting to:", authUrl.toString());
     // Redirect user to LinkedIn's authorization page
     res.redirect(authUrl.toString());
   });
@@ -251,8 +251,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
-        console.error("Token exchange failed:", errorText);
-        return res.status(500).send("Failed to obtain access token from LinkedIn.");
+        console.error("Token exchange failed:", errorText, {
+          status: tokenResponse.status,
+          redirect_uri: REDIRECT_URI,
+          client_id: LINKEDIN_CLIENT_ID ? "PRESENT" : "MISSING"
+        });
+        return res.status(500).send(`Failed to obtain access token from LinkedIn: ${errorText}`);
       }
 
       const tokenData = await tokenResponse.json();
