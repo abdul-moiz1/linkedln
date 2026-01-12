@@ -2830,11 +2830,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         text = transcription.text;
       }
 
-      // 2. Reuse carousel processing logic (calling the existing internal handler or similar)
-      // Since we are in build mode and want to keep it simple, we'll call the existing /api/carousel/process logic style
-      // Use internal loopback to avoid DNS/SSL issues in local environment
+      // 2. Reuse carousel processing logic
+      // We'll call the existing /api/carousel/process logic style
+      // For voice, we want to split the transcription into multiple slides instead of just one
+      const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
+      const slideTexts = sentences.length > 0 ? sentences : [text];
+      
       const loopbackUrl = "http://0.0.0.0:5000";
-      console.log(`[Voice Process] Sending transcription to: ${loopbackUrl}/api/carousel/process`);
+      console.log(`[Voice Process] Splitting into ${slideTexts.length} slides. Sending to: ${loopbackUrl}/api/carousel/process`);
       const processResponse = await fetch(`${loopbackUrl}/api/carousel/process`, {
         method: "POST",
         headers: {
@@ -2842,7 +2845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "Cookie": req.headers.cookie || "",
         },
         body: JSON.stringify({
-          rawTexts: [text],
+          rawTexts: slideTexts,
           carouselType,
           aiProvider,
           title: "Voice Transcription",
