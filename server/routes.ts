@@ -2832,7 +2832,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 2. Reuse carousel processing logic (calling the existing internal handler or similar)
       // Since we are in build mode and want to keep it simple, we'll call the existing /api/carousel/process logic style
-      const processResponse = await fetch(`${process.env.BASE_URL || "http://localhost:5000"}/api/carousel/process`, {
+      const publicUrl = process.env.BASE_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
+      const processResponse = await fetch(`${publicUrl}/api/carousel/process`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
