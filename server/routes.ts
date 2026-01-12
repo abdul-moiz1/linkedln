@@ -2775,6 +2775,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const audioBuffer = file.buffer;
 
       // 1. Transcription using OpenAI Whisper (or similar via Replit AI)
+      // NOTE: We still use OpenAI Whisper for transcription because it's a specialized model,
+      // but we ensure the subsequent carousel structuring respects the user's aiProvider choice.
       const transcriptionResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
         method: "POST",
         headers: {
