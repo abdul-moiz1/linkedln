@@ -2213,54 +2213,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } else {
             // Create new carousel document
             // Upload images to Firebase Storage to get URLs (base64 in arrays causes Firestore nested entity error)
-            const { uploadImageToStorage, isStorageConfigured: checkStorage } = await import("./lib/firebase-admin");
-            const tempCarouselId = `${userId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      try {
+        const { uploadImageToStorage, isStorageConfigured: checkStorage } = await import("./lib/firebase-admin");
+        const tempCarouselId = `${userId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        
+        const slidesForFirestore = await Promise.all(
+          imageArray.map(async (imgData: string, idx: number) => {
+            const slideNumber = idx + 1;
+            let imageUrl: string | undefined;
             
-            const slidesForFirestore = await Promise.all(
-              imageArray.map(async (imgData: string, idx: number) => {
-                const slideNumber = idx + 1;
-                let imageUrl: string | undefined;
-                
-                // If it's base64 data and storage is configured, upload to get URL
-                if (imgData.startsWith("data:") && checkStorage()) {
-                  try {
-                    imageUrl = await uploadImageToStorage(imgData, tempCarouselId, slideNumber);
-                    console.log(`[PDF Create] Uploaded slide ${slideNumber} to Storage: ${imageUrl}`);
-                  } catch (uploadErr: any) {
-                    console.error(`[PDF Create] Failed to upload slide ${slideNumber}:`, uploadErr.message);
-                  }
-                } else if (imgData.startsWith("http")) {
-                  // Already a URL, use it directly
-                  imageUrl = imgData;
-                }
-                
-                return {
-                  number: slideNumber,
-                  rawText: "",
-                  finalText: "",
-                  imagePrompt: "",
-                  layout: "big_text_center" as const,
-                  imageUrl, // Store URL instead of base64
-                };
-              })
-            );
+            // If it's base64 data and storage is configured, upload to get URL
+            if (imgData.startsWith("data:") && checkStorage()) {
+              try {
+                imageUrl = await uploadImageToStorage(imgData, tempCarouselId, slideNumber);
+                console.log(`[PDF Create] Uploaded slide ${slideNumber} to Storage: ${imageUrl}`);
+              } catch (uploadErr: any) {
+                console.error(`[PDF Create] Failed to upload slide ${slideNumber}:`, uploadErr.message);
+              }
+            } else if (imgData.startsWith("http")) {
+              // Already a URL, use it directly
+              imageUrl = imgData;
+            }
             
-            const newCarousel = await createCarousel({
-              userId,
-              title: title || "LinkedIn Carousel",
-              slides: slidesForFirestore,
-              carouselType: req.body.carouselType || "custom",
-              status: "pdf_created",
-              pdfUrl: pdfUrl || pdfDataUrl,
-            });
-            carouselCreated = true;
-            savedCarouselId = newCarousel.id;
-            console.log(`[PDF Create] Created new carousel ${newCarousel.id} for user ${userId} with ${slidesForFirestore.length} slides`);
-          }
-        }
+            return {
+              number: slideNumber,
+              rawText: "",
+              finalText: "",
+              imagePrompt: "",
+              layout: "big_text_center" as const,
+              imageUrl, // Store URL instead of base64
+            };
+          })
+        );
+        
+        const newCarousel = await createCarousel({
+          userId,
+          title: title || "LinkedIn Carousel",
+          slides: slidesForFirestore,
+          carouselType: req.body.carouselType || "custom",
+          status: "pdf_created",
+          pdfUrl: pdfUrl || pdfDataUrl,
+        });
+        carouselCreated = true;
+        savedCarouselId = newCarousel.id;
+        console.log(`[PDF Create] Created new carousel ${newCarousel.id} for user ${userId} with ${slidesForFirestore.length} slides`);
       } catch (updateError: any) {
         console.error("[PDF Create] Failed to create/update carousel:", updateError.message);
       }
+    } catch (error: any) {
+      console.error("PDF creation error:", error);
+      res.status(500).json({ error: error.message || "Failed to create PDF" });
+    }
+  });
 
       res.json({
         success: true,
@@ -2766,12 +2770,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/carousel/from-voice", upload.single("audio"), async (req: Request, res: Response) => {
     try {
-      if (!req.file) {
+      const file = req.file as Express.Multer.File;
+      if (!file) {
         return res.status(400).json({ error: "No audio file provided" });
       }
 
       const { carouselType, aiProvider } = req.body;
-      const audioBuffer = req.file.buffer;
+      const audioBuffer = file.buffer;
 
       // 1. Transcription using OpenAI Whisper (or similar via Replit AI)
       const transcriptionResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
