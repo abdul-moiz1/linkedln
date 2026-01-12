@@ -1900,7 +1900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       // Support new format (slides array with context) and legacy format (messages array)
-      const { slides, messages, title = "", carouselType = "", provider = "auto" } = req.body;
+      const { slides, messages, title = "", carouselType = "", provider = "auto", aiProvider } = req.body;
       
       // Normalize input - convert slides array or messages array to unified format
       let slideData: Array<{ text: string; isHook: boolean; isCta: boolean }>;
@@ -1932,7 +1932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // STRICT provider selection - no auto-fallback
       // User must explicitly select a provider
-      const selectedProvider = provider;
+      const selectedProvider = aiProvider || provider;
 
       if (!selectedProvider || selectedProvider === "auto") {
         return res.status(400).json({ 
@@ -2984,7 +2984,9 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       let aiResponse: { title: string; slides: any[] } = { title: "", slides: [] };
 
       // Use the selected AI provider (respect user's choice)
-      if (aiProvider === "gemini") {
+      const selectedAiProvider = aiProvider || "gemini";
+      
+      if (selectedAiProvider === "gemini") {
         // Use Gemini for text processing
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
         
