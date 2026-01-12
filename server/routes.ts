@@ -2830,14 +2830,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
         text = transcription.text;
       }
 
-      // 2. Reuse carousel processing logic
-      // We'll call the existing /api/carousel/process logic style
-      // For voice, we want to split the transcription into multiple slides instead of just one
-      const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
-      const slideTexts = sentences.length > 0 ? sentences : [text];
+      // 2. AI Structuring
+      // We use the selected AI provider to structure the transcribed text into a professional carousel
+      const systemPrompt = `You are a Carousel Design Expert. Your task is to transform a voice transcription into a high-performing professional carousel with 7-10 slides.
+      
+      CAROUSEL TYPE: ${carouselType}
+      
+      SLIDE STRUCTURE:
+      - Slide 1: HOOK - A punchy, curiosity-driven headline (max 50 characters)
+      - Slides 2-9: KEY POINTS - One clear idea per slide (max 100 characters each)
+      - Final Slide: CTA - Call-to-action (max 100 characters)
+      
+      TEXT RULES:
+      1. Each slide = ONE single idea, clear and impactful
+      2. Use clean, bold, human-friendly wording
+      3. Aim for 7-10 slides total
+      
+      Return your response as a valid JSON object with this structure:
+      {
+        "slides": ["Slide 1 text", "Slide 2 text", ...]
+      }`;
+
+      const userPrompt = `Transform this voice transcription into a professional carousel:
+      
+      TRANSCRIPTION:
+      ${text}
+      
+      Return ONLY the JSON object.`;
+
+      let slideTexts = [];
+      if (aiProvider === "gemini") {
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+            }],
+            generationConfig: { responseMimeType: "application/json" }
+          }),
+        });
+        const json = await response.json();
+        const aiData = JSON.parse(json.candidates?.[0]?.content?.parts?.[0]?.text || '{"slides":[]}');
+        slideTexts = aiData.slides;
+      } else {
+        const { OpenAI } = await import("openai");
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          response_format: { type: "json_object" }
+        });
+        const aiData = JSON.parse(response.choices[0]?.message?.content || '{"slides":[]}');
+        slideTexts = aiData.slides;
+      }
+
+      if (!slideTexts || slideTexts.length === 0) {
+        slideTexts = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
+      }
       
       const loopbackUrl = "http://0.0.0.0:5000";
-      console.log(`[Voice Process] Splitting into ${slideTexts.length} slides. Sending to: ${loopbackUrl}/api/carousel/process`);
+      console.log(`[Voice Process] AI structured into ${slideTexts.length} slides. Sending to: ${loopbackUrl}/api/carousel/process`);
       const processResponse = await fetch(`${loopbackUrl}/api/carousel/process`, {
         method: "POST",
         headers: {
