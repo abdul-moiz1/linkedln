@@ -2216,7 +2216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const { uploadImageToStorage, isStorageConfigured: checkStorage } = await import("./lib/firebase-admin");
             const tempCarouselId = `${userId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
             
-            const slidesForFirestore = await Promise.all(
+            const processedSlides = await Promise.all(
               imageArray.map(async (imgData: string, idx: number) => {
                 const slideNumber = idx + 1;
                 let imageUrl: string | undefined;
@@ -2248,14 +2248,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const newCarousel = await createCarousel({
               userId,
               title: title || "LinkedIn Carousel",
-              slides: slidesForFirestore,
+              slides: processedSlides,
               carouselType: req.body.carouselType || "custom",
               status: "pdf_created",
               pdfUrl: pdfUrl || pdfDataUrl,
             });
             carouselCreated = true;
             savedCarouselId = newCarousel.id;
-            console.log(`[PDF Create] Created new carousel ${newCarousel.id} for user ${userId} with ${slidesForFirestore.length} slides`);
+            console.log(`[PDF Create] Created new carousel ${newCarousel.id} for user ${userId} with ${processedSlides.length} slides`);
+            
+            // Set for response object
+            const slidesForResponse = processedSlides;
           }
         }
       } catch (updateError: any) {
@@ -2274,7 +2277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         carouselId: savedCarouselId,
         carousel: {
           id: savedCarouselId,
-          slides: slidesForFirestore
+          slides: typeof processedSlides !== 'undefined' ? processedSlides : []
         }
       });
     } catch (error: any) {
