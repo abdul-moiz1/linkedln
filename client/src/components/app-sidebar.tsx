@@ -84,7 +84,7 @@ export function AppSidebar() {
         </div>
         <Button 
           className="w-full bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-xl h-12 flex items-center justify-center gap-2 shadow-sm border-none"
-          onClick={() => setLocation("/create")}
+          onClick={() => setLocation("/posts")}
         >
           <PlusCircle className="w-5 h-5" />
           <span className="font-bold text-sm">Write Post</span>
