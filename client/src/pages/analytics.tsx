@@ -12,7 +12,8 @@ import {
   Globe,
   Settings,
   Plus,
-  X
+  X,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,8 +27,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -68,30 +67,44 @@ export default function Analytics() {
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Analytics</h1>
-            <p className="text-slate-500 mt-1">Get insights on reach, engagement, and more.</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-slate-500 text-sm">Last updated: Monday, 12, Jan, 2026 • 11:25 am</span>
+            </div>
           </div>
-          <Button 
-            className="bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-full px-6 font-bold flex items-center gap-2 h-11"
-            onClick={() => {
-              setStep(1);
-              setIsConnectModalOpen(true);
-            }}
-          >
-            <Plus className="w-5 h-5" />
-            Setup Analytics
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" className="rounded-xl border-slate-200 text-slate-600 font-bold gap-2">
+              <Calendar className="w-4 h-4" />
+              This Week
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+            {isConnected && (
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-100 shadow-sm">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src="https://i.pravatar.cc/150?u=abdul" />
+                  <AvatarFallback>AM</AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-bold text-slate-900">Abdul Moiz</span>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </div>
+            )}
+            {!isConnected && (
+              <Button 
+                className="bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-full px-6 font-bold flex items-center gap-2 h-11"
+                onClick={() => {
+                  setStep(1);
+                  setIsConnectModalOpen(true);
+                }}
+              >
+                <Plus className="w-5 h-5" />
+                Setup Analytics
+              </Button>
+            )}
+          </div>
         </header>
 
-        {!isConnected ? (
-          <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-4 flex items-start gap-3 text-orange-800">
-            <Info className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
-            <p className="text-sm font-medium leading-relaxed">
-              You are seeing demo data. Connect your LinkedIn profile to unlock your analytics and start tracking your profile's performance
-            </p>
-          </div>
-        ) : (
-          <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-4 flex items-start gap-3 text-orange-800 italic">
-            <span className="text-orange-500">✨</span>
+        {isConnected && (
+          <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-4 flex items-start gap-3 text-orange-800 italic shadow-sm">
+            <span className="text-orange-500 text-xl">⏳</span>
             <p className="text-sm font-medium leading-relaxed">
               We're currently collecting your data. Check back in a few days to see your detailed metrics.
             </p>
@@ -103,8 +116,8 @@ export default function Analytics() {
           <CardContent className="p-6">
             <div className="flex flex-wrap items-center justify-between gap-6">
               <div className="flex items-center gap-4 min-w-[300px]">
-                <Avatar className="h-16 w-16 border-2 border-slate-100">
-                  <AvatarImage src={isConnected ? "https://github.com/shadcn.png" : "https://i.pravatar.cc/150?u=rahul"} />
+                <Avatar className="h-16 w-16 border-2 border-slate-100 shadow-sm">
+                  <AvatarImage src={isConnected ? "https://i.pravatar.cc/150?u=abdul" : "https://i.pravatar.cc/150?u=rahul"} />
                   <AvatarFallback className="bg-blue-50 text-[#00a0dc] font-bold">RS</AvatarFallback>
                 </Avatar>
                 <div>
@@ -136,7 +149,7 @@ export default function Analytics() {
                   </div>
                 </div>
 
-                <Button variant="outline" className="rounded-full gap-2 font-bold border-slate-200 text-slate-600 h-11 px-6">
+                <Button variant="outline" className="rounded-xl gap-2 font-bold border-slate-200 text-slate-600 h-11 px-6 shadow-sm">
                   <Globe className="w-4 h-4" />
                   View LinkedIn Profile
                 </Button>
@@ -179,23 +192,21 @@ export default function Analytics() {
             </CardContent>
           </Card>
 
-          {!isConnected && (
-            <Card className="border-slate-200 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-2 h-2 rounded-full bg-purple-500" />
-                  <h3 className="text-sm font-bold text-slate-500">Engagement Rate</h3>
+          <Card className="border-slate-200 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2 h-2 rounded-full bg-purple-500" />
+                <h3 className="text-sm font-bold text-slate-500">Engagement Rate</h3>
+              </div>
+              <div className="flex items-end gap-3">
+                <span className="text-3xl font-bold text-slate-900">5.2%</span>
+                <div className="flex items-center gap-1 text-emerald-500 text-xs font-bold mb-1 px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100">
+                  <ArrowUpRight className="w-3 h-3" />
+                  2.1%
                 </div>
-                <div className="flex items-end gap-3">
-                  <span className="text-3xl font-bold text-slate-900">5.2%</span>
-                  <div className="flex items-center gap-1 text-emerald-500 text-xs font-bold mb-1 px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100">
-                    <ArrowUpRight className="w-3 h-3" />
-                    2.1%
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Charts Section */}
@@ -212,8 +223,8 @@ export default function Analytics() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="pt-8">
-            <div className="h-[400px] w-full">
+          <CardContent className="pt-8 px-2">
+            <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={demoChartData}>
                   <defs>
@@ -266,7 +277,7 @@ export default function Analytics() {
 
         {/* Setup Modal */}
         <Dialog open={isConnectModalOpen} onOpenChange={setIsConnectModalOpen}>
-          <DialogContent className="sm:max-w-[500px] p-8 rounded-3xl border-none shadow-2xl overflow-hidden">
+          <DialogContent className="sm:max-w-[500px] p-8 rounded-3xl border-none shadow-2xl overflow-hidden bg-white">
             <DialogHeader className="mb-6 flex flex-row items-center justify-between">
               <DialogTitle className="text-2xl font-bold text-slate-900 tracking-tight">Connect LinkedIn Profile</DialogTitle>
               <DialogClose className="rounded-full h-8 w-8 flex items-center justify-center hover:bg-slate-100 transition-colors">
@@ -304,14 +315,14 @@ export default function Analytics() {
             ) : (
               <div className="space-y-8">
                 <p className="text-sm font-bold text-slate-500 uppercase tracking-tight">Confirm your LinkedIn Profile</p>
-                <div className="bg-slate-50 rounded-2xl p-6 flex items-center gap-4 border border-slate-100 shadow-sm">
-                  <Avatar className="h-14 w-14 border-2 border-white shadow-sm">
-                    <AvatarImage src="https://github.com/shadcn.png" />
+                <div className="bg-slate-50/50 rounded-2xl p-6 flex items-center gap-4 border border-slate-100 shadow-sm">
+                  <Avatar className="h-16 w-16 border-2 border-white shadow-sm">
+                    <AvatarImage src="https://i.pravatar.cc/150?u=abdul" />
                     <AvatarFallback className="bg-blue-50 text-[#00a0dc]">AM</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-slate-900 text-lg">Abdul Moiz</h4>
-                    <p className="text-sm text-slate-500 truncate leading-relaxed">
+                    <p className="text-sm text-slate-500 leading-relaxed">
                       Aspiring Cloud Engineer | AWS | Terraform | Cloud Automation Enthusiast | CS Graduate
                     </p>
                   </div>
@@ -326,14 +337,14 @@ export default function Analytics() {
                   </Button>
                   <div className="flex items-center gap-3">
                     <Button 
-                      variant="ghost" 
-                      className="rounded-full h-11 px-6 font-bold text-slate-500"
+                      variant="outline" 
+                      className="rounded-full h-11 px-6 font-bold text-slate-500 border-slate-200"
                       onClick={() => setIsConnectModalOpen(false)}
                     >
                       Discard
                     </Button>
                     <Button 
-                      className="rounded-full h-11 px-8 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold"
+                      className="rounded-full h-11 px-8 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold shadow-md shadow-blue-200"
                       onClick={handleNext}
                     >
                       Next
