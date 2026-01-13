@@ -14,6 +14,7 @@ import Signup from "@/pages/signup";
 import Create from "@/pages/create";
 import Preview from "@/pages/preview";
 import Profile from "@/pages/profile";
+import WritingStyle from "@/pages/writing-style";
 import Posts from "@/pages/posts";
 import Scheduled from "@/pages/scheduled";
 import MyCarousels from "@/pages/my-carousels";
@@ -37,6 +38,7 @@ function Router() {
             <Route path="/create" component={Create} />
             <Route path="/preview" component={Preview} />
             <Route path="/profile" component={Profile} />
+            <Route path="/writing-style" component={WritingStyle} />
             <Route path="/posts" component={Posts} />
             <Route path="/scheduled" component={Scheduled} />
             <Route path="/my-carousels" component={MyCarousels} />
