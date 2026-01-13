@@ -23,7 +23,7 @@ import {
   TrendingUp,
   Users,
   LogOut,
-  ChevronDown
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,7 +58,7 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
-  const { data: user } = useQuery({ queryKey: ["/api/user"] });
+  const { data: user } = useQuery<any>({ queryKey: ["/api/user"] });
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -73,20 +73,26 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar">
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-4 flex flex-col gap-4">
+        <div className="flex items-center gap-2 px-2 py-1">
+          <div className="bg-primary p-1.5 rounded-lg">
+             <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <span className="font-bold text-xl tracking-tight">Supergrow</span>
+        </div>
         <Button 
-          className="w-full bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-full h-11 flex items-center justify-center gap-2"
+          className="w-full bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-xl h-12 flex items-center justify-center gap-2"
           onClick={() => setLocation("/create")}
         >
           <PlusCircle className="w-5 h-5" />
-          <span className="font-semibold">Write Post</span>
+          <span className="font-bold">Write Post</span>
         </Button>
       </SidebarHeader>
 
       <SidebarContent className="px-2">
         {menuItems.map((group) => (
           <SidebarGroup key={group.group}>
-            <SidebarGroupLabel className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <SidebarGroupLabel className="px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1 opacity-70">
               {group.group}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -96,13 +102,13 @@ export function AppSidebar() {
                     <SidebarMenuButton 
                       asChild 
                       isActive={location === item.url}
-                      className="hover:bg-accent/50 rounded-lg transition-colors"
+                      className="hover:bg-accent/50 rounded-lg transition-colors h-10 px-3 data-[active=true]:bg-blue-50 data-[active=true]:text-[#00a0dc]"
                     >
-                      <button onClick={() => setLocation(item.url)} className="flex items-center gap-3 w-full py-2">
-                        <item.icon className="w-5 h-5" />
-                        <span className="flex-1 text-sm font-medium">{item.title}</span>
+                      <button onClick={() => setLocation(item.url)} className="flex items-center gap-3 w-full">
+                        <item.icon className={`w-5 h-5 ${location === item.url ? 'text-[#00a0dc]' : 'text-muted-foreground'}`} />
+                        <span className="flex-1 text-sm font-semibold">{item.title}</span>
                         {item.badge && (
-                          <span className="bg-red-500/10 text-red-500 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">
+                          <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase">
                             {item.badge}
                           </span>
                         )}
@@ -116,20 +122,20 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="p-4 mt-auto border-t border-sidebar-border">
+      <SidebarFooter className="p-4 mt-auto border-t border-sidebar-border bg-sidebar/50">
         <div className="flex items-center gap-3 w-full">
-          <Avatar className="h-9 w-9 border border-border">
+          <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
             <AvatarImage src={user?.profile?.picture} />
-            <AvatarFallback>{user?.profile?.name?.charAt(0) || "U"}</AvatarFallback>
+            <AvatarFallback className="bg-primary/10 text-primary font-bold">{user?.profile?.name?.charAt(0) || "U"}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{user?.profile?.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.profile?.email}</p>
+            <p className="text-sm font-bold truncate">{user?.profile?.name}</p>
+            <p className="text-[10px] text-muted-foreground truncate uppercase font-bold tracking-tight">Free Plan</p>
           </div>
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={() => logoutMutation.mutate()}
           >
             <LogOut className="h-4 w-4" />

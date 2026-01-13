@@ -3,6 +3,9 @@ import { createServer, type Server } from "http";
 import { 
   linkedInUserSchema, 
   type SessionUser,
+  createPostSchema,
+  repostSchema,
+  createScheduledPostSchema,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -529,23 +532,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * Verifies a Firebase ID token from frontend (email/password or Google sign-in)
    * and creates a session for the user.
    */
+  /**
+   * API: Verify Firebase Auth Token
+   */
   app.post("/api/auth/firebase/verify", async (req: Request, res: Response) => {
     try {
       const { idToken } = req.body;
+      const { adminAuth, isFirebaseConfigured, saveUser } = await import("./lib/firebase-admin");
       
+      if (!isFirebaseConfigured || !adminAuth) {
+        return res.status(503).json({ error: "Firebase Auth not configured." });
+      }
+
       if (!idToken) {
         return res.status(400).json({ error: "ID token is required" });
       }
 
-      const { adminAuth, isFirebaseConfigured, saveUser } = await import("./lib/firebase-admin");
-      
-      if (!isFirebaseConfigured || !adminAuth) {
-        return res.status(503).json({ 
-          error: "Firebase Auth not configured. Please add Firebase credentials to your secrets." 
-        });
-      }
-
-      // Verify the ID token
       const decodedToken = await adminAuth.verifyIdToken(idToken);
       const { uid, email, name, picture, email_verified } = decodedToken;
 
@@ -557,63 +559,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         picture: picture,
       };
 
-      // Create session user from Firebase auth
       req.session.user = {
         profile,
-        accessToken: idToken, // Store the Firebase token for API calls
+        accessToken: idToken,
         authProvider: "firebase",
       };
       req.session.authType = "firebase";
       req.session.firebaseUid = uid;
 
-      // Save user to Firestore
       try {
-        const { saveUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
-        if (isFirebaseConfigured) {
-          await saveUser({
-            linkedinId: `firebase-${uid}`,
-            email: email || "",
-            name: name || email?.split('@')[0] || "User",
-            profilePicture: picture || null,
-            accessToken: idToken,
-            tokenExpiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour
-          });
-        }
-      } catch (firestoreError) {
-        console.warn("Firestore save failed:", firestoreError);
+        await saveUser({
+          linkedinId: `firebase-${uid}`,
+          email: email || "",
+          name: name || email?.split('@')[0] || "User",
+          profilePicture: picture || null,
+          accessToken: idToken,
+          tokenExpiresAt: new Date(Date.now() + 3600 * 1000),
+        });
+      } catch (e) {
+        console.warn("Firestore save failed:", e);
       }
 
-      // Migrate any guest carousels if guestId exists
-      if (req.session.guestId) {
-        try {
-          const { migrateGuestCarousels } = await import("./lib/firebase-admin");
-          await migrateGuestCarousels(req.session.guestId, `firebase-${uid}`);
-          delete req.session.guestId;
-        } catch (migrateError) {
-          console.warn("Could not migrate guest carousels:", migrateError);
-        }
-      }
-
-      res.json({
-        success: true,
-        user: {
-          uid,
-          email,
-          name: name || email?.split('@')[0],
-          picture,
-          authType: "firebase"
-        }
-      });
+      res.json({ success: true, user: { uid, email, name: profile.name, picture, authType: "firebase" } });
     } catch (error: any) {
-      console.error("Firebase auth verification error:", error);
-      res.status(401).json({ error: "Invalid or expired token" });
+      console.error("Firebase auth error:", error);
+      res.status(401).json({ error: "Invalid token" });
     }
   });
-
-  /**
-   * API: Check Auth Status
-   * Returns whether user is authenticated and what type of auth they used
-   */
   app.get("/api/auth/status", async (req: Request, res: Response) => {
     const isAuthenticated = !!req.session.user;
     const isLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";

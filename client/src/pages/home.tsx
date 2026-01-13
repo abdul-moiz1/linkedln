@@ -44,7 +44,7 @@ export default function Home() {
   const { data: user, isLoading } = useQuery({ queryKey: ["/api/user"] });
 
   useEffect(() => {
-    if (!isLoading && user && user.onboardingCompleted !== "true") {
+    if (!isLoading && user && (user as any).onboardingCompleted !== true) {
       setLocation("/onboarding");
     }
   }, [user, isLoading, setLocation]);

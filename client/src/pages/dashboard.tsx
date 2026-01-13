@@ -1,104 +1,200 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { 
-  BarChart3, 
-  Users, 
-  MessageSquare, 
-  Eye,
-  TrendingUp,
-  Clock,
-  Calendar
+  Sparkles,
+  ChevronDown,
+  ChevronRight,
+  ArrowRight
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 
-const stats = [
-  { title: "Total Impressions", value: "12,482", icon: Eye, color: "text-blue-500", bg: "bg-blue-500/10" },
-  { title: "Engagement Rate", value: "4.2%", icon: TrendingUp, color: "text-purple-500", bg: "bg-purple-500/10" },
-  { title: "New Followers", value: "+154", icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  { title: "Total Reactions", value: "892", icon: MessageSquare, color: "text-orange-500", bg: "bg-orange-500/10" },
+const templates = [
+  { 
+    title: "WRITE HOOK THAT DON'T SUCK", 
+    author: "Jon Snow", 
+    handle: "@jon-snow",
+    bgColor: "bg-[#1a4d3a]", 
+    textColor: "text-white",
+    image: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400&h=400&fit=crop"
+  },
+  { 
+    title: "insights that shape impactful decisions.", 
+    author: "Gerald Smith", 
+    handle: "@iamgeraldsmith",
+    bgColor: "bg-[#f0f4ff]", 
+    textColor: "text-slate-900",
+    dots: true
+  },
+  { 
+    title: "Quickly LEARN FROM BRAIN COACH, JIM KWIK", 
+    author: "Jon Snow", 
+    handle: "@jon-snow",
+    bgColor: "bg-[#2d3436]", 
+    textColor: "text-white",
+    pill: "Swipe"
+  },
+  { 
+    title: "HOW TO WRITE PRODUCT DESCRIPTION BETTER.", 
+    author: "Jon Snow", 
+    handle: "@jon-snow",
+    bgColor: "bg-black", 
+    textColor: "text-[#ff9f43]",
+    centered: true
+  },
+  { 
+    title: "Email is THE best way to grow your business.", 
+    author: "Jon Snow", 
+    handle: "@jon-snow",
+    bgColor: "bg-[#f5f6fa]", 
+    textColor: "text-slate-900",
+    list: ["More sales", "Better relationships", "No algorithm problems"]
+  },
+  { 
+    title: "6 WAYS TO GAIN CUSTOMER TRUST", 
+    author: "Jon Snow", 
+    handle: "@jon-snow",
+    bgColor: "bg-[#55efc4]", 
+    textColor: "text-white",
+    image: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=400&fit=crop"
+  },
+  { 
+    title: "BUSINESS MINDSET & PERSONAL GROWTH", 
+    author: "Jon Snow", 
+    handle: "@jon-snow",
+    bgColor: "bg-white", 
+    textColor: "text-[#1a4d3a]",
+    border: true
+  },
+  { 
+    title: "HOW TO WRITE HOOK THAT DON'T SUCK", 
+    author: "Jon Snow", 
+    handle: "@jon-snow",
+    bgColor: "bg-[#6c5ce7]", 
+    textColor: "text-white",
+    swipe: true
+  },
+  { 
+    title: "How to generate leads on LinkedIn for your business", 
+    author: "Jon Snow", 
+    handle: "@jon-snow",
+    bgColor: "bg-[#a29bfe]", 
+    textColor: "text-white",
+    profileCenter: true
+  },
+  { 
+    title: "How to build your personal brand on social media", 
+    author: "Aliah Lane", 
+    handle: "@aliahlane",
+    bgColor: "bg-[#ffeaa7]", 
+    textColor: "text-[#d63031]",
+    handwritten: true
+  },
+  { 
+    title: "CONTENT PLAN STRATEGY", 
+    author: "Loki Bright", 
+    handle: "@lokibright",
+    bgColor: "bg-[#0984e3]", 
+    textColor: "text-white",
+    abstract: true
+  },
+  { 
+    title: "Content Plan Strategy", 
+    author: "Orlando Diggs", 
+    handle: "@ordiggs",
+    bgColor: "bg-[#fff9f0]", 
+    textColor: "text-slate-900",
+    minimal: true
+  }
 ];
 
 export default function Dashboard() {
-  const { data: user } = useQuery({ queryKey: ["/api/user"] });
+  const { data: user } = useQuery<any>({ queryKey: ["/api/user"] });
 
   return (
-    <div className="p-8 space-y-8 bg-background h-full overflow-auto">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user?.profile?.name?.split(' ')[0]}!</h1>
-        <p className="text-muted-foreground">Here's what's happening with your LinkedIn profile this week.</p>
-      </div>
+    <div className="flex flex-col h-full bg-slate-50/50">
+      {/* Top Navbar */}
+      <header className="h-14 border-b bg-white flex items-center justify-between px-6 shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+            <span className="bg-slate-300 w-5 h-5 rounded flex items-center justify-center text-[10px] text-slate-600">k</span>
+            {user?.profile?.name?.toLowerCase().replace(' ', '')}'s Workspace
+            <span className="text-[10px] font-bold text-slate-400 ml-1">(Admin)</span>
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, idx) => (
-          <motion.div
-            key={stat.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-          >
-            <Card className="hover-elevate">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <div className={`${stat.bg} p-2 rounded-lg`}>
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  <span className="text-emerald-500 font-medium">+12%</span> from last week
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" className="rounded-full border-[#6c5ce7] text-[#6c5ce7] hover:bg-[#6c5ce7]/5 h-9 px-4 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 fill-current" />
+            <span className="font-bold">AI Assistant</span>
+          </Button>
+          <Avatar className="h-8 w-8 border border-slate-200">
+            <AvatarImage src={user?.profile?.picture} />
+            <AvatarFallback className="bg-slate-100 text-[10px] font-bold">{user?.profile?.name?.charAt(0)}</AvatarFallback>
+          </Avatar>
+        </div>
+      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Your latest posts and their performance.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="bg-primary/10 p-2 rounded-lg mt-1">
-                    <BarChart3 className="h-4 w-4 text-primary" />
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-auto p-8">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+            {templates.map((template, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.03 }}
+                className="group"
+              >
+                <Card className={`aspect-[4/5] overflow-hidden rounded-xl border-none shadow-sm group-hover:shadow-xl transition-all duration-300 cursor-pointer relative ${template.bgColor} flex flex-col p-4`}>
+                  {/* Template Content */}
+                  <div className={`flex-1 flex flex-col ${template.centered ? 'justify-center items-center text-center' : ''}`}>
+                    <h3 className={`text-base font-bold uppercase leading-tight tracking-tight ${template.textColor} line-clamp-4`}>
+                      {template.title}
+                    </h3>
+                    
+                    {template.list && (
+                      <ul className="mt-4 space-y-1">
+                        {template.list.map((item, i) => (
+                          <li key={i} className="flex items-center gap-2 text-[10px] font-bold text-slate-600">
+                            <span className="w-1 h-1 rounded-full bg-slate-400" /> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      AI and quantum are transforming how we tackle...
-                    </p>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 2h ago</span>
-                      <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> 1.2k views</span>
+
+                  {/* Profile Info Overlay at Bottom */}
+                  <div className="flex items-center gap-2 mt-auto">
+                    <Avatar className="h-6 w-6 border border-white/20">
+                      <AvatarImage src={template.author === "Jon Snow" ? "https://i.pravatar.cc/150?u=jon" : "https://i.pravatar.cc/150?u=aliah"} />
+                      <AvatarFallback className="text-[8px]">{template.author.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className={`text-[9px] font-bold ${template.textColor} opacity-90`}>{template.author}</span>
+                      <span className={`text-[7px] ${template.textColor} opacity-60`}>{template.handle}</span>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Upcoming Scheduled Posts</CardTitle>
-            <CardDescription>Next posts set to go live on your feed.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
-              <div className="bg-muted p-4 rounded-full">
-                <Calendar className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-medium">No scheduled posts</p>
-                <p className="text-sm text-muted-foreground">Plan your content strategy ahead of time.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  {/* Icon Badges */}
+                  {template.swipe && (
+                    <div className="absolute bottom-4 right-4 bg-white/20 backdrop-blur-sm rounded p-1">
+                      <ChevronRight className={`w-3 h-3 ${template.textColor}`} />
+                    </div>
+                  )}
+                  {template.pill && (
+                    <div className="absolute bottom-4 right-4 bg-white/10 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/20">
+                      <span className={`text-[8px] font-bold ${template.textColor}`}>{template.pill}</span>
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
