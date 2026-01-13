@@ -61,15 +61,17 @@ export default function WritingStyle() {
 
   const handleExtraction = async (type: string) => {
     setIsExtracting(true);
+    // Ensure dialog closes before processing
+    const closeButton = document.querySelector('[data-state="open"] button[aria-label="Close"]') as HTMLButtonElement;
+    if (closeButton) closeButton.click();
+
     try {
       if (type === "voice note") {
-        // Mock recording logic
         await new Promise(resolve => setTimeout(resolve, 3000));
         const mockExtractedStyle = "Energetic, punchy, and highly engaging. Uses rhetorical questions and direct address to the reader. Tone is optimistic and results-oriented.";
         setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
         toast({ title: "Voice Analyzed", description: "Successfully extracted your energetic tone from the recording." });
       } else if (type === "document" || type === "audio file") {
-        // Mock file upload
         const input = document.createElement('input');
         input.type = 'file';
         input.onchange = async () => {
