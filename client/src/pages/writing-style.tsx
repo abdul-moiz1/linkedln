@@ -61,16 +61,47 @@ export default function WritingStyle() {
 
   const handleExtraction = async (type: string) => {
     setIsExtracting(true);
-    // Ensure dialog closes before processing
     const closeButton = document.querySelector('button[aria-label="Close"]') as HTMLButtonElement;
     if (closeButton) closeButton.click();
 
     try {
       if (type === "voice note") {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        const mockExtractedStyle = "Energetic, punchy, and highly engaging. Uses rhetorical questions and direct address to the reader. Tone is optimistic and results-oriented.";
-        setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-        toast({ title: "Voice Analyzed", description: "Successfully extracted your energetic tone from the recording." });
+        // Real voice recording logic
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks: Blob[] = [];
+
+        toast({ title: "Recording...", description: "Speak now. Recording for 5 seconds." });
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const formData = new FormData();
+          formData.append('audio', audioBlob, 'voice.webm');
+
+          try {
+            const response = await fetch('/api/user/writing-style/voice', {
+              method: 'POST',
+              body: formData
+            });
+            const data = await response.json();
+            if (data.writingStyle) {
+              setStyle(prev => prev ? `${prev}\n\n${data.writingStyle}` : data.writingStyle);
+              toast({ title: "Voice Analyzed", description: "Successfully extracted your tone from the recording." });
+            }
+          } catch (err) {
+            toast({ title: "Voice analysis failed", variant: "destructive" });
+          } finally {
+            setIsExtracting(false);
+          }
+        };
+
+        mediaRecorder.start();
+        setTimeout(() => mediaRecorder.stop(), 5000);
+        return; // handleExtraction will finish in mediaRecorder.onstop
       } else if (type === "audio file" || type === "document") {
         const input = document.createElement('input');
         input.type = 'file';
@@ -78,25 +109,52 @@ export default function WritingStyle() {
           const file = e.target.files?.[0];
           if (!file) return;
           setIsExtracting(true);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          const mockExtractedStyle = "Structured, data-driven, and formal. Uses precise vocabulary and logical transitions. Tone is academic and objective.";
-          setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-          toast({ title: "File Processed", description: `Analyzed ${file.name} and updated your style.` });
-          setIsExtracting(false);
+          const formData = new FormData();
+          formData.append('file', file);
+
+          try {
+            const response = await fetch('/api/user/writing-style/file', {
+              method: 'POST',
+              body: formData
+            });
+            const data = await response.json();
+            if (data.writingStyle) {
+              setStyle(prev => prev ? `${prev}\n\n${data.writingStyle}` : data.writingStyle);
+              toast({ title: "File Processed", description: `Analyzed ${file.name} and updated your style.` });
+            }
+          } catch (err) {
+            toast({ title: "File analysis failed", variant: "destructive" });
+          } finally {
+            setIsExtracting(false);
+          }
         };
         input.click();
         setIsExtracting(false);
         return;
       } else if (type === "emails" || type === "shared link") {
-        await new Promise(resolve => setTimeout(resolve, 2500));
-        const mockExtractedStyle = "Professional, concise, and action-oriented. Prefers bullet points and clear calls to action. Tone is helpful and efficient.";
-        setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-        toast({ title: "Link/Email Analyzed", description: "Professional tone extracted from your shared content." });
+        const url = prompt("Enter a link or email snippet to analyze:");
+        if (!url) {
+          setIsExtracting(false);
+          return;
+        }
+
+        const response = await fetch('/api/user/writing-style/link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await response.json();
+        if (data.writingStyle) {
+          setStyle(prev => prev ? `${prev}\n\n${data.writingStyle}` : data.writingStyle);
+          toast({ title: "Link Analyzed", description: "Tone extracted from your shared content." });
+        }
       }
     } catch (error) {
       toast({ title: "Extraction failed", variant: "destructive" });
     } finally {
-      setIsExtracting(false);
+      if (type !== "voice note" && type !== "audio file" && type !== "document") {
+        setIsExtracting(false);
+      }
     }
   };
 

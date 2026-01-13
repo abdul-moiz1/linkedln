@@ -44,125 +44,63 @@ declare module "express-session" {
   }
 }
 
+
+import multer from "multer";
+import OpenAI from "openai";
+import { Readable } from "stream";
+
+const upload = multer({ storage: multer.memoryStorage() });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Test endpoint to verify Firebase Storage is working
-  app.get("/api/test-storage", async (req: Request, res: Response) => {
+  app.post("/api/user/writing-style/voice", upload.single("audio"), async (req: Request, res: Response) => {
+    if (!req.session.user || !req.file) return res.status(401).json({ error: "Unauthorized" });
     try {
-      const { isStorageConfigured, adminStorage } = await import("./lib/firebase-admin");
-      
-      const configured = isStorageConfigured();
-      const storageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET;
-      
-      if (!configured) {
-        return res.json({
-          success: false,
-          error: "Storage not configured",
-          details: {
-            adminStorage: !!adminStorage,
-            storageBucket: storageBucket || "NOT SET",
-          }
-        });
-      }
-      
-      // Try to upload a test file
-      const testContent = Buffer.from("Test file content - " + new Date().toISOString());
-      const storage = adminStorage!;
-      const bucket = storage.bucket(storageBucket);
-      const testFile = bucket.file("test/test-upload.txt");
-      
-      await testFile.save(testContent, {
-        metadata: { contentType: "text/plain" },
-        public: true,
+      const transcription = await openai.audio.transcriptions.create({
+        file: await OpenAI.toFile(req.file.buffer, "voice.webm"),
+        model: "whisper-1",
       });
-      
-      const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent("test/test-upload.txt")}?alt=media`;
-      
-      res.json({
-        success: true,
-        message: "Storage upload test successful!",
-        testFileUrl: publicUrl,
-        bucket: storageBucket,
+      const analysisResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "Analyze the writing style of this transcribed voice note. Focus on vocabulary, tone, and sentence structure. Summarize it as a style profile." },
+          { role: "user", content: transcription.text }
+        ],
       });
-    } catch (error: any) {
-      console.error("[Test Storage] Error:", error);
-      res.status(500).json({
-        success: false,
-        error: error.message || "Unknown error",
-        stack: error.stack,
-      });
-    }
+      res.json({ success: true, writingStyle: analysisResponse.choices[0].message.content });
+    } catch (error) { res.status(500).json({ error: "Failed to analyze voice" }); }
   });
 
-  /**
-   * STEP 1: Initiate LinkedIn OAuth2 Authorization Flow
-   * 
-   * When user clicks "Login with LinkedIn" or "Connect LinkedIn", redirect them to LinkedIn's
-   * authorization page where they can grant permissions to our app.
-   * 
-   * Query parameters:
-   * - mode=link: Connect LinkedIn to existing account (don't replace current login)
-   * 
-   * OAuth2 Scopes requested:
-   * - openid: Required for OpenID Connect authentication
-   * - profile: Access to basic profile information
-   * - email: Access to user's email address
-   * - w_member_social: Permission to post on behalf of the user
-   */
-  app.get("/auth/linkedin", (req: Request, res: Response) => {
-    // Check if LinkedIn credentials are configured
-    if (!LINKEDIN_CLIENT_ID || !LINKEDIN_CLIENT_SECRET) {
-      return res.status(503).send(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>LinkedIn OAuth Not Configured</title>
-            <style>
-              body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; }
-              .error { background: #fee; border: 1px solid #fcc; border-radius: 8px; padding: 20px; }
-              h1 { color: #c33; margin-top: 0; }
-              code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
-              ol { line-height: 1.8; }
-              a { color: #0066cc; }
-            </style>
-          </head>
-          <body>
-            <div class="error">
-              <h1>LinkedIn OAuth Not Configured</h1>
-              <p>This application requires LinkedIn OAuth credentials to function. Please set up the following:</p>
-              <ol>
-                <li>Go to <a href="https://www.linkedin.com/developers/apps" target="_blank">LinkedIn Developers</a> and create a new app</li>
-                <li>In your app settings, add this OAuth redirect URL:<br>
-                    <code>${REDIRECT_URI}</code></li>
-                <li>Request these scopes: <code>openid</code>, <code>profile</code>, <code>email</code>, <code>w_member_social</code></li>
-                <li>Add the credentials to your Replit Secrets:
-                  <ul>
-                    <li><code>LINKEDIN_CLIENT_ID</code> - Your LinkedIn app's Client ID</li>
-                    <li><code>LINKEDIN_CLIENT_SECRET</code> - Your LinkedIn app's Client Secret</li>
-                  </ul>
-                </li>
-              </ol>
-              <p><a href="/">Back to Home</a></p>
-            </div>
-          </body>
-        </html>
-      `);
-    }
+  app.post("/api/user/writing-style/file", upload.single("file"), async (req: Request, res: Response) => {
+    if (!req.session.user || !req.file) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const analysisResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "Analyze the writing style of the following document. Focus on vocabulary, tone, and patterns. Summarize as a style profile." },
+          { role: "user", content: req.file.buffer.toString("utf-8") }
+        ],
+      });
+      res.json({ success: true, writingStyle: analysisResponse.choices[0].message.content });
+    } catch (error) { res.status(500).json({ error: "Failed to analyze file" }); }
+  });
 
-    // Check if this is a "link" request (connect LinkedIn to existing account)
-    // If user is already logged in with Firebase, we should link LinkedIn instead of replacing the session
-    const isLinkMode = req.query.mode === 'link' || (req.session.user && req.session.authType === 'firebase');
-    
-    if (isLinkMode) {
-      // User is logged in with Firebase and wants to connect LinkedIn for publishing
-      req.session.pendingLinkedInLink = true;
-      console.log("[LinkedIn Auth] Link mode - will connect LinkedIn to existing Firebase account");
-    } else {
-      // Fresh login with LinkedIn
-      req.session.pendingLinkedInLink = false;
-    }
-
-    // Generate a random state parameter for CSRF protection
-    const state = Math.random().toString(36).substring(7);
+  app.post("/api/user/writing-style/link", async (req: Request, res: Response) => {
+    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const fetchResponse = await fetch(req.body.url);
+      const html = await fetchResponse.text();
+      const cleanText = html.replace(/<[^>]*>?/gm, "").slice(0, 5000);
+      const analysisResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "Analyze the writing style of the content from this URL. Focus on tone, vocabulary, and structure. Summarize as a style profile." },
+          { role: "user", content: cleanText }
+        ],
+      });
+      res.json({ success: true, writingStyle: analysisResponse.choices[0].message.content });
+    } catch (error) { res.status(500).json({ error: "Failed to analyze link" }); }
+  });
     
     // Store state in session to verify in callback
     req.session.oauth_state = state;
