@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
 import { queryClient } from "@/lib/queryClient";
 import {
   Sheet,
@@ -39,6 +40,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { WritingStyleSidebar } from "./writing-style-sidebar";
+import { CreatePostModal } from "./create-post-modal";
 
 const menuItems = [
   { group: "Main", items: [
@@ -69,6 +71,7 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { data: user } = useQuery<any>({ queryKey: ["/api/user"] });
 
   const logoutMutation = useMutation({
@@ -95,11 +98,12 @@ export function AppSidebar() {
         </div>
         <Button 
           className="w-full bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-xl h-12 flex items-center justify-center gap-2 shadow-sm border-none"
-          onClick={() => setLocation("/posts")}
+          onClick={() => setIsCreateModalOpen(true)}
         >
           <PlusCircle className="w-5 h-5" />
           <span className="font-bold text-sm">Write Post</span>
         </Button>
+        <CreatePostModal isOpen={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
       </SidebarHeader>
 
       <SidebarContent className="px-2 scrollbar-none">

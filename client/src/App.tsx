@@ -19,6 +19,7 @@ import Posts from "@/pages/posts";
 import Scheduled from "@/pages/scheduled";
 import MyCarousels from "@/pages/my-carousels";
 import VoiceNotes from "@/pages/voice-notes";
+import WritePost from "@/pages/write-post";
 import NotFound from "@/pages/not-found";
 import { useQuery } from "@tanstack/react-query";
 
@@ -45,6 +46,7 @@ function Router() {
             <Route path="/scheduled" component={Scheduled} />
             <Route path="/my-carousels" component={MyCarousels} />
             <Route path="/voice-notes" component={VoiceNotes} />
+            <Route path="/write-post" component={WritePost} />
             <Route component={NotFound} />
           </Switch>
         </SidebarInset>
