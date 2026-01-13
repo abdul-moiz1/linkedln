@@ -60,6 +60,8 @@ export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { data: user } = useQuery<any>({ queryKey: ["/api/user"] });
 
+  if (!user) return null;
+
   const logoutMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/logout", { method: "POST" });
@@ -72,24 +74,24 @@ export function AppSidebar() {
   });
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar shrink-0" collapsible="none">
+    <Sidebar className="border-r border-sidebar-border bg-white" collapsible="none">
       <SidebarHeader className="p-4 flex flex-col gap-4">
         <div className="flex items-center gap-2 px-2 py-1">
-          <div className="bg-primary p-1.5 rounded-lg">
+          <div className="bg-[#00a0dc] p-1.5 rounded-lg">
              <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-xl tracking-tight">Supergrow</span>
+          <span className="font-bold text-xl tracking-tight text-[#1a1a1a]">Supergrow</span>
         </div>
         <Button 
-          className="w-full bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-xl h-12 flex items-center justify-center gap-2"
+          className="w-full bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-xl h-12 flex items-center justify-center gap-2 shadow-sm border-none"
           onClick={() => setLocation("/create")}
         >
           <PlusCircle className="w-5 h-5" />
-          <span className="font-bold">Write Post</span>
+          <span className="font-bold text-sm">Write Post</span>
         </Button>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-2 scrollbar-none">
         {menuItems.map((group) => (
           <SidebarGroup key={group.group}>
             <SidebarGroupLabel className="px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1 opacity-70">

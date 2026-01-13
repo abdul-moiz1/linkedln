@@ -23,25 +23,27 @@ function Router() {
   const { data: user } = useQuery({ queryKey: ["/api/user"] });
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
-      {user && <AppSidebar />}
-      <div className="flex-1 flex flex-col min-w-0">
-        <Switch>
-          <Route path="/onboarding" component={Onboarding} />
-          <Route path="/" component={Home} />
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/login" component={Login} />
-          <Route path="/signup" component={Signup} />
-          <Route path="/create" component={Create} />
-          <Route path="/preview" component={Preview} />
-          <Route path="/profile" component={Profile} />
-          <Route path="/posts" component={Posts} />
-          <Route path="/scheduled" component={Scheduled} />
-          <Route path="/my-carousels" component={MyCarousels} />
-          <Route component={NotFound} />
-        </Switch>
+    <SidebarProvider>
+      <div className="flex h-screen w-full overflow-hidden bg-slate-50/50">
+        <AppSidebar />
+        <SidebarInset className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-transparent">
+          <Switch>
+            <Route path="/onboarding" component={Onboarding} />
+            <Route path="/" component={Home} />
+            <Route path="/dashboard" component={Dashboard} />
+            <Route path="/login" component={Login} />
+            <Route path="/signup" component={Signup} />
+            <Route path="/create" component={Create} />
+            <Route path="/preview" component={Preview} />
+            <Route path="/profile" component={Profile} />
+            <Route path="/posts" component={Posts} />
+            <Route path="/scheduled" component={Scheduled} />
+            <Route path="/my-carousels" component={MyCarousels} />
+            <Route component={NotFound} />
+          </Switch>
+        </SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
 
@@ -49,10 +51,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <SidebarProvider>
-          <Toaster />
-          <Router />
-        </SidebarProvider>
+        <Toaster />
+        <Router />
       </TooltipProvider>
     </QueryClientProvider>
   );
