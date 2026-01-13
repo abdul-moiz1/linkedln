@@ -615,8 +615,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updateData: any = {};
       if (writingStyle !== undefined) {
-        updateData.writingStyle = writingStyle;
-        (req.session.user as any).writingStyle = writingStyle;
+        // --- START WRITING STYLE REFINEMENT ---
+        // Clean the input to remove content-like text and extract traits
+        let cleanedStyle = writingStyle;
+        
+        // Remove email structure artifacts
+        cleanedStyle = cleanedStyle
+          .replace(/Subject:.*\n?/gi, "")
+          .replace(/Hello,?.*\n?/gi, "")
+          .replace(/Hi,?.*\n?/gi, "")
+          .replace(/Dear,?.*\n?/gi, "")
+          .replace(/Best regards,?.*\n?/gi, "")
+          .replace(/Sincerely,?.*\n?/gi, "")
+          .replace(/Thanks,?.*\n?/gi, "")
+          .replace(/Regards,?.*\n?/gi, "");
+
+        // Heuristic to detect and strip long paragraphs that look like actual content
+        const lines = cleanedStyle.split("\n").filter((l: string) => l.trim().length > 0);
+        const styleTraits = lines.filter((line: string) => {
+          const lower = line.toLowerCase();
+          // Keep lines that describe style
+          return (
+            lower.includes("tone") || 
+            lower.includes("style") || 
+            lower.includes("prefer") || 
+            lower.includes("formality") ||
+            lower.includes("short") ||
+            lower.includes("concise") ||
+            lower.includes("bullet") ||
+            line.length < 100 // Short descriptive lines are usually safe
+          );
+        });
+
+        // Fallback if the cleaning removed everything
+        updateData.writingStyle = styleTraits.join(", ") || "Professional, concise, and action-oriented.";
+        
+        // Add new optional fields: styleProfile and promptStyleInstruction
+        updateData.styleProfile = {
+          tone: cleanedStyle.toLowerCase().includes("informal") ? "Informal" : "Professional",
+          formality: cleanedStyle.toLowerCase().includes("casual") ? "Casual" : "Formal",
+          verbosity: cleanedStyle.toLowerCase().includes("short") ? "Concise" : "Standard",
+          prefersBullets: cleanedStyle.toLowerCase().includes("bullet"),
+          callToActionFocus: cleanedStyle.toLowerCase().includes("call to action") || cleanedStyle.toLowerCase().includes("cta")
+        };
+        
+        updateData.promptStyleInstruction = `Write in a ${updateData.styleProfile.tone.toLowerCase()} and ${updateData.styleProfile.formality.toLowerCase()} tone. ${updateData.styleProfile.prefersBullets ? "Use bullet points for clarity." : "Use standard paragraphs."} Focus: ${updateData.styleProfile.callToActionFocus ? "Strong call-to-action." : "Informative content."}`;
+        
+        (req.session.user as any).writingStyle = updateData.writingStyle;
+        (req.session.user as any).styleProfile = updateData.styleProfile;
+        (req.session.user as any).promptStyleInstruction = updateData.promptStyleInstruction;
+        // --- END WRITING STYLE REFINEMENT ---
       }
       if (profileUrl !== undefined) {
         updateData.profileUrl = profileUrl;
