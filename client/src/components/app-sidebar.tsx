@@ -52,8 +52,7 @@ const menuItems = [
     { title: "Post Generator", icon: PenTool, url: "/posts" },
     { title: "Carousel Maker", icon: Layers, url: "/create" },
     { title: "Voice Notes", icon: Mic, url: "/voice-notes" },
-    { title: "My LinkedIn Posts", icon: Users, url: "/posts" },
-    { title: "Posts Scraper", icon: TrendingUp, url: "/posts-scrape" },
+    { title: "My LinkedIn Posts", icon: Users, url: "/profile" },
   ]},
   { group: "Engagement", items: [
     { title: "Engage", icon: MousePointer2, url: "/engage" },
