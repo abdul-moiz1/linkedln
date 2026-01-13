@@ -28,7 +28,7 @@ function Router() {
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden bg-slate-50/50">
         <AppSidebar />
-        <SidebarInset className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-transparent">
+        <SidebarInset className="flex-1 flex flex-col min-w-0 relative bg-transparent overflow-y-auto">
           <Switch>
             <Route path="/onboarding" component={Onboarding} />
             <Route path="/" component={Home} />
