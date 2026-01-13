@@ -86,7 +86,7 @@ export default function WritingStyle() {
             const data = await res.json();
             
             if (data.writingStyle) {
-              setStyle(prev => prev ? `${prev}\n\n${data.writingStyle}` : data.writingStyle);
+              setStyle(data.writingStyle); // Set the full extracted style
               toast({ title: "Voice Analyzed", description: "Successfully extracted your natural speaking voice from the recording." });
             }
             setIsExtracting(false);

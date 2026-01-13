@@ -603,6 +603,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = req.session.user.profile.sub;
     const { writingStyle, profileUrl } = req.body;
     
+    console.log(`[User Update] Received update for user ${userId}:`, { writingStyle: !!writingStyle, profileUrl: !!profileUrl });
+    
     try {
       const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
       
@@ -616,14 +618,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (isFirebaseConfigured && adminFirestore) {
+        // Use the Firestore document ID directly from the session sub
         await adminFirestore.collection("users").doc(userId).set(updateData, { merge: true });
-        console.log(`[User Update] Updated Firestore for user ${userId}:`, Object.keys(updateData));
+        console.log(`[User Update] Firestore updated successfully for ${userId}`);
+      } else {
+        console.warn("[User Update] Firestore not configured, update only applied to session");
       }
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("[User Update] Error:", error);
-      res.status(500).json({ error: "Failed to update user profile" });
+      console.error("[User Update] Firestore Error:", error);
+      res.status(500).json({ error: "Failed to update user profile in database" });
     }
   });
 
