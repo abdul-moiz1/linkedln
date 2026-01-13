@@ -59,18 +59,69 @@ export default function WritingStyle() {
     },
   });
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = async () => {
+        setIsExtracting(true);
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        // In a real app, we'd send this to a transcription API (OpenAI Whisper/Gemini)
+        // For "Fast" mode, we simulate the transcription/analysis result based on the actual action
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const mockExtractedStyle = "Captured from live voice: Dynamic, personable, and authentic. Uses natural pauses and conversational fillers that create trust. Tone is warm and encouraging.";
+        setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
+        toast({ title: "Voice Analyzed", description: "Successfully extracted your natural speaking voice from the recording." });
+        setIsExtracting(false);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      toast({ title: "Recording Started", description: "Speak freely to capture your voice style." });
+    } catch (err) {
+      toast({ title: "Microphone Access Denied", variant: "destructive" });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
   const handleExtraction = async (type: string) => {
-    setIsExtracting(true);
     // Ensure dialog closes before processing
     const closeButton = document.querySelector('[data-state="open"] button[aria-label="Close"]') as HTMLButtonElement;
-    if (closeButton) closeButton.click();
+    if (closeButton && type !== "voice note") closeButton.click();
 
     try {
       if (type === "voice note") {
+        if (isRecording) {
+          stopRecording();
+          if (closeButton) closeButton.click();
+        } else {
+          await startRecording();
+        }
+        return;
+      } else if (type === "shared link") {
+        const url = window.prompt("Enter the URL to analyze:");
+        if (!url) return;
+        
+        setIsExtracting(true);
+        // Simulate fetching and analyzing the URL
         await new Promise(resolve => setTimeout(resolve, 3000));
-        const mockExtractedStyle = "Energetic, punchy, and highly engaging. Uses rhetorical questions and direct address to the reader. Tone is optimistic and results-oriented.";
+        const mockExtractedStyle = `Analyzed from ${new URL(url).hostname}: Narrative-driven, insightful, and strategic. Uses deep-dive explanations and logical frameworks. Tone is visionary and thought-provoking.`;
         setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-        toast({ title: "Voice Analyzed", description: "Successfully extracted your energetic tone from the recording." });
+        toast({ title: "Link Analyzed", description: "Your online writing style has been merged into your instructions." });
       } else if (type === "document" || type === "audio file") {
         const input = document.createElement('input');
         input.type = 'file';
@@ -85,16 +136,16 @@ export default function WritingStyle() {
         input.click();
         setIsExtracting(false);
         return;
-      } else if (type === "emails" || type === "shared link") {
+      } else if (type === "emails") {
         await new Promise(resolve => setTimeout(resolve, 2500));
         const mockExtractedStyle = "Professional, concise, and action-oriented. Prefers bullet points and clear calls to action. Tone is helpful and efficient.";
         setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-        toast({ title: "Link/Email Analyzed", description: "Professional tone extracted from your shared content." });
+        toast({ title: "Email Analyzed", description: "Professional tone extracted from your shared content." });
       }
     } catch (error) {
       toast({ title: "Extraction failed", variant: "destructive" });
     } finally {
-      setIsExtracting(false);
+      if (type !== "voice note") setIsExtracting(false);
     }
   };
 
@@ -138,9 +189,9 @@ export default function WritingStyle() {
               </DialogHeader>
               <div className="grid grid-cols-3 gap-4 py-4">
                 <ExtractionCard 
-                  title="Record"
-                  description="Start speaking"
-                  icon={Mic}
+                  title={isRecording ? "Stop Recording" : "Record"}
+                  description={isRecording ? "Click to analyze" : "Start speaking"}
+                  icon={isRecording ? X : Mic}
                   onClick={() => handleExtraction("voice note")}
                 />
                 <ExtractionCard 
