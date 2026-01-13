@@ -60,8 +60,6 @@ export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { data: user } = useQuery<any>({ queryKey: ["/api/user"] });
 
-  if (!user) return null;
-
   const logoutMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/logout", { method: "POST" });
@@ -72,6 +70,8 @@ export function AppSidebar() {
       setLocation("/");
     },
   });
+
+  if (!user) return null;
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-white" collapsible="none">
