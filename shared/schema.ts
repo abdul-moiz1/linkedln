@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   subscriptionStatus: text("subscription_status").default("none").notNull(),
   trialEndDate: timestamp("trial_end_date"),
   onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
+  writingStyle: text("writing_style"),
   phone: text("phone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

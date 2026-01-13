@@ -466,7 +466,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({
       ...req.session.user,
       profileUrl,
+      writingStyle: (req.session.user as any).writingStyle,
     });
+  });
+
+  app.post("/api/user/writing-style", async (req: Request, res: Response) => {
+    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: "Text is required" });
+
+    try {
+      // Analyze writing style using OpenAI (already integrated)
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "Analyze the writing style of the following text. Focus on vocabulary, tone, sentence structure, and unique patterns. Summarize it in a way that can be used as a prompt for future writing."
+            },
+            { role: "user", content: text }
+          ],
+        }),
+      });
+
+      const data = await response.json();
+      const writingStyle = data.choices[0].message.content;
+
+      // Update session and Firestore
+      (req.session.user as any).writingStyle = writingStyle;
+      
+      const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
+      if (isFirebaseConfigured && adminFirestore) {
+        await adminFirestore.collection("users").doc(req.session.user.profile.sub).set({
+          writingStyle
+        }, { merge: true });
+      }
+
+      res.json({ success: true, writingStyle });
+    } catch (error: any) {
+      console.error("Writing style analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze writing style" });
+    }
+  });
+
+  app.post("/api/posts/generate", async (req: Request, res: Response) => {
+    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+
+    const writingStyle = (req.session.user as any).writingStyle || "professional and engaging";
+
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert LinkedIn content creator. Write a post based on the user's prompt. 
+              CRITICAL: You MUST use the following writing style profile:
+              
+              ${writingStyle}
+              
+              Keep the post engaging, use appropriate whitespace, and add 2-3 relevant hashtags.`
+            },
+            { role: "user", content: prompt }
+          ],
+        }),
+      });
+
+      const data = await response.json();
+      const text = data.choices[0].message.content;
+
+      res.json({ success: true, text });
+    } catch (error: any) {
+      console.error("Post generation error:", error);
+      res.status(500).json({ error: "Failed to generate post" });
+    }
   });
 
   /**
