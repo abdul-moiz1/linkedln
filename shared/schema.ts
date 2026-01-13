@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { pgTable, text, serial, integer, boolean, varchar, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 
 // Auth Provider type
 export type AuthProvider = "linkedin" | "firebase";
@@ -21,19 +23,28 @@ export const linkedInUserSchema = z.object({
 export type LinkedInUser = z.infer<typeof linkedInUserSchema>;
 
 // Shared User Profile (Persisted in Firestore)
-export interface UserProfile {
-  id: string; // LinkedIn sub or Firebase UID
-  fullName: string;
-  email: string;
-  profilePicture?: string;
-  authProvider: AuthProvider;
-  plan: string;
-  subscriptionStatus: string;
-  trialEndDate?: string;
-  onboardingCompleted: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey(), // LinkedIn sub or Firebase UID
+  fullName: text("full_name").notNull(),
+  email: text("email").notNull(),
+  profilePicture: text("profile_picture"),
+  authProvider: text("auth_provider").$type<AuthProvider>().notNull(),
+  plan: text("plan").default("free").notNull(),
+  subscriptionStatus: text("subscription_status").default("none").notNull(),
+  trialEndDate: timestamp("trial_end_date"),
+  onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
+  phone: text("phone"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserProfile = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 
 // Linked LinkedIn Integration (for publishing only, not login)
 export interface LinkedLinkedIn {
