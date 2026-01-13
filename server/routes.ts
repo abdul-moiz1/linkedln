@@ -606,10 +606,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`[User Update] Processing update for sub: ${userId}`);
     
     try {
-      const { adminFirestore, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      const { adminDb, isFirebaseConfigured } = await import("./lib/firebase-admin");
       
-      if (!isFirebaseConfigured || !adminFirestore) {
-        console.error("[User Update] Firestore not configured");
+      if (!isFirebaseConfigured || !adminDb) {
+        console.error("[User Update] Firestore not configured (adminDb is null)");
         return res.status(503).json({ error: "Database not configured" });
       }
 
@@ -623,11 +623,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       updateData.updatedAt = new Date();
 
-      // Ensure we use the exact sub as the document ID
-      const userDoc = adminFirestore.collection("users").doc(userId);
+      console.log(`[User Update] Attempting to save to doc ${userId} with data:`, JSON.stringify(updateData));
+
+      // Use adminDb directly which is the Firestore instance
+      const userDoc = adminDb.collection("users").doc(userId);
       await userDoc.set(updateData, { merge: true });
       
       console.log(`[User Update] Successfully saved to Firestore doc: ${userId}`);
+      
+      // Update the session user object to include the new writing style
+      if (req.session.user) {
+        req.session.user.writingStyle = writingStyle;
+      }
+      
       res.json({ success: true });
     } catch (error: any) {
       console.error("[User Update] Firestore Error:", error);
