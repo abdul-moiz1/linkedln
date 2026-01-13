@@ -498,17 +498,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = await response.json();
       const writingStyle = data.choices[0].message.content;
 
+      // ADDED: Derive structured styleProfile and promptStyleInstruction
+      let styleProfile = null;
+      let promptStyleInstruction = null;
+      try {
+        const structuredResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: `You are a linguist. Analyze the following style summary and extract a structured JSON profile.
+                {
+                  "tone": "string",
+                  "formality": "casual" | "neutral" | "formal",
+                  "energyLevel": "low" | "medium" | "high",
+                  "sentenceLength": "short" | "medium" | "long",
+                  "usesFillers": boolean,
+                  "commonFillers": ["string"],
+                  "pacing": "string",
+                  "emotionalBias": "string"
+                }
+                Also provide a "promptStyleInstruction" which is a single paragraph instruction for an AI to write in this style.`
+              },
+              { role: "user", content: writingStyle }
+            ],
+            response_format: { type: "json_object" }
+          }),
+        });
+        const structuredData = await structuredResponse.json();
+        const parsed = JSON.parse(structuredData.choices[0].message.content);
+        styleProfile = JSON.stringify(parsed);
+        promptStyleInstruction = parsed.promptStyleInstruction;
+      } catch (structuredError) {
+        console.error("Failed to generate structured style profile:", structuredError);
+      }
+
       // Update session and Firestore
       (req.session.user as any).writingStyle = writingStyle;
+      (req.session.user as any).styleProfile = styleProfile;
+      (req.session.user as any).promptStyleInstruction = promptStyleInstruction;
       
       const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
       if (isFirebaseConfigured && adminFirestore) {
         await adminFirestore.collection("users").doc(req.session.user.profile.sub).set({
-          writingStyle
+          writingStyle,
+          styleProfile,
+          promptStyleInstruction
         }, { merge: true });
       }
 
-      res.json({ success: true, writingStyle });
+      res.json({ success: true, writingStyle, styleProfile, promptStyleInstruction });
     } catch (error: any) {
       console.error("Writing style analysis error:", error);
       res.status(500).json({ error: "Failed to analyze writing style" });

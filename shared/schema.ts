@@ -34,6 +34,8 @@ export const users = pgTable("users", {
   trialEndDate: timestamp("trial_end_date"),
   onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
   writingStyle: text("writing_style"),
+  styleProfile: text("style_profile"), // Structured style data as JSON string
+  promptStyleInstruction: text("prompt_style_instruction"), // Prompt-ready instruction string
   phone: text("phone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
