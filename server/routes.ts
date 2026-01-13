@@ -6,8 +6,15 @@ import {
   createPostSchema,
   repostSchema,
   createScheduledPostSchema,
+  users
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import { getDb } from "./storage";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+  apiVersion: "2023-10-16",
+});
 
 // LinkedIn OAuth2 Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
