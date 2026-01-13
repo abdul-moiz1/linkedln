@@ -20,7 +20,8 @@ import {
   Share2,
   ThumbsUp,
   ChevronDown,
-  Plus
+  Plus,
+  Globe
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
