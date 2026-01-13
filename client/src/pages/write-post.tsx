@@ -214,11 +214,7 @@ export default function WritePost() {
         </div>
       </div>
 
-      {/* Floating Chat Button */}
-      <Button className="fixed bottom-6 right-6 h-12 w-12 rounded-full bg-[#00a0dc] hover:bg-[#008dbf] shadow-lg flex items-center justify-center p-0">
-        <MessageCircle className="w-6 h-6 text-white" />
-      </Button>
-    </div>
+      </div>
   );
 }
 
