@@ -72,7 +72,7 @@ export function AppSidebar() {
   });
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar">
+    <Sidebar className="border-r border-sidebar-border bg-sidebar shrink-0" collapsible="none">
       <SidebarHeader className="p-4 flex flex-col gap-4">
         <div className="flex items-center gap-2 px-2 py-1">
           <div className="bg-primary p-1.5 rounded-lg">

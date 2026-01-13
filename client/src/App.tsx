@@ -23,9 +23,9 @@ function Router() {
   const { data: user } = useQuery({ queryKey: ["/api/user"] });
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full overflow-hidden bg-background">
       {user && <AppSidebar />}
-      <SidebarInset>
+      <div className="flex-1 flex flex-col min-w-0">
         <Switch>
           <Route path="/onboarding" component={Onboarding} />
           <Route path="/" component={Home} />
@@ -40,7 +40,7 @@ function Router() {
           <Route path="/my-carousels" component={MyCarousels} />
           <Route component={NotFound} />
         </Switch>
-      </SidebarInset>
+      </div>
     </div>
   );
 }
