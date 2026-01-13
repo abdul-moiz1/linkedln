@@ -2,6 +2,9 @@ import { z } from "zod";
 import { pgTable, text, timestamp, varchar, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
+// Auth Provider type
+export type AuthProvider = "linkedin" | "firebase";
+
 // LinkedIn User Profile from /v2/userinfo endpoint (OpenID Connect)
 export const linkedInUserSchema = z.object({
   sub: z.string(),
@@ -19,20 +22,20 @@ export const linkedInUserSchema = z.object({
 
 export type LinkedInUser = z.infer<typeof linkedInUserSchema>;
 
-// LinkedIn Post Creation Schema
-export const createPostSchema = z.object({
-  text: z.string().min(1, "Post content is required").max(3000, "Post content must be less than 3000 characters"),
-  media: z.array(z.object({
-    url: z.string(),
-    type: z.enum(["IMAGE", "VIDEO"]),
-    filename: z.string(),
-  })).optional(),
-});
-
-export type CreatePost = z.infer<typeof createPostSchema>;
-
-// Auth Provider type
-export type AuthProvider = "linkedin" | "firebase";
+// Shared User Profile (Persisted in Firestore)
+export interface UserProfile {
+  id: string; // LinkedIn sub or Firebase UID
+  fullName: string;
+  email: string;
+  profilePicture?: string;
+  authProvider: AuthProvider;
+  plan: string;
+  subscriptionStatus: string;
+  trialEndDate?: string;
+  onboardingCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Linked LinkedIn Integration (for publishing only, not login)
 export interface LinkedLinkedIn {

@@ -2,31 +2,9 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { 
   linkedInUserSchema, 
-  createPostSchema, 
   type SessionUser,
-  repostSchema,
-  createScheduledPostSchema,
-  scheduledPosts,
-  users,
-  type SelectScheduledPost,
 } from "@shared/schema";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import { eq, and, lte } from "drizzle-orm";
-
-// Initialize database connection (optional - only needed for scheduled posts)
-let db: ReturnType<typeof drizzle> | null = null;
-
-function getDb() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL not configured. Scheduled posts feature requires a database.");
-  }
-  if (!db) {
-    const sql = neon(process.env.DATABASE_URL);
-    db = drizzle(sql);
-  }
-  return db;
-}
+import { eq, and } from "drizzle-orm";
 
 // LinkedIn OAuth2 Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
@@ -468,15 +446,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Try to fetch profileUrl from Firestore
     let profileUrl: string | undefined;
-    let dbUser: any = null;
-
-    try {
-      const db = getDb();
-      const result = await db.select().from(users).where(eq(users.id, req.session.user.profile.sub)).limit(1);
-      dbUser = result[0] || null;
-    } catch (e) {
-      console.error("Failed to fetch user from DB:", e);
-    }
 
     try {
       const { getUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
@@ -494,7 +463,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({
       ...req.session.user,
       profileUrl,
-      ...(dbUser || {}),
     });
   });
 
@@ -581,15 +549,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const decodedToken = await adminAuth.verifyIdToken(idToken);
       const { uid, email, name, picture, email_verified } = decodedToken;
 
+      const profile = {
+        sub: `firebase-${uid}`,
+        name: name || email?.split('@')[0] || 'User',
+        email: email,
+        email_verified: email_verified,
+        picture: picture,
+      };
+
       // Create session user from Firebase auth
       req.session.user = {
-        profile: {
-          sub: `firebase-${uid}`,
-          name: name || email?.split('@')[0] || 'User',
-          email: email,
-          email_verified: email_verified,
-          picture: picture,
-        },
+        profile,
         accessToken: idToken, // Store the Firebase token for API calls
         authProvider: "firebase",
       };
@@ -598,16 +568,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Save user to Firestore
       try {
-        await saveUser({
-          linkedinId: `firebase-${uid}`,
-          email: email || "",
-          name: name || email?.split('@')[0] || "User",
-          profilePicture: picture || null,
-          accessToken: idToken,
-          tokenExpiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour
-        });
-      } catch (saveError) {
-        console.warn("Could not save Firebase user to Firestore:", saveError);
+        const { saveUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
+        if (isFirebaseConfigured) {
+          await saveUser({
+            linkedinId: `firebase-${uid}`,
+            email: email || "",
+            name: name || email?.split('@')[0] || "User",
+            profilePicture: picture || null,
+            accessToken: idToken,
+            tokenExpiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour
+          });
+        }
+      } catch (firestoreError) {
+        console.warn("Firestore save failed:", firestoreError);
       }
 
       // Migrate any guest carousels if guestId exists

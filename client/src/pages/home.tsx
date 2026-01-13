@@ -51,9 +51,9 @@ export default function Home() {
 
   const handleAction = () => {
     if (user) {
-      setLocation("/create");
+      setLocation("/dashboard");
     } else {
-      window.location.href = "/auth/linkedin";
+      setLocation("/login");
     }
   };
 
