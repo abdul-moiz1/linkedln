@@ -25,22 +25,6 @@ export function WritingStyleSidebar() {
     },
   });
 
-  const extractMutation = useMutation({
-    mutationFn: async (type: string) => {
-      const res = await apiRequest("POST", "/api/user/writing-style/extract", { 
-        type,
-        sample: "Sample text for extraction" 
-      });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      if (data.writingStyle) {
-        setStyle(prev => prev ? `${prev}\n\n${data.writingStyle}` : data.writingStyle);
-        toast({ title: "Style extracted successfully" });
-      }
-    }
-  });
-
   return (
     <div className="flex flex-col h-full bg-white">
       <SidebarHeader className="p-4 border-b">

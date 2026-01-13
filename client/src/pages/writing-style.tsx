@@ -59,34 +59,11 @@ export default function WritingStyle() {
     },
   });
 
-  const handleExtraction = async (type: string) => {
-    setIsExtracting(true);
-    try {
-      // For now, we simulate a file/audio/link processing by calling an AI endpoint
-      // that takes a placeholder or sample based on the type
-      const res = await apiRequest("POST", "/api/user/writing-style/extract", { 
-        type,
-        // In a real scenario, we'd send the actual file data or link here
-        sample: `Sample content from ${type} analysis. Please maintain a professional yet approachable voice.` 
-      });
-      const data = await res.json();
-      
-      if (data.writingStyle) {
-        setStyle(prev => prev ? `${prev}\n\n${data.writingStyle}` : data.writingStyle);
-        toast({ 
-          title: "Style Extracted", 
-          description: `Successfully analyzed your ${type} to refine your style.` 
-        });
-      }
-    } catch (error) {
-      toast({ 
-        title: "Extraction Failed", 
-        description: "Could not extract style. Please try again or paste manually.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsExtracting(false);
-    }
+  const handleExtraction = (type: string) => {
+    toast({ 
+      title: "Coming Soon", 
+      description: `The ${type} extraction feature is being implemented. Please paste your text manually for now.` 
+    });
   };
 
   return (

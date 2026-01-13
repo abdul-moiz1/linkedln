@@ -443,26 +443,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/user", async (req: Request, res: Response) => {
-    if (!req.session.userId) {
+    if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
     // Try to fetch profileUrl from Firestore
     let profileUrl: string | undefined;
-    let writingStyle: string | undefined;
 
     try {
       const { getUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
-      const userId = req.session.userId;
+      const userId = req.session.user.profile.sub;
       if (isFirebaseConfigured) {
         const userData = await getUser(userId);
-        if (userData) {
-          if ((userData as any).profileUrl) {
-            profileUrl = (userData as any).profileUrl;
-          }
-          if ((userData as any).writingStyle) {
-            writingStyle = (userData as any).writingStyle;
-          }
+        if (userData && (userData as any).profileUrl) {
+          profileUrl = (userData as any).profileUrl;
         }
       }
     } catch (firestoreError) {
@@ -472,53 +466,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({
       ...req.session.user,
       profileUrl,
-      writingStyle,
+      writingStyle: (req.session.user as any).writingStyle,
     });
-  });
-
-  app.patch("/api/user", async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
-    const { writingStyle } = req.body;
-    
-    try {
-      const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
-      if (isFirebaseConfigured && adminFirestore) {
-        await adminFirestore.collection("users").doc(req.session.userId).set({
-          writingStyle
-        }, { merge: true });
-      }
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Failed to update writing style:", error);
-      res.status(500).json({ error: "Failed to update writing style" });
-    }
-  });
-
-  app.post("/api/user/writing-style/extract", async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
-    const { type, sample } = req.body;
-
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert linguist. Analyze the provided text sample and describe the writing style (tone, voice, vocabulary, structure) in 2-3 concise sentences that an AI can use as instructions to replicate that style."
-          },
-          {
-            role: "user",
-            content: `Analyze this sample from a ${type}: ${sample}`
-          }
-        ]
-      });
-
-      const writingStyle = response.choices[0].message.content;
-      res.json({ writingStyle });
-    } catch (error) {
-      console.error("Extraction error:", error);
-      res.status(500).json({ error: "Failed to extract style" });
-    }
   });
 
   app.post("/api/user/writing-style", async (req: Request, res: Response) => {
