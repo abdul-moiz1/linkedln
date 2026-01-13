@@ -476,63 +476,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!text) return res.status(400).json({ error: "Text is required" });
 
     try {
-      // Analyze writing style using OpenAI (already integrated)
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: "Analyze the writing style of the following text. Focus on vocabulary, tone, sentence structure, and unique patterns. Summarize it in a way that can be used as a prompt for future writing."
-            },
-            { role: "user", content: text }
-          ],
-        }),
-      });
-
-      const data = await response.json();
-      const writingStyle = data.choices[0].message.content;
+      // Analyze writing style using Gemini
+      const { generateContent } = await import("./lib/gemini"); // Assuming gemini lib exists or we use the API
+      
+      const prompt = `Analyze the writing style of the following text. Focus on vocabulary, tone, sentence structure, and unique patterns. Summarize it in a way that can be used as a prompt for future writing.\n\nText:\n${text}`;
+      
+      const writingStyle = await generateContent(prompt);
 
       // ADDED: Derive structured styleProfile and promptStyleInstruction
       let styleProfile = null;
       let promptStyleInstruction = null;
       try {
-        const structuredResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-4o",
-            messages: [
-              {
-                role: "system",
-                content: `You are a linguist. Analyze the following style summary and extract a structured JSON profile.
-                {
-                  "tone": "string",
-                  "formality": "casual" | "neutral" | "formal",
-                  "energyLevel": "low" | "medium" | "high",
-                  "sentenceLength": "short" | "medium" | "long",
-                  "usesFillers": boolean,
-                  "commonFillers": ["string"],
-                  "pacing": "string",
-                  "emotionalBias": "string"
-                }
-                Also provide a "promptStyleInstruction" which is a single paragraph instruction for an AI to write in this style.`
-              },
-              { role: "user", content: writingStyle }
-            ],
-            response_format: { type: "json_object" }
-          }),
-        });
-        const structuredData = await structuredResponse.json();
-        const parsed = JSON.parse(structuredData.choices[0].message.content);
+        const structuredPrompt = `You are a linguist. Analyze the following style summary and extract a structured JSON profile.
+        {
+          "tone": "string",
+          "formality": "casual" | "neutral" | "formal",
+          "energyLevel": "low" | "medium" | "high",
+          "sentenceLength": "short" | "medium" | "long",
+          "usesFillers": boolean,
+          "commonFillers": ["string"],
+          "pacing": "string",
+          "emotionalBias": "string"
+        }
+        Also provide a "promptStyleInstruction" which is a single paragraph instruction for an AI to write in this style.
+        
+        Style Summary:
+        ${writingStyle}`;
+
+        const structuredResult = await generateContent(structuredPrompt, { responseMimeType: "application/json" });
+        const parsed = JSON.parse(structuredResult);
         styleProfile = JSON.stringify(parsed);
         promptStyleInstruction = parsed.promptStyleInstruction;
       } catch (structuredError) {
