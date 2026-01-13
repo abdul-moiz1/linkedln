@@ -23,13 +23,22 @@ import {
   TrendingUp,
   Users,
   LogOut,
-  Sparkles
+  Sparkles,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { WritingStyleSidebar } from "./writing-style-sidebar";
 
 const menuItems = [
   { group: "Main", items: [
@@ -89,6 +98,24 @@ export function AppSidebar() {
           <PlusCircle className="w-5 h-5" />
           <span className="font-bold text-sm">Write Post</span>
         </Button>
+
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button 
+              variant="outline"
+              className="w-full border-[#00a0dc]/20 text-[#00a0dc] hover:bg-[#00a0dc]/5 rounded-xl h-10 flex items-center justify-between px-4"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                <span className="font-bold text-xs">Writing Style</span>
+              </div>
+              <ChevronRight className="w-4 h-4 opacity-50" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-80">
+            <WritingStyleSidebar />
+          </SheetContent>
+        </Sheet>
       </SidebarHeader>
 
       <SidebarContent className="px-2 scrollbar-none">

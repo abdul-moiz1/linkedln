@@ -43,7 +43,6 @@ function Router() {
             <Route component={NotFound} />
           </Switch>
         </SidebarInset>
-        <WritingStyleSidebar />
       </div>
     </SidebarProvider>
   );

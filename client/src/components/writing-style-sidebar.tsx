@@ -26,14 +26,14 @@ export function WritingStyleSidebar() {
   });
 
   return (
-    <div className="flex flex-col h-full border-l border-sidebar-border bg-white w-80">
+    <div className="flex flex-col h-full bg-white">
       <SidebarHeader className="p-4 border-b">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[#00a0dc]" />
           <span className="font-bold text-lg">Writing Style</span>
         </div>
       </SidebarHeader>
-      <SidebarContent className="p-4 space-y-4">
+      <div className="p-4 space-y-4 flex-1">
         <p className="text-xs text-muted-foreground leading-relaxed">
           Describe your voice, tone, and specific instructions for AI-generated content.
         </p>
@@ -51,7 +51,7 @@ export function WritingStyleSidebar() {
           <Save className="w-4 h-4 mr-2" />
           Save Style
         </Button>
-      </SidebarContent>
+      </div>
     </div>
   );
 }
