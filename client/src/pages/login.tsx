@@ -74,7 +74,7 @@ export default function Login() {
         title: "Welcome!",
         description: "You're now signed in. Let's create a carousel!",
       });
-      navigate("/create");
+      navigate("/dashboard");
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to sign in with Google";
       toast({
@@ -133,7 +133,7 @@ export default function Login() {
         title: "Welcome back!",
         description: "You're now signed in.",
       });
-      navigate("/create");
+      navigate("/dashboard");
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Authentication failed";
       toast({

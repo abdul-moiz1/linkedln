@@ -46,7 +46,7 @@ export default function Onboarding() {
     try {
       await apiRequest("POST", "/api/onboarding", { ...data, plan: selectedPlan });
       toast({ title: "Welcome!", description: "Your trial has started." });
-      setLocation("/");
+      setLocation("/dashboard");
     } catch (e) {
       toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
     }
