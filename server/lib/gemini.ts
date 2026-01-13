@@ -13,8 +13,16 @@ export async function generateContent(prompt: string, options: any = {}) {
     responseMimeType: options.responseMimeType || "text/plain",
   };
 
+  const contents: any[] = [{ role: "user", parts: [{ text: prompt }] }];
+  
+  if (options.inlineData) {
+    contents[0].parts.push({
+      inlineData: options.inlineData
+    });
+  }
+
   const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    contents,
     generationConfig,
   });
 

@@ -472,18 +472,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/user/writing-style", async (req: Request, res: Response) => {
     if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
-    const { text } = req.body;
-    if (!text) return res.status(400).json({ error: "Text is required" });
-
+    const { text, audioData, audioType } = req.body;
+    
     try {
+      let analysisText = text;
+
+      // If audio data is provided, transcribe it first
+      if (audioData && audioType) {
+        const { generateContent } = await import("./lib/gemini");
+        const audioBuffer = Buffer.from(audioData, 'base64');
+        
+        const transcriptionPrompt = "Transcribe the following audio accurately, preserving the natural speaking style, pauses, and tone.";
+        const transcription = await generateContent(transcriptionPrompt, {
+          inlineData: {
+            data: audioData,
+            mimeType: audioType
+          }
+        });
+        analysisText = transcription;
+      }
+
+      if (!analysisText) return res.status(400).json({ error: "No text or audio provided for analysis" });
+
       // Analyze writing style using Gemini
-      const { generateContent } = await import("./lib/gemini"); // Assuming gemini lib exists or we use the API
+      const { generateContent } = await import("./lib/gemini");
       
-      const prompt = `Analyze the writing style of the following text. Focus on vocabulary, tone, sentence structure, and unique patterns. Summarize it in a way that can be used as a prompt for future writing.\n\nText:\n${text}`;
+      const prompt = `Analyze the writing style of the following text. Focus on vocabulary, tone, sentence structure, and unique patterns. Summarize it in a way that can be used as a prompt for future writing.\n\nText:\n${analysisText}`;
       
       const writingStyle = await generateContent(prompt);
 
-      // ADDED: Derive structured styleProfile and promptStyleInstruction
+      // Derive structured styleProfile and promptStyleInstruction
       let styleProfile = null;
       let promptStyleInstruction = null;
       try {
@@ -525,7 +543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }, { merge: true });
       }
 
-      res.json({ success: true, writingStyle, styleProfile, promptStyleInstruction });
+      res.json({ success: true, writingStyle, styleProfile, promptStyleInstruction, transcribedText: analysisText });
     } catch (error: any) {
       console.error("Writing style analysis error:", error);
       res.status(500).json({ error: "Failed to analyze writing style" });

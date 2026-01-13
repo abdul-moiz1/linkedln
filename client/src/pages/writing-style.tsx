@@ -72,13 +72,30 @@ export default function WritingStyle() {
       recorder.onstop = async () => {
         setIsExtracting(true);
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        // In a real app, we'd send this to a transcription API (OpenAI Whisper/Gemini)
-        // For "Fast" mode, we simulate the transcription/analysis result based on the actual action
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const mockExtractedStyle = "Captured from live voice: Dynamic, personable, and authentic. Uses natural pauses and conversational fillers that create trust. Tone is warm and encouraging.";
-        setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-        toast({ title: "Voice Analyzed", description: "Successfully extracted your natural speaking voice from the recording." });
-        setIsExtracting(false);
+        
+        try {
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = async () => {
+            const base64Audio = (reader.result as string).split(',')[1];
+            
+            const res = await apiRequest("POST", "/api/user/writing-style", {
+              audioData: base64Audio,
+              audioType: 'audio/webm'
+            });
+            const data = await res.json();
+            
+            if (data.writingStyle) {
+              setStyle(prev => prev ? `${prev}\n\n${data.writingStyle}` : data.writingStyle);
+              toast({ title: "Voice Analyzed", description: "Successfully extracted your natural speaking voice from the recording." });
+            }
+            setIsExtracting(false);
+          };
+        } catch (err) {
+          toast({ title: "Analysis Failed", variant: "destructive", description: "Could not process your voice note." });
+          setIsExtracting(false);
+        }
+        
         stream.getTracks().forEach(track => track.stop());
       };
 
