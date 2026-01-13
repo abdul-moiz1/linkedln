@@ -603,11 +603,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = req.session.user.profile.sub;
     const { writingStyle, profileUrl } = req.body;
     
-    console.log(`[User Update] Received update for user ${userId}:`, { writingStyle: !!writingStyle, profileUrl: !!profileUrl });
+    console.log(`[User Update] Processing update for sub: ${userId}`);
     
     try {
-      const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
+      const { adminFirestore, isFirebaseConfigured } = await import("./lib/firebase-admin");
       
+      if (!isFirebaseConfigured || !adminFirestore) {
+        console.error("[User Update] Firestore not configured");
+        return res.status(503).json({ error: "Database not configured" });
+      }
+
       const updateData: any = {};
       if (writingStyle !== undefined) {
         updateData.writingStyle = writingStyle;
@@ -616,19 +621,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (profileUrl !== undefined) {
         updateData.profileUrl = profileUrl;
       }
+      updateData.updatedAt = new Date();
 
-      if (isFirebaseConfigured && adminFirestore) {
-        // Use the Firestore document ID directly from the session sub
-        await adminFirestore.collection("users").doc(userId).set(updateData, { merge: true });
-        console.log(`[User Update] Firestore updated successfully for ${userId}`);
-      } else {
-        console.warn("[User Update] Firestore not configured, update only applied to session");
-      }
-
+      // Ensure we use the exact sub as the document ID
+      const userDoc = adminFirestore.collection("users").doc(userId);
+      await userDoc.set(updateData, { merge: true });
+      
+      console.log(`[User Update] Successfully saved to Firestore doc: ${userId}`);
       res.json({ success: true });
     } catch (error: any) {
       console.error("[User Update] Firestore Error:", error);
-      res.status(500).json({ error: "Failed to update user profile in database" });
+      res.status(500).json({ error: "Failed to save to database" });
     }
   });
 
