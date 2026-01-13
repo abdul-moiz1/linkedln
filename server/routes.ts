@@ -8,6 +8,11 @@ import {
   createScheduledPostSchema,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import multer from "multer";
+import OpenAI from "openai";
+
+const upload = multer({ storage: multer.memoryStorage() });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // LinkedIn OAuth2 Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
@@ -23,14 +28,14 @@ const LINKEDIN_SHARE_URL = "https://api.linkedin.com/v2/ugcPosts";
 const LINKEDIN_POSTS_URL = "https://api.linkedin.com/rest/posts";
 const LINKEDIN_SOCIAL_ACTIONS_URL = "https://api.linkedin.com/v2/socialActions";
 
-// Extend Express Session type to include user data and OAuth state
+// Extend Express Session type
 declare module "express-session" {
   interface SessionData {
     user?: SessionUser;
     oauth_state?: string;
-    guestId?: string; // For guest carousel tracking
-    authType?: "linkedin" | "firebase"; // Track auth method
-    firebaseUid?: string; // Firebase user ID
+    guestId?: string;
+    authType?: "linkedin" | "firebase";
+    firebaseUid?: string;
     linkedLinkedIn?: {
       accessToken: string;
       linkedinId: string;
@@ -39,338 +44,24 @@ declare module "express-session" {
       picture?: string;
       linkedAt: Date;
       expiresAt?: Date;
-    }; // Linked LinkedIn for publishing (separate from login)
-    pendingLinkedInLink?: boolean; // Flag to indicate linking mode vs login mode
+    };
+    pendingLinkedInLink?: boolean;
   }
 }
-
-
-import multer from "multer";
-import OpenAI from "openai";
-import { Readable } from "stream";
-
-const upload = multer({ storage: multer.memoryStorage() });
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/user/writing-style/voice", upload.single("audio"), async (req: Request, res: Response) => {
     if (!req.session.user || !req.file) return res.status(401).json({ error: "Unauthorized" });
     try {
-      const transcription = await openai.audio.transcriptions.create({
-        file: await OpenAI.toFile(req.file.buffer, "voice.webm"),
-        model: "whisper-1",
-      });
-      const analysisResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: "Analyze the writing style of this transcribed voice note. Focus on vocabulary, tone, and sentence structure. Summarize it as a style profile." },
-          { role: "user", content: transcription.text }
-        ],
-      });
-      res.json({ success: true, writingStyle: analysisResponse.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "Failed to analyze voice" }); }
-  });
-
-  app.post("/api/user/writing-style/file", upload.single("file"), async (req: Request, res: Response) => {
+    const isLinkMode = req.query.mode === 'link' || (req.session.user && req.session.authType === 'firebase');
+    if (isLinkMode) {
+      req.session.pendingLinkedInLink = true;
+    } else {
+      req.session.pendingLinkedInLink = false;
+    }
+  app.post("/api/user/writing-style/voice", upload.single("audio"), async (req: Request, res: Response) => {
     if (!req.session.user || !req.file) return res.status(401).json({ error: "Unauthorized" });
     try {
-      const analysisResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: "Analyze the writing style of the following document. Focus on vocabulary, tone, and patterns. Summarize as a style profile." },
-          { role: "user", content: req.file.buffer.toString("utf-8") }
-        ],
-      });
-      res.json({ success: true, writingStyle: analysisResponse.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "Failed to analyze file" }); }
-  });
-
-  app.post("/api/user/writing-style/link", async (req: Request, res: Response) => {
-    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const fetchResponse = await fetch(req.body.url);
-      const html = await fetchResponse.text();
-      const cleanText = html.replace(/<[^>]*>?/gm, "").slice(0, 5000);
-      const analysisResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: "Analyze the writing style of the content from this URL. Focus on tone, vocabulary, and structure. Summarize as a style profile." },
-          { role: "user", content: cleanText }
-        ],
-      });
-      res.json({ success: true, writingStyle: analysisResponse.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "Failed to analyze link" }); }
-  });
-    
-    // Store state in session to verify in callback
-    req.session.oauth_state = state;
-
-    const authUrl = new URL(LINKEDIN_AUTH_URL);
-    authUrl.searchParams.append("response_type", "code");
-    authUrl.searchParams.append("client_id", LINKEDIN_CLIENT_ID!);
-    authUrl.searchParams.append("redirect_uri", REDIRECT_URI);
-    authUrl.searchParams.append("state", state);
-    authUrl.searchParams.append("scope", "openid profile email w_member_social");
-
-    console.log("[LinkedIn Auth] Redirecting to:", authUrl.toString());
-    // Redirect user to LinkedIn's authorization page
-    res.redirect(authUrl.toString());
-  });
-
-  /**
-   * STEP 2: Handle OAuth2 Callback
-   * 
-   * LinkedIn redirects back to this endpoint after user authorizes the app.
-   * We receive an authorization code that we exchange for an access token.
-   * 
-   * Query parameters received:
-   * - code: Authorization code to exchange for access token
-   * - state: CSRF protection token (must match what we sent)
-   */
-  app.get("/api/auth/linkedin/callback", async (req: Request, res: Response) => {
-    const { code, state } = req.query;
-
-    // Verify state parameter to prevent CSRF attacks
-    if (!state || state !== req.session.oauth_state) {
-      return res.status(400).send("Invalid state parameter. Possible CSRF attack.");
-    }
-
-    // Clear the state from session after verification
-    delete req.session.oauth_state;
-
-    if (!code) {
-      return res.status(400).send("No authorization code received from LinkedIn.");
-    }
-
-    try {
-      /**
-       * STEP 3: Exchange Authorization Code for Access Token
-       * 
-       * Make a POST request to LinkedIn's token endpoint with:
-       * - grant_type: "authorization_code" (OAuth2 flow type)
-       * - code: The authorization code we just received
-       * - client_id & client_secret: Our app credentials
-       * - redirect_uri: Must match the one used in authorization
-       */
-      const tokenParams = new URLSearchParams({
-        grant_type: "authorization_code",
-        code: code as string,
-        client_id: LINKEDIN_CLIENT_ID!,
-        client_secret: LINKEDIN_CLIENT_SECRET!,
-        redirect_uri: REDIRECT_URI,
-      });
-
-      const tokenResponse = await fetch(LINKEDIN_TOKEN_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: tokenParams.toString(),
-      });
-
-      if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text();
-        console.error("Token exchange failed:", errorText, {
-          status: tokenResponse.status,
-          redirect_uri: REDIRECT_URI,
-          client_id: LINKEDIN_CLIENT_ID ? "PRESENT" : "MISSING"
-        });
-        return res.status(500).send(`Failed to obtain access token from LinkedIn: ${errorText}`);
-      }
-
-      const tokenData = await tokenResponse.json();
-      const accessToken = tokenData.access_token;
-
-      /**
-       * STEP 4: Fetch User Profile Information
-       * 
-       * Use the access token to call LinkedIn's /v2/userinfo endpoint (OpenID Connect).
-       * This returns standardized user profile data including:
-       * - sub: Unique user identifier
-       * - name, given_name, family_name: User's name
-       * - email, email_verified: Email information
-       * - picture: Profile picture URL
-       * - locale: User's locale preference
-       */
-      const profileResponse = await fetch(LINKEDIN_USERINFO_URL, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!profileResponse.ok) {
-        const errorText = await profileResponse.text();
-        console.error("Profile fetch failed:", errorText);
-        return res.status(500).send("Failed to fetch user profile from LinkedIn.");
-      }
-
-      const profileData = await profileResponse.json();
-      
-      // Validate the profile data against our schema
-      const profile = linkedInUserSchema.parse(profileData);
-
-      /**
-       * STEP 5: Handle LinkedIn data based on mode (link vs login)
-       * 
-       * Two modes:
-       * 1. LINK MODE: User is already logged in with Firebase, just connect LinkedIn for publishing
-       *    - Keep the Firebase session intact
-       *    - Store LinkedIn tokens as a linked integration
-       * 2. LOGIN MODE: User is logging in with LinkedIn as their primary auth
-       *    - Replace session with LinkedIn user
-       */
-      const isLinkMode = req.session.pendingLinkedInLink === true;
-      delete req.session.pendingLinkedInLink; // Clear the flag
-      
-      const expiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000);
-      
-      if (isLinkMode && req.session.user && req.session.authType === 'firebase') {
-        // LINK MODE: Keep Firebase session, add LinkedIn as linked integration
-        // Use firebaseUid for storage key (not profile.sub which is firebase-${uid})
-        const firebaseUserId = req.session.firebaseUid || req.session.user.profile.sub;
-        console.log("[LinkedIn Callback] Link mode - connecting LinkedIn to Firebase user:", firebaseUserId);
-        
-        // Store LinkedIn tokens as a linked integration (don't replace user session)
-        req.session.linkedLinkedIn = {
-          accessToken,
-          linkedinId: profile.sub, // This is the actual LinkedIn person ID for publishing
-          name: profile.name,
-          email: profile.email,
-          picture: profile.picture,
-          linkedAt: new Date(),
-          expiresAt,
-        };
-        
-        // Also add to session user for easy access
-        req.session.user.linkedLinkedIn = req.session.linkedLinkedIn;
-        
-        // Save LinkedIn connection to Firestore linked to Firebase user
-        // Use the user's profile.sub as key since that's what we use for carousels (firebase-${uid})
-        try {
-          const { saveLinkedLinkedIn, isFirebaseConfigured } = await import("./lib/firebase-admin");
-          if (isFirebaseConfigured) {
-            // Store under the profile.sub key (firebase-${uid}) for consistency with carousel ownership
-            await saveLinkedLinkedIn(req.session.user.profile.sub, {
-              linkedinId: profile.sub,
-              name: profile.name || "",
-              email: profile.email || "",
-              picture: profile.picture,
-              accessToken,
-              expiresAt,
-            });
-            console.log("[LinkedIn Callback] Saved LinkedIn connection for Firebase user:", req.session.user.profile.sub);
-          }
-        } catch (firestoreError) {
-          console.warn("Failed to save linked LinkedIn to Firestore:", firestoreError);
-        }
-        
-        // Redirect back to where the user was (my-carousels or preview)
-        res.redirect("/my-carousels");
-      } else {
-        // LOGIN MODE: Replace session with LinkedIn user (existing behavior)
-        console.log("[LinkedIn Callback] Login mode - creating new LinkedIn session");
-        
-        req.session.user = {
-          profile,
-          accessToken,
-          authProvider: "linkedin",
-        };
-        req.session.authType = "linkedin";
-
-        // Migrate any guest carousels if guestId exists
-        if (req.session.guestId) {
-          try {
-            const { migrateGuestCarousels, isFirebaseConfigured } = await import("./lib/firebase-admin");
-            if (isFirebaseConfigured) {
-              await migrateGuestCarousels(req.session.guestId, profile.sub);
-              delete req.session.guestId;
-            }
-          } catch (migrateError) {
-            console.warn("Could not migrate guest carousels:", migrateError);
-          }
-        }
-
-        // Try to persist user to Firestore (optional - will fail gracefully if not configured)
-        try {
-          const { saveUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
-          if (isFirebaseConfigured) {
-            await saveUser({
-              linkedinId: profile.sub,
-              email: profile.email || "",
-              name: profile.name || "",
-              profilePicture: profile.picture,
-              accessToken,
-              tokenExpiresAt: expiresAt,
-            });
-          }
-        } catch (firestoreError) {
-          console.warn("Firestore save failed (Firebase may not be configured):", firestoreError);
-        }
-
-        // Redirect to the preview page so user can continue with their carousel
-        res.redirect("/preview");
-      }
-    } catch (error) {
-      console.error("OAuth callback error:", error);
-      res.status(500).send("Authentication failed. Please try again.");
-    }
-  });
-
-  /**
-   * API: Get Current User Session
-   * 
-   * Returns the authenticated user's profile and access token.
-   * Also fetches profileUrl from Firestore if available.
-   * Used by the frontend to display user information.
-   */
-  app.post("/api/onboarding", async (req: Request, res: Response) => {
-    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
-    const userId = req.session.user.profile.sub;
-    const { fullName, email, phone, plan } = req.body;
-    
-    try {
-      const db = getDb();
-      const trialEndDate = new Date();
-      trialEndDate.setDate(trialEndDate.getDate() + 7);
-
-      await db.insert(users).values({
-        id: userId,
-        fullName,
-        email,
-        phone,
-        plan,
-        subscriptionStatus: "trialing",
-        trialEndDate,
-        onboardingCompleted: "true",
-      }).onConflictDoUpdate({
-        target: users.id,
-        set: { fullName, email, phone, plan, subscriptionStatus: "trialing", trialEndDate, onboardingCompleted: "true" }
-      });
-
-      res.json({ success: true });
-    } catch (e) {
-      res.status(500).json({ error: "Failed to save profile" });
-    }
-  });
-
-  app.post("/api/create-checkout-session", async (req: Request, res: Response) => {
-    if (!req.session.user) return res.status(401).send("Unauthorized");
-    const { planId, priceId } = req.body;
-    
-    try {
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        line_items: [{
-          price: priceId,
-          quantity: 1,
-        }],
-        mode: "subscription",
-        subscription_data: {
-          trial_period_days: 7,
-        },
-        success_url: `${process.env.BASE_URL || 'http://localhost:5000'}/create?success=true`,
-        cancel_url: `${process.env.BASE_URL || 'http://localhost:5000'}/pricing`,
-        client_reference_id: req.session.user.profile.sub,
         metadata: { planId }
       });
 
@@ -494,14 +185,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Update Profile URL
-   * 
-   * Updates or clears the user's LinkedIn profile URL in Firestore.
-   * 
-   * Request body:
-   * - profileUrl: The new profile URL (empty string to clear)
-   */
   app.patch("/api/user", async (req: Request, res: Response) => {
     if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
     const { writingStyle } = req.body;
@@ -523,11 +206,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Logout
-   * 
-   * Destroys the user's session, effectively logging them out.
-   */
   app.post("/api/logout", (req: Request, res: Response) => {
     req.session.destroy((err) => {
       if (err) {
@@ -542,15 +220,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // FIREBASE AUTH ENDPOINTS (Email/Google Login)
   // ============================================
 
-  /**
-   * API: Verify Firebase Auth Token
-   * 
-   * Verifies a Firebase ID token from frontend (email/password or Google sign-in)
-   * and creates a session for the user.
-   */
-  /**
-   * API: Verify Firebase Auth Token
-   */
   app.post("/api/auth/firebase/verify", async (req: Request, res: Response) => {
     try {
       const { idToken } = req.body;
@@ -700,10 +369,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CAROUSEL MIGRATION ENDPOINT
   // ============================================
 
-  /**
-   * API: Migrate Guest Carousels
-   * Allows authenticated users to claim their guest carousels by providing a guest ID
-   */
   app.post("/api/carousels/migrate-guest", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -738,10 +403,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Save Slide Base64 Image
-   * Saves a generated base64 image to a specific slide (requires authentication)
-   */
   app.post("/api/carousel/:carouselId/slide/:slideNumber/image", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -781,10 +442,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Check Existing Slide Images
-   * Returns existing base64 images from Firestore for a carousel (requires authentication)
-   */
   app.get("/api/carousel/:carouselId/images", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -838,10 +495,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Check if Slide Needs Regeneration
-   * Compares current slide text with stored text to determine if image needs regeneration (requires authentication)
-   */
   app.post("/api/carousel/:carouselId/check-regeneration", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -951,20 +604,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Share Post on LinkedIn
-   * 
-   * Creates a text post (with optional media) on the authenticated user's LinkedIn profile.
-   * 
-   * LinkedIn Share API (v2/ugcPosts):
-   * - Requires w_member_social scope
-   * - Supports text, images, and videos
-   * - Uses UGC (User Generated Content) API format
-   * 
-   * Request body:
-   * - text: The content of the post (1-3000 characters)
-   * - media: Optional array of media objects (images/videos) with base64 data
-   */
   app.post("/api/share", async (req: Request, res: Response) => {
     // Verify user is authenticated
     if (!req.session.user) {
@@ -975,12 +614,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request body
       const { text, media } = createPostSchema.parse(req.body);
       
-      /**
-       * Get LinkedIn credentials - either from direct LinkedIn login or linked LinkedIn
-       * Priority:
-       * 1. If logged in with LinkedIn directly, use session tokens
-       * 2. If logged in with Firebase, use linked LinkedIn tokens
-       */
       let accessToken: string;
       let linkedinPersonId: string;
       
@@ -1045,9 +678,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      /**
-       * Extract LinkedIn Person ID for the author URN
-       */
       const personId = linkedinPersonId.replace(/^linkedin-person-/, '');
       const authorUrn = `urn:li:person:${personId}`;
 
@@ -1291,12 +921,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: List LinkedIn Posts
-   * 
-   * Fetches the authenticated user's LinkedIn posts using the /rest/posts API.
-   * Returns posts with basic information (content, timestamp, URN).
-   */
   app.get("/api/posts", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1337,13 +961,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Get Post Analytics
-   * 
-   * Fetches engagement metrics (likes, comments) for a specific LinkedIn post.
-   * Note: LinkedIn API only provides likes and comments for personal posts.
-   * Full analytics (impressions, clicks) only available for company pages.
-   */
   app.get("/api/posts/:postId/analytics", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1384,20 +1001,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Fetch LinkedIn Posts via Apify Task
-   * 
-   * Uses the configured Apify Task to fetch LinkedIn posts with engagement data.
-   * Requires APIFY_TOKEN and APIFY_TASK_ID to be configured.
-   * 
-   * Request body (optional):
-   * - userId: string - The user's LinkedIn ID (for caching)
-   * - profileUrl: string - The user's LinkedIn profile URL
-   * - forceRefresh: boolean - If true, bypasses cache and fetches fresh data
-   * 
-   * Returns posts with author info, stats, and images in LinkedIn-compatible format.
-   * Posts are cached in Firestore for 24 hours to reduce Apify calls.
-   */
   app.post("/api/posts/fetch", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1623,11 +1226,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Clear posts cache (force refresh on next fetch)
-   * 
-   * Clears the cached posts for the current user.
-   */
   app.post("/api/posts/clear-cache", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1649,13 +1247,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Repost (Reshare) a LinkedIn Post
-   * 
-   * Creates a reshare of an existing LinkedIn post.
-   * Can optionally add commentary to the repost.
-   * Requires LinkedIn-Version: 202209 or higher.
-   */
   app.post("/api/posts/:postId/repost", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1719,12 +1310,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Schedule a Post
-   * 
-   * Stores a post in the database to be published at a future date/time.
-   * A background job will check the database and post when the time arrives.
-   */
   app.post("/api/posts/schedule", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1767,12 +1352,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Get Scheduled Posts
-   * 
-   * Returns all scheduled posts for the authenticated user.
-   * Includes pending, posted, and failed posts.
-   */
   app.get("/api/posts/scheduled", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1801,11 +1380,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Delete Scheduled Post
-   * 
-   * Deletes a pending scheduled post before it's published.
-   */
   app.delete("/api/posts/scheduled/:id", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1846,14 +1420,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Generate AI Images
-   * 
-   * Generates images using OpenAI's DALL-E, Google's Gemini, or Stability AI based on slide content.
-   * Each slide becomes an image in the carousel, with context-aware prompts.
-   * Provider can be "openai", "gemini", or "stability" (auto selects first available)
-   * Requires authentication
-   */
   app.post("/api/images/generate", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1988,82 +1554,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${stabilityApiKey}`,
-                "Accept": "image/*",
-              },
-              body: formData,
-            });
-
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error(`Stability API error for slide ${i + 1}:`, errorText);
-              errors.push(`Slide ${i + 1}: API error (${response.status})`);
-              continue;
-            }
-
-            const buffer = await response.arrayBuffer();
-            const base64 = Buffer.from(buffer).toString("base64");
-            const base64Image = `data:image/png;base64,${base64}`;
-            imageUrls.push(base64Image);
-          } catch (imgError: any) {
-            console.error(`Stability image generation failed for slide ${i + 1}:`, imgError);
-            errors.push(`Slide ${i + 1}: ${imgError.message}`);
-          }
-        }
-      } else {
-        const { OpenAI } = await import("openai");
-        const openai = new OpenAI({ apiKey: openaiApiKey! });
-
-        for (let i = 0; i < slideData.length; i++) {
-          try {
-            // Use slide text directly as the prompt
-            const prompt = slideData[i].text;
-            
-            const response = await openai.images.generate({
-              model: "dall-e-3",
-              prompt: prompt,
-              n: 1,
-              size: "1024x1024",
-              quality: "standard",
-            });
-
-            if (response.data && response.data[0]?.url) {
-              imageUrls.push(response.data[0].url);
-            }
-          } catch (imgError: any) {
-            console.error(`OpenAI image generation failed for slide ${i + 1}:`, imgError);
-            errors.push(`Slide ${i + 1}: ${imgError.message}`);
-          }
-        }
-      }
-
-      if (imageUrls.length === 0) {
-        return res.status(500).json({ 
-          error: "All image generations failed",
-          details: errors 
-        });
-      }
-
-      res.json({ 
-        success: true, 
-        imageUrls,
-        generatedCount: imageUrls.length,
-        requestedCount: slideData.length,
-        provider: selectedProvider,
-        errors: errors.length > 0 ? errors : undefined
-      });
-    } catch (error: any) {
-      console.error("Image generation error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate images" });
-    }
-  });
-
-  /**
-   * API: Create PDF from Images
-   * 
-   * Converts an array of image URLs into a multi-page PDF document.
-   * Each image becomes a page in the carousel PDF.
-   * Requires authentication
-   */
   app.post("/api/pdf/create", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -2247,12 +1737,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Upload Carousel to LinkedIn
-   * 
-   * Uploads a PDF carousel as a document post to LinkedIn.
-   * Uses LinkedIn's new Documents API (2024+) for carousel-style posts.
-   */
   app.post("/api/linkedin/upload", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -2587,12 +2071,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Save Project Draft
-   * 
-   * Saves a carousel project to Firestore for later editing.
-   * Projects include messages, generated images, and PDF data.
-   */
   app.post("/api/project/save", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -2636,11 +2114,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Get User Projects
-   * 
-   * Retrieves all carousel projects for the authenticated user.
-   */
   app.get("/api/projects", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -2665,11 +2138,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Get Single Project
-   * 
-   * Retrieves a specific carousel project by ID.
-   */
   app.get("/api/project/:projectId", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -2704,10 +2172,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CAROUSEL API ENDPOINTS (with Base64 persistence)
   // ============================================
 
-  /**
-   * API: Get Carousel Types (Guest-friendly)
-   * Returns all available carousel type options
-   */
   app.get("/api/carousel/types", async (req: Request, res: Response) => {
     // Guest-friendly - no auth required
     try {
@@ -2719,11 +2183,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Create Carousel from URL
-   * Scrapes a URL, extracts text content, and uses AI to summarize into 7-10 carousel slides
-   * Requires authentication
-   */
   // Carousel from Voice
   const multer = await import("multer");
   const upload = multer.default({ storage: multer.memoryStorage() });
@@ -2940,259 +2399,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fetchResponse = await fetch(url, {
           headers: {
             "User-Agent": "Mozilla/5.0 (compatible; LinkedInCarouselBot/1.0; +https://replit.com)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-          },
-          redirect: "follow",
-        });
-
-        if (!fetchResponse.ok) {
-          throw new Error(`Failed to fetch URL: ${fetchResponse.status} ${fetchResponse.statusText}`);
-        }
-
-        htmlContent = await fetchResponse.text();
-      } catch (fetchError: any) {
-        console.error("URL fetch error:", fetchError);
-        return res.status(400).json({ 
-          error: `Could not fetch the URL. ${fetchError.message || "Please check if the URL is accessible."}` 
-        });
-      }
-
-      // Step 2: Extract readable text from HTML
-      // Remove scripts, styles, and HTML tags
-      let textContent = htmlContent
-        // Remove script tags and content
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
-        // Remove style tags and content
-        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
-        // Remove HTML comments
-        .replace(/<!--[\s\S]*?-->/g, " ")
-        // Remove all remaining HTML tags
-        .replace(/<[^>]+>/g, " ")
-        // Decode common HTML entities
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&mdash;/g, "—")
-        .replace(/&ndash;/g, "–")
-        // Normalize whitespace
-        .replace(/\s+/g, " ")
-        .trim();
-
-      if (textContent.length < 100) {
-        return res.status(400).json({ 
-          error: "Could not extract enough text from the URL. The page may be behind a paywall, require JavaScript, or contain mostly images." 
-        });
-      }
-
-      // Limit text length for API call (approximately 15,000 characters)
-      if (textContent.length > 15000) {
-        textContent = textContent.substring(0, 15000) + "...";
-      }
-
-      console.log(`Extracted ${textContent.length} characters from URL`);
-
-      // Step 3: Use AI to summarize into 7-10 carousel slides
-      const systemPrompt = `You are a Carousel Design Expert. Your task is to transform blog/article content into a high-performing professional carousel with 7-10 slides.
-
-CAROUSEL TYPE: ${carouselType}
-
-SLIDE STRUCTURE:
-- Slide 1: HOOK - A punchy, curiosity-driven headline (max 50 characters)
-- Slides 2-9: KEY POINTS - One clear idea per slide (max 100 characters each)
-- Final Slide: CTA - Call-to-action like "Follow for more tips" (max 100 characters)
-
-TEXT RULES:
-1. Each slide = ONE single idea, clear and impactful
-2. Use clean, bold, human-friendly wording
-3. Remove jargon, simplify complex ideas
-4. Make it scannable - short sentences, power words
-5. Aim for 7-10 slides total (minimum 7, maximum 10)
-
-LAYOUT OPTIONS:
-- "hook_slide": For Slide 1 - bold, centered, maximum impact
-- "big_text_center": For impactful statements or key points
-- "points_center": For lists (keep to 3 points max)
-- "cta_slide": For the final call-to-action slide
-
-Return your response as a valid JSON object with this structure:
-{
-  "title": "Suggested carousel title based on the content",
-  "slides": [
-    {
-      "number": 1,
-      "rawText": "Original concept from article",
-      "finalText": "5 Habits That Changed My Career",
-      "layout": "hook_slide",
-      "charCount": 32
-    }
-  ]
-}`;
-
-      const userPrompt = `Transform this article/blog content into a professional carousel with 7-10 slides:
-
-SOURCE URL: ${url}
-
-CONTENT:
-${textContent}
-
-Create a compelling carousel that captures the key insights. Return ONLY the JSON object, no other text.`;
-
-      let aiResponse: { title: string; slides: any[] } = { title: "", slides: [] };
-
-      // Use the selected AI provider (respect user's choice)
-      const selectedAiProvider = aiProvider || "gemini";
-      
-      if (selectedAiProvider === "gemini") {
-        // Use Gemini for text processing
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-        
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              topP: 0.9,
-            }
-          }),
-        });
-
-        const json = await response.json() as any;
-
-        if (json.error) {
-          console.error("Gemini API error:", json.error);
-          throw new Error(json.error.message || "Gemini API error");
-        }
-
-        const textResponse = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!textResponse) {
-          throw new Error("No response from Gemini");
-        }
-
-        // Parse JSON from the response
-        const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          aiResponse = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("Failed to parse AI response as JSON");
-        }
-      } else if (aiProvider === "openai") {
-        // Use OpenAI for text processing
-        const { OpenAI } = await import("openai");
-        const openai = new OpenAI({ apiKey: openaiApiKey! });
-
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.7,
-          response_format: { type: "json_object" }
-        });
-
-        const content = response.choices[0]?.message?.content;
-        if (!content) {
-          throw new Error("No response from OpenAI");
-        }
-
-        aiResponse = JSON.parse(content);
-      }
-
-      // Ensure slides array exists
-      const rawSlides = aiResponse.slides || [];
-      if (rawSlides.length < 3) {
-        return res.status(500).json({ 
-          error: "AI could not generate enough slides from the content. Please try a different URL with more substantial content." 
-        });
-      }
-
-      // Process and normalize slides (same as /api/carousel/process)
-      const totalSlides = rawSlides.length;
-      const processedSlides = rawSlides.map((slide: any, index: number) => {
-        const isFirstSlide = index === 0;
-        const isLastSlide = index === totalSlides - 1;
-        const maxChars = isFirstSlide ? 50 : 100;
-        
-        // Get and clamp finalText to enforce character limits
-        let finalText = (slide.finalText || slide.rawText || "").trim();
-        if (finalText.length > maxChars) {
-          const truncateAt = maxChars - 3;
-          const truncated = finalText.substring(0, truncateAt);
-          const lastSpace = truncated.lastIndexOf(" ");
-          finalText = (lastSpace > truncateAt * 0.7 ? truncated.substring(0, lastSpace) : truncated) + "...";
-        }
-        
-        const charCount = finalText.length;
-        
-        // Determine layout based on position
-        let layout = slide.layout || "big_text_center";
-        if (isFirstSlide && layout !== "hook_slide") layout = "hook_slide";
-        if (isLastSlide && layout !== "cta_slide") layout = "cta_slide";
-        
-        // Use the slide text directly as the image prompt - no AI-generated prompts
-        return {
-          number: index + 1,
-          rawText: slide.rawText || finalText,
-          finalText,
-          imagePrompt: finalText,
-          layout,
-          charCount,
-          tooMuchText: false,
-          maxChars,
-          isHook: isFirstSlide,
-          isCta: isLastSlide,
-          base64Image: "",
-        };
-      });
-
-      // Determine login requirements based on session state
-      const isAuthenticated = !!req.session.user;
-      const hasLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";
-
-      res.json({
-        title: aiResponse.title || "Carousel from URL",
-        carouselType,
-        sourceUrl: url,
-        slides: processedSlides,
-        pdfBase64: "",
-        loginRequired: {
-          download: !isAuthenticated,
-          linkedinPost: !hasLinkedInAuth
-        }
-      });
-    } catch (error: any) {
-      console.error("From-URL carousel error:", error);
-      
-      const isAuthenticated = !!req.session.user;
-      const hasLinkedInAuth = isAuthenticated && req.session.authType === "linkedin";
-      
-      res.status(500).json({ 
-        error: error.message || "Failed to create carousel from URL",
-        carouselType: req.body.carouselType || "tips-howto",
-        slides: [],
-        pdfBase64: "",
-        loginRequired: {
-          download: !isAuthenticated,
-          linkedinPost: !hasLinkedInAuth
-        }
-      });
-    }
-  });
-
-  /**
-   * API: Process Text
-   * Takes raw text + carousel type and returns formatted slides (NO AI text processing)
-   * AI is only used for image generation, not text processing
-   * Requires authentication
-   */
   app.post("/api/carousel/process", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -3294,10 +2500,6 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     }
   });
 
-  /**
-   * API: Create New Carousel
-   * Creates a new carousel in Firestore
-   */
   app.post("/api/carousel", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -3361,10 +2563,6 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     }
   });
 
-  /**
-   * API: Get User's Carousels
-   * Returns all carousels for the authenticated user
-   */
   app.get("/api/carousels", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -3388,9 +2586,6 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     }
   });
 
-  /**
-   * API: Get Single Carousel
-   */
   app.get("/api/carousel/:carouselId", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -3423,9 +2618,6 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     }
   });
 
-  /**
-   * API: Update Carousel
-   */
   app.patch("/api/carousel/:carouselId", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -3490,9 +2682,6 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     }
   });
 
-  /**
-   * API: Delete Carousel
-   */
   app.delete("/api/carousel/:carouselId", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -3525,11 +2714,6 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     }
   });
 
-  /**
-   * API: Recover Carousel Images from Storage
-   * Recovers slide images from Firebase Storage for carousels with empty slides array
-   * This is useful for carousels that have PDFs but lost their slide image references
-   */
   app.post("/api/carousel/:carouselId/recover-images", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -3626,10 +2810,6 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     }
   });
 
-  /**
-   * API: Generate Images for Carousel with Firebase Storage
-   * Generates images and uploads them to Firebase Storage, storing URLs in Firestore
-   */
   app.post("/api/carousel/:carouselId/generate-images", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -3765,130 +2945,6 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${stabilityApiKey}`,
-                "Accept": "image/*",
-              },
-              body: formData,
-            });
-
-            if (!response.ok) {
-              errors.push(`Slide ${i + 1}: Stability API error (${response.status})`);
-              continue;
-            }
-
-            const buffer = await response.arrayBuffer();
-            base64Image = Buffer.from(buffer).toString("base64");
-          } else if (selectedProvider === "openai") {
-            const { OpenAI } = await import("openai");
-            const openai = new OpenAI({ apiKey: openaiApiKey! });
-
-            const response = await openai.images.generate({
-              model: "dall-e-3",
-              prompt: prompt,
-              n: 1,
-              size: "1024x1024",
-              quality: "standard",
-              response_format: "b64_json",
-            });
-
-            if (response.data?.[0]?.b64_json) {
-              base64Image = response.data[0].b64_json;
-            } else {
-              errors.push(`Slide ${i + 1}: No image from OpenAI`);
-              continue;
-            }
-          }
-
-          // Upload to Firebase Storage if configured, otherwise fall back to base64
-          if (base64Image) {
-            if (useStorage) {
-              try {
-                const imageUrl = await uploadImageToStorage(
-                  base64Image,
-                  carouselId,
-                  slide.number,
-                  mimeType
-                );
-                updatedSlides[i] = {
-                  ...updatedSlides[i],
-                  imageUrl
-                };
-                console.log(`Slide ${i + 1}: Uploaded to Firebase Storage`);
-              } catch (uploadError: any) {
-                console.error(`Failed to upload slide ${i + 1} to Storage:`, uploadError);
-                // Fall back to base64 if upload fails
-                updatedSlides[i] = {
-                  ...updatedSlides[i],
-                  base64Image: `data:${mimeType};base64,${base64Image}`
-                };
-              }
-            } else {
-              // No storage configured, use base64
-              updatedSlides[i] = {
-                ...updatedSlides[i],
-                base64Image: `data:${mimeType};base64,${base64Image}`
-              };
-            }
-          }
-        } catch (imgError: any) {
-          console.error(`Image generation failed for slide ${i + 1}:`, imgError);
-          errors.push(`Slide ${i + 1}: ${imgError.message}`);
-        }
-      }
-
-      // Deep sanitize function to remove undefined values recursively for Firestore
-      const deepSanitize = (obj: any): any => {
-        if (obj === undefined) {
-          return null;
-        }
-        if (obj === null) {
-          return null;
-        }
-        if (Array.isArray(obj)) {
-          return obj.map(item => deepSanitize(item));
-        }
-        if (typeof obj === 'object' && obj !== null) {
-          const cleanObj: Record<string, any> = {};
-          for (const [key, value] of Object.entries(obj)) {
-            if (value !== undefined) {
-              cleanObj[key] = deepSanitize(value);
-            }
-          }
-          return cleanObj;
-        }
-        return obj;
-      };
-
-      // Sanitize slides for Firestore
-      const sanitizedSlides = updatedSlides.map(slide => deepSanitize(slide));
-
-      // Check if all slides have images (either URL or base64)
-      const hasAllImages = sanitizedSlides.every(s => s.imageUrl || s.base64Image);
-      await updateCarousel(carouselId, { 
-        slides: sanitizedSlides as any,
-        status: hasAllImages ? "images_generated" : "draft"
-      });
-
-      const updatedCarousel = await getCarousel(carouselId);
-
-      res.json({
-        success: true,
-        carousel: updatedCarousel,
-        generatedCount: updatedSlides.filter(s => s.imageUrl || s.base64Image).length,
-        totalSlides: updatedSlides.length,
-        provider: selectedProvider,
-        storageUsed: useStorage,
-        errors: errors.length > 0 ? errors : undefined
-      });
-    } catch (error: any) {
-      console.error("Generate carousel images error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate images" });
-    }
-  });
-
-  /**
-   * API: Create and Save PDF for Carousel
-   * Creates PDF from images (URLs or Base64) and uploads to Firebase Storage
-   */
   app.post("/api/carousel/:carouselId/create-pdf", async (req: Request, res: Response) => {
     if (!req.session.user) {
       return res.status(401).json({ error: "Not authenticated" });
