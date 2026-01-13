@@ -9,12 +9,11 @@ import {
   users
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
-import { getDb } from "./storage";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2023-10-16",
-});
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" })
+  : null;
 
 // LinkedIn OAuth2 Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
@@ -424,6 +423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/create-checkout-session", async (req: Request, res: Response) => {
     if (!req.session.user) return res.status(401).send("Unauthorized");
+    if (!stripe) return res.status(503).json({ error: "Stripe not configured" });
     const { planId, priceId } = req.body;
     
     try {
@@ -598,41 +598,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * API: Update Profile URL
-   * 
-   * Updates or clears the user's LinkedIn profile URL in Firestore.
-   * 
-   * Request body:
-   * - profileUrl: The new profile URL (empty string to clear)
-   */
-  app.patch("/api/user/profile-url", async (req: Request, res: Response) => {
-    if (!req.session.user) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const { profileUrl } = req.body;
-    
-    if (typeof profileUrl !== "string") {
-      return res.status(400).json({ error: "profileUrl must be a string" });
-    }
-
+  app.patch("/api/user", async (req: Request, res: Response) => {
+    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
     const userId = req.session.user.profile.sub;
-
+    const { writingStyle, profileUrl } = req.body;
+    
     try {
-      const { updateUserProfileUrl, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
       
-      if (isFirebaseConfigured) {
-        await updateUserProfileUrl(userId, profileUrl);
-        console.log(`Updated profile URL for user ${userId}: ${profileUrl || "(cleared)"}`);
-        return res.json({ success: true, profileUrl });
-      } else {
-        console.warn("Firebase is not configured - profile URL cannot be persisted");
-        return res.json({ success: true, profileUrl, warning: "Firebase is not configured - changes will not persist" });
+      const updateData: any = {};
+      if (writingStyle !== undefined) {
+        updateData.writingStyle = writingStyle;
+        (req.session.user as any).writingStyle = writingStyle;
       }
-    } catch (error) {
-      console.error("Failed to update profile URL:", error);
-      return res.status(500).json({ error: "Failed to update profile URL" });
+      if (profileUrl !== undefined) {
+        updateData.profileUrl = profileUrl;
+      }
+
+      if (isFirebaseConfigured && adminFirestore) {
+        await adminFirestore.collection("users").doc(userId).set(updateData, { merge: true });
+        console.log(`[User Update] Updated Firestore for user ${userId}:`, Object.keys(updateData));
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[User Update] Error:", error);
+      res.status(500).json({ error: "Failed to update user profile" });
     }
   });
 
