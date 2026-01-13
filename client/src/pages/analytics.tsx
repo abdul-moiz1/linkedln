@@ -53,6 +53,10 @@ export default function Analytics() {
   const [isConnected, setIsConnected] = useState(false);
   const { data: user } = useQuery<SessionUser>({ queryKey: ["/api/user"] });
 
+  const initials = user?.profile?.name
+    ? user.profile.name.split(" ").map((n) => n[0]).join("").toUpperCase()
+    : "AM";
+
   const handleNext = () => {
     if (step === 1) setStep(2);
     else {
@@ -80,10 +84,10 @@ export default function Analytics() {
             {isConnected && (
               <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-100 shadow-sm">
                 <Avatar className="h-6 w-6">
-                  <AvatarImage src="https://i.pravatar.cc/150?u=abdul" />
-                  <AvatarFallback>AM</AvatarFallback>
+                  <AvatarImage src={user?.profile?.picture} />
+                  <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-bold text-slate-900">Abdul Moiz</span>
+                <span className="text-sm font-bold text-slate-900">{user?.profile?.name || "Abdul Moiz"}</span>
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               </div>
             )}
@@ -117,11 +121,11 @@ export default function Analytics() {
             <div className="flex flex-wrap items-center justify-between gap-6">
               <div className="flex items-center gap-4 min-w-[300px]">
                 <Avatar className="h-16 w-16 border-2 border-slate-100 shadow-sm">
-                  <AvatarImage src={isConnected ? "https://i.pravatar.cc/150?u=abdul" : "https://i.pravatar.cc/150?u=rahul"} />
-                  <AvatarFallback className="bg-blue-50 text-[#00a0dc] font-bold">RS</AvatarFallback>
+                  <AvatarImage src={isConnected ? user?.profile?.picture : "https://i.pravatar.cc/150?u=rahul"} />
+                  <AvatarFallback className="bg-blue-50 text-[#00a0dc] font-bold">{initials}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">{isConnected ? "Abdul Moiz" : "Rahul Sharma"}</h2>
+                  <h2 className="text-xl font-bold text-slate-900">{isConnected ? (user?.profile?.name || "Abdul Moiz") : "Rahul Sharma"}</h2>
                   <p className="text-sm text-slate-500 truncate max-w-[400px]">
                     {isConnected ? "Aspiring Cloud Engineer | AWS | Terraform | Cl..." : "Digital Marketing Strategist | Growth Hacker | H..."}
                   </p>
@@ -317,11 +321,11 @@ export default function Analytics() {
                 <p className="text-sm font-bold text-slate-500 uppercase tracking-tight">Confirm your LinkedIn Profile</p>
                 <div className="bg-slate-50/50 rounded-2xl p-6 flex items-center gap-4 border border-slate-100 shadow-sm">
                   <Avatar className="h-16 w-16 border-2 border-white shadow-sm">
-                    <AvatarImage src="https://i.pravatar.cc/150?u=abdul" />
-                    <AvatarFallback className="bg-blue-50 text-[#00a0dc]">AM</AvatarFallback>
+                    <AvatarImage src={user?.profile?.picture} />
+                    <AvatarFallback className="bg-blue-50 text-[#00a0dc]">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-slate-900 text-lg">Abdul Moiz</h4>
+                    <h4 className="font-bold text-slate-900 text-lg">{user?.profile?.name || "Abdul Moiz"}</h4>
                     <p className="text-sm text-slate-500 leading-relaxed">
                       Aspiring Cloud Engineer | AWS | Terraform | Cloud Automation Enthusiast | CS Graduate
                     </p>
