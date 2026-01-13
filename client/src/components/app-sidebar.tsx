@@ -94,7 +94,7 @@ export function AppSidebar() {
           <div className="bg-[#00a0dc] p-1.5 rounded-lg">
              <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-[#1a1a1a]">Supergrow</span>
+          <span className="font-bold text-xl tracking-tight text-[#1a1a1a]">VoicePrint</span>
         </div>
         <Button 
           className="w-full bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-xl h-12 flex items-center justify-center gap-2 shadow-sm border-none"
@@ -105,7 +105,6 @@ export function AppSidebar() {
         </Button>
         <CreatePostModal isOpen={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
       </SidebarHeader>
-
       <SidebarContent className="px-2 scrollbar-none">
         {menuItems.map((group) => (
           <SidebarGroup key={group.group}>
@@ -138,7 +137,6 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-
       <SidebarFooter className="p-4 mt-auto border-t border-sidebar-border bg-sidebar/50">
         <div className="flex items-center gap-3 w-full">
           <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
