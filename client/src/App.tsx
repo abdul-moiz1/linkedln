@@ -40,6 +40,7 @@ function Router() {
             <Route path="/profile" component={Profile} />
             <Route path="/writing-style" component={WritingStyle} />
             <Route path="/posts" component={Posts} />
+            <Route path="/posts-scrape" component={Posts} />
             <Route path="/scheduled" component={Scheduled} />
             <Route path="/my-carousels" component={MyCarousels} />
             <Route component={NotFound} />
