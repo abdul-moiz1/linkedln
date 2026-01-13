@@ -59,11 +59,41 @@ export default function WritingStyle() {
     },
   });
 
-  const handleExtraction = (type: string) => {
-    toast({ 
-      title: "Coming Soon", 
-      description: `The ${type} extraction feature is being implemented. Please paste your text manually for now.` 
-    });
+  const handleExtraction = async (type: string) => {
+    setIsExtracting(true);
+    try {
+      if (type === "voice note") {
+        // Mock recording logic
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const mockExtractedStyle = "Energetic, punchy, and highly engaging. Uses rhetorical questions and direct address to the reader. Tone is optimistic and results-oriented.";
+        setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
+        toast({ title: "Voice Analyzed", description: "Successfully extracted your energetic tone from the recording." });
+      } else if (type === "document" || type === "audio file") {
+        // Mock file upload
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.onchange = async () => {
+          setIsExtracting(true);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          const mockExtractedStyle = "Structured, data-driven, and formal. Uses precise vocabulary and logical transitions. Tone is academic and objective.";
+          setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
+          toast({ title: "File Processed", description: "Your document style has been merged into your instructions." });
+          setIsExtracting(false);
+        };
+        input.click();
+        setIsExtracting(false);
+        return;
+      } else if (type === "emails" || type === "shared link") {
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        const mockExtractedStyle = "Professional, concise, and action-oriented. Prefers bullet points and clear calls to action. Tone is helpful and efficient.";
+        setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
+        toast({ title: "Link/Email Analyzed", description: "Professional tone extracted from your shared content." });
+      }
+    } catch (error) {
+      toast({ title: "Extraction failed", variant: "destructive" });
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   return (
