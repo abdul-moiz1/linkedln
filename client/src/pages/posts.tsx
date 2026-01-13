@@ -1,221 +1,132 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, ArrowLeft, Image as ImageIcon, Link, Send, Sparkles, X, RefreshCw } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { SessionUser } from "@shared/schema";
+import { 
+  PenLine, 
+  Mic, 
+  FileText, 
+  Youtube, 
+  Globe, 
+  AlignLeft,
+  ArrowLeft
+} from "lucide-react";
+
+interface TemplateCardProps {
+  title: string;
+  description: string;
+  icon: any;
+  iconColor: string;
+  onClick: () => void;
+}
+
+function TemplateCard({ title, description, icon: Icon, iconColor, onClick }: TemplateCardProps) {
+  return (
+    <Card 
+      className="cursor-pointer hover:shadow-md transition-all border-slate-200/60 shadow-sm group active:scale-[0.98]"
+      onClick={onClick}
+    >
+      <CardContent className="p-6 flex items-start gap-4">
+        <div className={`p-3 rounded-xl bg-slate-50 group-hover:bg-white transition-colors`}>
+          <Icon className={`w-6 h-6 ${iconColor}`} />
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-bold text-slate-900">{title}</h3>
+          <p className="text-sm text-slate-500 leading-relaxed">{description}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function PostsPage() {
-  const [, navigate] = useLocation();
-  const { toast } = useToast();
-  const [postContent, setPostContent] = useState("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showStyleDialog, setShowStyleDialog] = useState(false);
-  const [styleText, setStyleText] = useState("");
-  
-  const { data: user, isLoading: userLoading } = useQuery<SessionUser & { writingStyle?: string }>({
-    queryKey: ["/api/user"],
-  });
+  const [, setLocation] = useLocation();
 
-  const [prompt, setPrompt] = useState("");
-
-  const analyzeMutation = useMutation({
-    mutationFn: async (text: string) => {
-      const res = await apiRequest("POST", "/api/user/writing-style", { text });
-      return res.json();
+  const mainTemplates = [
+    {
+      title: "Generate Post from Scratch",
+      description: "Use the power of AI-generated content to create impactful LinkedIn posts.",
+      icon: PenLine,
+      iconColor: "text-slate-700",
+      url: "/posts/scratch"
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Writing style analyzed and saved!" });
-      setShowStyleDialog(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-    },
-  });
-
-  const generateMutation = useMutation({
-    mutationFn: async (promptText: string) => {
-      // We'll use the existing /api/images/generate but tweak it to return text if prompt starts with "Write"
-      // Or better, let's assume the backend can handle a new /api/posts/generate endpoint
-      const res = await apiRequest("POST", "/api/posts/generate", { 
-        prompt: promptText,
-      });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      if (data.text) setPostContent(data.text);
-      toast({ title: "Post Generated", description: "AI has drafted a post in your style." });
+    {
+      title: "Generate post from audio",
+      description: "Record your thoughts and generate post from it.",
+      icon: Mic,
+      iconColor: "text-orange-500",
+      url: "/posts/audio"
     }
-  });
+  ];
 
-  const postMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const res = await apiRequest("POST", "/api/share", { text: content });
-      return res.json();
+  const repurposeTemplates = [
+    {
+      title: "Generate a post from a PDF",
+      description: "Upload a PDF and generate a post from it",
+      icon: FileText,
+      iconColor: "text-purple-600",
+      url: "/posts/pdf"
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Post shared on LinkedIn successfully!",
-      });
-      setPostContent("");
+    {
+      title: "Generate a post from a Youtube video",
+      description: "Share a Youtube video link and generate a post from it",
+      icon: Youtube,
+      iconColor: "text-red-500",
+      url: "/posts/youtube"
     },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to share post",
-      });
+    {
+      title: "Generate a post from an article",
+      description: "Share a link to a blog post and generate a post from it",
+      icon: Globe,
+      iconColor: "text-emerald-500",
+      url: "/posts/article"
     },
-  });
-
-  if (userLoading) {
-    return (
-      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+    {
+      title: "Format your content",
+      description: "Use the power of AI to format your clunky content into readable posts",
+      icon: AlignLeft,
+      iconColor: "text-blue-500",
+      url: "/posts/format"
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="container max-w-2xl mx-auto p-4 py-8">
-        <div className="flex items-center gap-3 mb-6">
-          <Button 
-            onClick={() => navigate("/")} 
-            variant="ghost" 
-            size="icon"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h1 className="text-2xl font-bold">Write Post</h1>
-          {user?.writingStyle ? (
-            <Badge variant="secondary" className="ml-auto flex items-center gap-1 py-1 px-3">
-              <Sparkles className="w-3 h-3 text-yellow-500" />
-              Style Profile Active
-              <Button variant="ghost" size="icon" className="h-4 w-4 ml-1" onClick={() => setShowStyleDialog(true)}>
-                <RefreshCw className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ) : (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="ml-auto flex items-center gap-2 border-yellow-200 bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
-              onClick={() => setShowStyleDialog(true)}
-            >
-              <Sparkles className="w-4 h-4" />
-              Setup Writing Style
-            </Button>
-          )}
+    <div className="p-8 max-w-6xl mx-auto space-y-10">
+      <div className="flex items-center gap-4">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setLocation("/dashboard")}
+          className="rounded-full h-10 w-10 hover:bg-slate-100"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Generate posts with AI</h1>
+          <p className="text-slate-500">Select a template to generate high-quality posts with AI</p>
         </div>
+      </div>
 
-        {showStyleDialog && (
-          <Card className="mb-6 border-yellow-200 bg-yellow-50/30">
-            <CardHeader className="flex flex-row items-center justify-between py-3">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-yellow-500" />
-                Analyze Your Writing Style
-              </CardTitle>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowStyleDialog(false)}>
-                <X className="h-4 h-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="pb-3">
-              <p className="text-xs text-muted-foreground mb-3">
-                Paste an example of your writing (post, email, or article) below. Our AI will analyze your vocabulary and tone to match it in future posts.
-              </p>
-              <Textarea 
-                placeholder="Paste your sample text here..."
-                className="min-h-[100px] mb-3 text-sm"
-                value={styleText}
-                onChange={(e) => setStyleText(e.target.value)}
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setShowStyleDialog(false)}>Cancel</Button>
-                <Button 
-                  size="sm" 
-                  onClick={() => analyzeMutation.mutate(styleText)}
-                  disabled={!styleText.trim() || analyzeMutation.isPending}
-                >
-                  {analyzeMutation.isPending && <Loader2 className="w-3 h-3 animate-spin mr-2" />}
-                  Analyze & Save
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {mainTemplates.map((template) => (
+          <TemplateCard 
+            key={template.title}
+            {...template}
+            onClick={() => setLocation(template.url)}
+          />
+        ))}
+      </div>
 
-        <Card className="border-none shadow-sm overflow-hidden">
-          <CardHeader className="border-b bg-white pb-4">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={user?.profile?.picture} />
-                <AvatarFallback>{user?.profile?.name?.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="text-sm font-bold">{user?.profile?.name}</CardTitle>
-                <p className="text-xs text-muted-foreground">Post to LinkedIn</p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0 bg-white">
-            <div className="p-4 border-b bg-gray-50/30">
-              <div className="flex gap-2">
-                <Input 
-                  placeholder="What should the AI write about? (e.g. My new product launch)" 
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="flex-1 bg-white"
-                />
-                <Button 
-                  variant="outline" 
-                  onClick={() => generateMutation.mutate(prompt)}
-                  disabled={!prompt.trim() || generateMutation.isPending}
-                  className="gap-2"
-                >
-                  {generateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-yellow-500" />}
-                  AI Generate
-                </Button>
-              </div>
-            </div>
-            <Textarea
-              placeholder="What do you want to talk about?"
-              className="min-h-[200px] border-none focus-visible:ring-0 text-lg p-4 resize-none"
-              value={postContent}
-              onChange={(e) => setPostContent(e.target.value)}
+      <div className="space-y-6">
+        <h2 className="text-xl font-bold text-slate-900">Repurpose Content</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {repurposeTemplates.map((template) => (
+            <TemplateCard 
+              key={template.title}
+              {...template}
+              onClick={() => setLocation(template.url)}
             />
-            
-            <div className="p-3 border-t flex items-center justify-between bg-gray-50/50">
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-blue-600">
-                  <ImageIcon className="w-5 h-5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-blue-600">
-                  <Link className="w-5 h-5" />
-                </Button>
-              </div>
-              
-              <Button 
-                onClick={() => postMutation.mutate(postContent)}
-                disabled={!postContent.trim() || postMutation.isPending}
-                className="bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold px-6 rounded-full"
-              >
-                {postMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Send className="w-4 h-4 mr-2" />
-                )}
-                Post
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
