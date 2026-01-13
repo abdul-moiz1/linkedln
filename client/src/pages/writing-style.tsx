@@ -60,17 +60,10 @@ export default function WritingStyle() {
   });
 
   const handleExtraction = (type: string) => {
-    setIsExtracting(true);
-    // Mock extraction process
-    setTimeout(() => {
-      setIsExtracting(false);
-      const mockExtractedStyle = "Professional, authoritative, yet empathetic. Prefers short, punchy sentences. Frequently uses industry-specific metaphors. Tone is educational and forward-thinking.";
-      setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-      toast({ 
-        title: "Style Extracted", 
-        description: `Successfully analyzed your ${type} to refine your style.` 
-      });
-    }, 2000);
+    toast({ 
+      title: "Coming Soon", 
+      description: `The ${type} extraction feature is being implemented. Please paste your text manually for now.` 
+    });
   };
 
   return (
