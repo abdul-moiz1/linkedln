@@ -62,7 +62,7 @@ export default function WritingStyle() {
   const handleExtraction = async (type: string) => {
     setIsExtracting(true);
     // Ensure dialog closes before processing
-    const closeButton = document.querySelector('[data-state="open"] button[aria-label="Close"]') as HTMLButtonElement;
+    const closeButton = document.querySelector('button[aria-label="Close"]') as HTMLButtonElement;
     if (closeButton) closeButton.click();
 
     try {
@@ -71,15 +71,17 @@ export default function WritingStyle() {
         const mockExtractedStyle = "Energetic, punchy, and highly engaging. Uses rhetorical questions and direct address to the reader. Tone is optimistic and results-oriented.";
         setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
         toast({ title: "Voice Analyzed", description: "Successfully extracted your energetic tone from the recording." });
-      } else if (type === "document" || type === "audio file") {
+      } else if (type === "audio file" || type === "document") {
         const input = document.createElement('input');
         input.type = 'file';
-        input.onchange = async () => {
+        input.onchange = async (e: any) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
           setIsExtracting(true);
           await new Promise(resolve => setTimeout(resolve, 2000));
           const mockExtractedStyle = "Structured, data-driven, and formal. Uses precise vocabulary and logical transitions. Tone is academic and objective.";
           setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-          toast({ title: "File Processed", description: "Your document style has been merged into your instructions." });
+          toast({ title: "File Processed", description: `Analyzed ${file.name} and updated your style.` });
           setIsExtracting(false);
         };
         input.click();

@@ -564,33 +564,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * Request body:
    * - profileUrl: The new profile URL (empty string to clear)
    */
-  app.patch("/api/user/profile-url", async (req: Request, res: Response) => {
-    if (!req.session.user) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const { profileUrl } = req.body;
+  app.patch("/api/user", async (req: Request, res: Response) => {
+    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+    const { writingStyle } = req.body;
     
-    if (typeof profileUrl !== "string") {
-      return res.status(400).json({ error: "profileUrl must be a string" });
-    }
-
-    const userId = req.session.user.profile.sub;
-
     try {
-      const { updateUserProfileUrl, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      (req.session.user as any).writingStyle = writingStyle;
       
-      if (isFirebaseConfigured) {
-        await updateUserProfileUrl(userId, profileUrl);
-        console.log(`Updated profile URL for user ${userId}: ${profileUrl || "(cleared)"}`);
-        return res.json({ success: true, profileUrl });
-      } else {
-        console.warn("Firebase is not configured - profile URL cannot be persisted");
-        return res.json({ success: true, profileUrl, warning: "Firebase is not configured - changes will not persist" });
+      const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
+      if (isFirebaseConfigured && adminFirestore) {
+        await adminFirestore.collection("users").doc(req.session.user.profile.sub).set({
+          writingStyle
+        }, { merge: true });
       }
-    } catch (error) {
-      console.error("Failed to update profile URL:", error);
-      return res.status(500).json({ error: "Failed to update profile URL" });
+
+      res.json({ success: true, writingStyle });
+    } catch (error: any) {
+      console.error("Update writing style error:", error);
+      res.status(500).json({ error: "Failed to update writing style" });
     }
   });
 
