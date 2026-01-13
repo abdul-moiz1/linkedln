@@ -11,7 +11,8 @@ import {
   ChevronDown,
   Globe,
   Settings,
-  Plus
+  Plus,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -71,7 +72,10 @@ export default function Analytics() {
           </div>
           <Button 
             className="bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-full px-6 font-bold flex items-center gap-2 h-11"
-            onClick={() => setIsConnectModalOpen(true)}
+            onClick={() => {
+              setStep(1);
+              setIsConnectModalOpen(true);
+            }}
           >
             <Plus className="w-5 h-5" />
             Setup Analytics
@@ -266,7 +270,7 @@ export default function Analytics() {
             <DialogHeader className="mb-6 flex flex-row items-center justify-between">
               <DialogTitle className="text-2xl font-bold text-slate-900 tracking-tight">Connect LinkedIn Profile</DialogTitle>
               <DialogClose className="rounded-full h-8 w-8 flex items-center justify-center hover:bg-slate-100 transition-colors">
-                <span className="text-2xl text-slate-300">×</span>
+                <X className="w-5 h-5 text-slate-400" />
               </DialogClose>
             </DialogHeader>
 
