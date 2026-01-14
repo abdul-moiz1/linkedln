@@ -3,33 +3,49 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function generateContent(prompt: string, options: any = {}) {
-  // Use gemini-1.5-flash as it's the current recommended model for v1beta.
-  // We specify it explicitly without -latest to avoid versioning conflicts.
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  
-  const generationConfig = {
-    temperature: options.temperature || 0.7,
-    topP: options.topP || 0.95,
-    topK: options.topK || 40,
-    maxOutputTokens: options.maxOutputTokens || 8192,
-    responseMimeType: options.responseMimeType || "text/plain",
-  };
+  // Try using the most stable model names in a fallback chain
+  const models = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-pro"];
+  let lastError: any = null;
 
-  const contents: any[] = [{ role: "user", parts: [{ text: prompt }] }];
-  
-  console.log(`[Gemini] Calling with prompt snippet: ${prompt.substring(0, 100)}...`);
-  
-  if (options.inlineData) {
-    contents[0].parts.push({
-      inlineData: options.inlineData
-    });
+  for (const modelName of models) {
+    try {
+      console.log(`[Gemini] Attempting with model: ${modelName}`);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
+      const generationConfig = {
+        temperature: options.temperature || 0.7,
+        topP: options.topP || 0.95,
+        topK: options.topK || 40,
+        maxOutputTokens: options.maxOutputTokens || 8192,
+        responseMimeType: options.responseMimeType || "text/plain",
+      };
+
+      const contents: any[] = [{ role: "user", parts: [{ text: prompt }] }];
+      
+      if (options.inlineData) {
+        contents[0].parts.push({
+          inlineData: options.inlineData
+        });
+      }
+
+      const result = await model.generateContent({
+        contents,
+        generationConfig,
+      });
+
+      const response = await result.response;
+      return response.text();
+    } catch (error: any) {
+      console.error(`[Gemini] Error with ${modelName}:`, error.message);
+      lastError = error;
+      // If it's a 404, we continue to the next model
+      if (error.status === 404 || error.message?.includes("not found")) {
+        continue;
+      }
+      // For other errors (like auth/quota), we might want to throw immediately
+      throw error;
+    }
   }
 
-  const result = await model.generateContent({
-    contents,
-    generationConfig,
-  });
-
-  const response = await result.response;
-  return response.text();
+  throw lastError || new Error("All Gemini models failed");
 }
