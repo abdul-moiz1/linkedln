@@ -134,30 +134,92 @@ export default function WritingStyle() {
         if (!url) return;
         
         setIsExtracting(true);
-        // Simulate fetching and analyzing the URL
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        const mockExtractedStyle = `Analyzed from ${new URL(url).hostname}: Narrative-driven, insightful, and strategic. Uses deep-dive explanations and logical frameworks. Tone is visionary and thought-provoking.`;
-        setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-        toast({ title: "Link Analyzed", description: "Your online writing style has been merged into your instructions." });
+        try {
+          const res = await apiRequest("POST", "/api/carousel/from-url", { url });
+          const data = await res.json();
+          
+          if (data.slides) {
+            const combinedText = data.slides.map((s: any) => s.finalText).join("\n\n");
+            const analysisRes = await apiRequest("POST", "/api/user/writing-style", {
+              text: combinedText
+            });
+            const analysisData = await analysisRes.json();
+            if (analysisData.writingStyle) {
+              setStyle(analysisData.writingStyle);
+              toast({ title: "Link Analyzed", description: "Your online writing style has been extracted and updated." });
+            }
+          }
+        } catch (err) {
+          toast({ title: "Link Analysis Failed", variant: "destructive" });
+        }
       } else if (type === "document" || type === "audio file") {
         const input = document.createElement('input');
         input.type = 'file';
+        input.accept = type === "document" ? ".pdf,.doc,.docx,.txt" : "audio/*";
         input.onchange = async () => {
+          const file = input.files?.[0];
+          if (!file) return;
+
           setIsExtracting(true);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          const mockExtractedStyle = "Structured, data-driven, and formal. Uses precise vocabulary and logical transitions. Tone is academic and objective.";
-          setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-          toast({ title: "File Processed", description: "Your document style has been merged into your instructions." });
-          setIsExtracting(false);
+          try {
+            const reader = new FileReader();
+            if (type === "audio file") {
+              reader.readAsDataURL(file);
+              reader.onloadend = async () => {
+                const base64Audio = (reader.result as string).split(',')[1];
+                const res = await apiRequest("POST", "/api/user/writing-style", {
+                  audioData: base64Audio,
+                  audioType: file.type
+                });
+                const data = await res.json();
+                if (data.writingStyle) {
+                  setStyle(data.writingStyle);
+                  toast({ title: "Audio Analyzed", description: "Voice style extracted successfully." });
+                }
+                setIsExtracting(false);
+              };
+            } else {
+              // For documents, we'll send as text if it's small or handle via a specialized endpoint
+              // For now, let's treat it as text extraction if possible
+              reader.readAsText(file);
+              reader.onloadend = async () => {
+                const text = reader.result as string;
+                const res = await apiRequest("POST", "/api/user/writing-style", { text });
+                const data = await res.json();
+                if (data.writingStyle) {
+                  setStyle(data.writingStyle);
+                  toast({ title: "Document Analyzed", description: "Style extracted from document." });
+                }
+                setIsExtracting(false);
+              };
+            }
+          } catch (err) {
+            toast({ title: "File Processing Failed", variant: "destructive" });
+            setIsExtracting(false);
+          }
         };
         input.click();
-        setIsExtracting(false);
         return;
       } else if (type === "emails") {
-        await new Promise(resolve => setTimeout(resolve, 2500));
-        const mockExtractedStyle = "Professional, concise, and action-oriented. Prefers bullet points and clear calls to action. Tone is helpful and efficient.";
-        setStyle(prev => prev ? `${prev}\n\n${mockExtractedStyle}` : mockExtractedStyle);
-        toast({ title: "Email Analyzed", description: "Professional tone extracted from your shared content." });
+        setIsExtracting(true);
+        try {
+          // In a real app, this would fetch from a connected provider
+          // For now, we'll prompt the user to paste a few representative emails
+          const emails = window.prompt("Please paste the content of 2-3 recent emails you've written to analyze your tone:");
+          if (!emails) {
+            setIsExtracting(false);
+            return;
+          }
+
+          const res = await apiRequest("POST", "/api/user/writing-style", { text: emails });
+          const data = await res.json();
+          if (data.writingStyle) {
+            setStyle(data.writingStyle);
+            toast({ title: "Emails Analyzed", description: "Professional tone extracted from your emails." });
+          }
+        } catch (err) {
+          toast({ title: "Email Analysis Failed", variant: "destructive" });
+        }
       }
     } catch (error) {
       toast({ title: "Extraction failed", variant: "destructive" });
