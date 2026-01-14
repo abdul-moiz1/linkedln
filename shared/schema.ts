@@ -63,12 +63,23 @@ export interface LinkedLinkedIn {
 }
 
 // Session User Data (stored in session)
+export const scheduledPosts = pgTable("scheduled_posts", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  content: text("content").notNull(),
+  scheduledTime: timestamp("scheduled_time").notNull(),
+  status: text("status").default("pending").notNull(), // pending, posted, failed
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export interface SessionUser {
   profile: LinkedInUser;
   accessToken: string;
   profileUrl?: string;
   authProvider: AuthProvider;
-  linkedLinkedIn?: LinkedLinkedIn; // Linked LinkedIn for publishing (when using Firebase auth)
+  linkedLinkedIn?: LinkedLinkedIn;
+  writingStyle?: string;
 }
 
 // LinkedIn Post Creation Schema

@@ -54,7 +54,7 @@ function getDb() {
   return adminDb;
 }
 
-export { adminDb, adminAuth, adminStorage, isFirebaseConfigured };
+export { adminDb, adminAuth, adminStorage, isFirebaseConfigured, adminDb as adminFirestore };
 
 // ============================================
 // FIREBASE STORAGE OPERATIONS

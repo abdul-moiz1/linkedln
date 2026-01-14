@@ -1,4 +1,4 @@
-import { storage } from "./storage";
+import { storage, getDb } from "./storage";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { 
@@ -7,13 +7,14 @@ import {
   createPostSchema,
   repostSchema,
   createScheduledPostSchema,
-  users
+  users,
+  scheduledPosts
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import Stripe from "stripe";
 
 const stripe = process.env.STRIPE_SECRET_KEY 
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" })
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-12-15.clover" as any })
   : null;
 
 // LinkedIn OAuth2 Configuration
@@ -2625,7 +2626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         carouselId: savedCarouselId,
         carousel: {
           id: savedCarouselId,
-          slides: typeof processedSlides !== 'undefined' ? processedSlides : []
+          slides: typeof processedSlides !== 'undefined' ? (processedSlides as any) : []
         }
       });
     } catch (error: any) {

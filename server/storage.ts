@@ -6,6 +6,10 @@ import { eq, and, desc } from "drizzle-orm";
 const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);
 
+export function getDb() {
+  return db;
+}
+
 export interface IStorage {
   getCarouselTemplates(): Promise<CarouselTemplate[]>;
 }
