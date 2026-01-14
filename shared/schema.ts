@@ -43,6 +43,36 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const styleDNAProfileSchema = z.object({
+  version: z.string(),
+  generatedAt: z.string(),
+  sourceWordCount: z.number(),
+  locked: z.boolean(),
+  profile: z.object({
+    voiceToneRules: z.string(),
+    rhythmFlow: z.string(),
+    structureTemplates: z.object({
+      hooks: z.array(z.string()),
+      bullets: z.string(),
+      endings: z.array(z.string()),
+    }),
+    languagePreferences: z.string(),
+    doDontList: z.object({
+      do: z.array(z.string()),
+      dont: z.array(z.string()),
+    }),
+    styleChecklist: z.array(z.string()),
+    signatureElements: z.array(z.string()),
+  }),
+  writeLikeMePrompt: z.string(),
+  fewShotExamples: z.array(z.object({
+    input: z.string(),
+    output: z.string(),
+  })).optional(),
+});
+
+export type StyleDNAProfile = z.infer<typeof styleDNAProfileSchema>;
+
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,

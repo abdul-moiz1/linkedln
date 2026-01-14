@@ -552,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let styleDNA = null;
       let writeLikeMePrompt = null;
       try {
-        const dnaPrompt = `You are a linguistic expert and brand strategist. Analyze the following user writing samples (approx 2,500-6,000 words if provided, otherwise the available text) and extract a comprehensive "Style DNA" profile.
+        const dnaPrompt = `You are a linguistic expert and brand strategist. Analyze the following user writing samples and extract a comprehensive "Style DNA" profile.
         
         SAMPLES TO ANALYZE:
         ${analysisText}
