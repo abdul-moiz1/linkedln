@@ -3,7 +3,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function generateContent(prompt: string, options: any = {}) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  // Try using gemini-1.5-flash-latest which is often more stable in certain regions
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
   
   const generationConfig = {
     temperature: options.temperature || 0.7,
