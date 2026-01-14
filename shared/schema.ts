@@ -99,15 +99,24 @@ export const createScheduledPostSchema = z.object({
 
 export type CreateScheduledPost = z.infer<typeof createScheduledPostSchema>;
 
-// Mock/Legacy interfaces for remaining server code
-export interface CarouselSlide {
-  number: number;
-  rawText: string;
-  finalText: string;
-  imagePrompt: string;
-  layout: string;
-  imageUrl?: string;
-}
+export const carouselTemplates = pgTable("carousel_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull(), // e.g., 'Basic', 'Professional', 'Creative'
+  thumbnailUrl: text("thumbnail_url"),
+  config: text("config").notNull(), // JSON string for template-specific styles/layouts
+  isNew: boolean("is_new").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCarouselTemplateSchema = createInsertSchema(carouselTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type CarouselTemplate = typeof carouselTemplates.$inferSelect;
+export type InsertCarouselTemplate = z.infer<typeof insertCarouselTemplateSchema>;
 
 export interface Carousel {
   id: string;

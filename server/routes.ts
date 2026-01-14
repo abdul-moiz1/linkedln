@@ -832,9 +832,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // ============================================
-  // FIREBASE AUTH ENDPOINTS (Email/Google Login)
-  // ============================================
+  // Carousel Templates
+  app.get("/api/carousel-templates", async (_req: Request, res: Response) => {
+    try {
+      const { adminFirestore, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      
+      if (isFirebaseConfigured && adminFirestore) {
+        // Fetch from Firestore for global visibility
+        const templatesSnapshot = await adminFirestore.collection("carousel_templates").get();
+        const templates = templatesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // If empty in Firestore, fallback to database or seed
+        if (templates.length === 0) {
+          const dbTemplates = await getDb().select().from(carouselTemplates);
+          return res.json(dbTemplates);
+        }
+        
+        return res.json(templates);
+      }
+      
+      const dbTemplates = await getDb().select().from(carouselTemplates);
+      res.json(dbTemplates);
+    } catch (error: any) {
+      console.error("Fetch templates error:", error);
+      res.status(500).json({ error: "Failed to fetch templates" });
+    }
+  });
+
+  app.post("/api/admin/seed-templates", async (req: Request, res: Response) => {
+    try {
+      const { adminFirestore, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      if (!isFirebaseConfigured || !adminFirestore) return res.status(503).json({ error: "Firestore not configured" });
+
+      const templates = await getDb().select().from(carouselTemplates);
+      const batch = adminFirestore.batch();
+
+      templates.forEach((tmpl) => {
+        const docRef = adminFirestore.collection("carousel_templates").doc();
+        batch.set(docRef, {
+          name: tmpl.name,
+          description: tmpl.description,
+          category: tmpl.category,
+          config: tmpl.config,
+          isNew: tmpl.isNew,
+          createdAt: tmpl.createdAt.toISOString()
+        });
+      });
+
+      await batch.commit();
+      res.json({ success: true, count: templates.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
 
   /**
    * API: Verify Firebase Auth Token
