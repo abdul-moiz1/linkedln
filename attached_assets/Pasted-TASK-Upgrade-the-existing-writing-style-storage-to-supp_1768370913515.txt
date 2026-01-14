@@ -1,0 +1,72 @@
+TASK:
+Upgrade the existing writing style storage to support a full “Style DNA” system
+WITHOUT breaking any existing functionality, queries, or Firestore reads.
+
+CURRENT STATE:
+There is an existing Firestore field called `styleProfile` with simple attributes
+(formality, tone, verbosity, prefersBullets, callToActionFocus) and a single
+`writingStyle` string.
+
+This structure is already in use and MUST continue working.
+
+GOAL:
+Add a robust, reusable “Style DNA” structure while keeping backward compatibility.
+
+STRICT RULES (DO NOT VIOLATE):
+- Do NOT remove or rename existing fields
+- Do NOT change existing data types
+- Do NOT break current reads/writes
+- Do NOT modify authentication or Firebase config
+- Only ADD new fields
+- Existing UI must continue to work even if it ignores new fields
+
+REQUIRED CHANGES:
+
+1. KEEP the existing structure exactly as-is:
+   - styleProfile.formality
+   - styleProfile.tone
+   - styleProfile.verbosity
+   - styleProfile.prefersBullets
+   - styleProfile.callToActionFocus
+   - writingStyle (string)
+
+2. ADD a new nested object:
+   `styleDNA` (map/object)
+
+3. `styleDNA` must include:
+   - version (string, e.g. "v1")
+   - generatedAt (timestamp)
+   - sourceWordCount (number)
+   - locked (boolean)
+
+4. Inside `styleDNA.profile`, store:
+   - voiceToneRules (string)
+   - rhythmFlow (string)
+   - structureTemplates (string)
+   - languagePreferences (string)
+   - doDontRules (string)
+   - styleChecklist (array of strings)
+   - signatureElements (array of strings)
+
+5. ADD a new field:
+   - `writeLikeMePrompt` (string)
+   This must be a fully reusable instruction block that can be pasted into an LLM.
+
+6. The old `writingStyle` field should remain as a SHORT SUMMARY
+   derived from Style DNA, not removed.
+
+7. If Style DNA is missing, the system should:
+   - Fall back to `writingStyle`
+   - Fall back to `styleProfile`
+   - Never crash or throw
+
+OUTPUT REQUIREMENTS:
+- Update schema only
+- Provide the updated Firestore document example
+- Provide a helper function or logic comment explaining how future writes
+  should update both `styleDNA` AND `writingStyle`
+- NO refactors beyond this scope
+
+IMPORTANT:
+This is a production system. Be conservative.
+Additive changes only. No breaking changes.

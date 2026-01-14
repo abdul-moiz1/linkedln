@@ -36,6 +36,8 @@ export const users = pgTable("users", {
   writingStyle: text("writing_style"),
   styleProfile: text("style_profile"), // Structured style data as JSON string
   promptStyleInstruction: text("prompt_style_instruction"), // Prompt-ready instruction string
+  styleDNA: text("style_dna"), // Full Style DNA system (JSON string)
+  writeLikeMePrompt: text("write_like_me_prompt"), // Reusable instruction block for LLMs
   phone: text("phone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
