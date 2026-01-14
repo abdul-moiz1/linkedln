@@ -453,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/user", async (req: Request, res: Response) => {
     if (!req.session.user) {
-      return res.status(401).json({ error: "Not authenticated" });
+      return res.status(200).json(null);
     }
 
     // Try to fetch profileUrl from Firestore

@@ -44,8 +44,9 @@ export default function Home() {
   const { data: user, isLoading } = useQuery({ queryKey: ["/api/user"] });
 
   useEffect(() => {
+    // Only redirect if we have a user and we're not loading
     if (!isLoading && user) {
-      if ((user as any).onboardingCompleted === true) {
+      if ((user as any).onboardingCompleted === "true" || (user as any).onboardingCompleted === true) {
         setLocation("/dashboard");
       } else {
         setLocation("/onboarding");
