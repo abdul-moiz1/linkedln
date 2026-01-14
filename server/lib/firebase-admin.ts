@@ -42,8 +42,16 @@ if (isFirebaseConfigured) {
       adminDb.listCollections()
         .then(async (collections) => {
           console.log("Firestore connection verified. Collections:", collections.map(c => c.id));
-          // Force seed on startup to ensure all templates including Elite 20-25 exist
+          // Log explicitly to help user find the collection
+          console.log("[Firebase] Seeding templates into collection 'templates'...");
           await seedTemplates(true);
+          
+          // Debug check after seed
+          if (adminDb) {
+            const snap = await adminDb.collection("templates").get();
+            console.log(`[Firebase] POST-SEED CHECK: 'templates' collection has ${snap.size} documents.`);
+            snap.docs.forEach(doc => console.log(`  - ${doc.data().name} (${doc.data().category})`));
+          }
         })
         .catch((connError: any) => console.error("Firestore connection test failed:", connError.message));
     } catch (instanceError) {
@@ -116,9 +124,19 @@ export async function seedTemplates(force = false) {
   try {
     const db = getDb();
     if (!db) return;
+    const collections = await db.listCollections();
+    console.log(`[Firebase] Firestore verified. Collections: ${collections.map(c => c.id).join(", ")}`);
+    
     const snapshot = await db.collection("templates").limit(1).get();
-    if (snapshot.empty || force) {
-      console.log("[Firebase] Seeding initial templates into 'templates' collection...");
+    console.log(`[Firebase] Checking templates in 'templates' collection... snapshot empty=${snapshot.empty}`);
+    
+    // Check if Elite templates are missing
+    const eliteSnapshot = await db.collection("templates").where("category", "==", "Elite").limit(1).get();
+    const needsElite = eliteSnapshot.empty;
+    console.log(`[Firebase] Needs Elite templates: ${needsElite}`);
+
+    if (snapshot.empty || force || needsElite) {
+      console.log("[Firebase] Seeding templates into 'templates' collection...");
       const initial = [
         { name: "Basic Minimal", description: "Clean and simple.", category: "Basic", config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#000000", layout: "tips-howto" }), isNew: true },
         { name: "Professional Deep", description: "Bold dark theme.", category: "Professional", config: JSON.stringify({ backgroundColor: "#1a1a1a", textColor: "#ffffff", layout: "professional-bold" }), isNew: true },
@@ -136,15 +154,27 @@ export async function seedTemplates(force = false) {
         { name: "Elite 24", description: "Minimalist brand builder.", category: "Elite", config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#1e293b", layout: "tips-howto" }), isNew: true },
         { name: "Elite 25", description: "Bold engagement driver.", category: "Elite", config: JSON.stringify({ backgroundColor: "#be123c", textColor: "#ffffff", layout: "big_text_center" }), isNew: true }
       ];
+
+      let seededCount = 0;
       for (const t of initial) {
-        const existing = await db.collection("templates").where("name", "==", t.name).get();
-        if (existing.empty) {
-          await saveTemplate(t);
+        try {
+          const existing = await db.collection("templates").where("name", "==", t.name).get();
+          if (existing.empty) {
+            const templateRef = db.collection("templates").doc();
+            await templateRef.set({ 
+              ...t, 
+              createdAt: admin.firestore.FieldValue.serverTimestamp(), 
+              updatedAt: admin.firestore.FieldValue.serverTimestamp() 
+            });
+            seededCount++;
+          }
+        } catch (err: any) {
+          console.error(`[Firebase] Failed to seed template '${t.name}':`, err.message);
         }
       }
-      console.log("[Firebase] Seeding complete");
+      console.log(`[Firebase] Seeding complete. Added ${seededCount} new templates.`);
     } else {
-      console.log("[Firebase] Templates already exist, skipping seed");
+      console.log("[Firebase] Templates exist, skipping seed.");
     }
   } catch (e) { 
     console.error("[Firebase] Seeding failed:", e); 
