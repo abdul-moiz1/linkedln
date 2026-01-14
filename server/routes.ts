@@ -536,26 +536,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If audio data is provided, transcribe it first
       if (audioData && audioType) {
         const { generateContent } = await import("./lib/gemini");
-        const audioBuffer = Buffer.from(audioData, 'base64');
         
         const transcriptionPrompt = "Transcribe the following audio accurately, preserving the natural speaking style, pauses, and tone.";
-        const transcription = await generateContent(transcriptionPrompt, {
-          inlineData: {
-            data: audioData,
-            mimeType: audioType
-          }
-        });
-        analysisText = transcription;
+        try {
+          const transcription = await generateContent(transcriptionPrompt, {
+            inlineData: {
+              data: audioData,
+              mimeType: audioType
+            }
+          });
+          analysisText = transcription;
+        } catch (transcribeError: any) {
+          console.error("Audio transcription failed:", transcribeError);
+          return res.status(500).json({ error: "Failed to transcribe audio sample" });
+        }
       }
 
-      if (!analysisText) return res.status(400).json({ error: "No text or audio provided for analysis" });
+      // 1. INPUT VALIDATION (MANDATORY)
+      // Ensure analysisText exists and is a string
+      if (!analysisText || typeof analysisText !== 'string') {
+        return res.status(400).json({ error: "Writing sample is required and must be text" });
+      }
 
-      // Analyze writing style using Gemini
+      const trimmedText = analysisText.trim();
+      const wordCount = trimmedText.split(/\s+/).filter(Boolean).length;
+
+      // Ensure trimmed length >= 200 characters
+      if (trimmedText.length < 200) {
+        return res.status(400).json({ error: "Writing sample is too short. Please provide at least 200 characters for accurate analysis." });
+      }
+
+      // Ensure word count >= 150
+      if (wordCount < 150) {
+        return res.status(400).json({ error: "Writing sample needs more detail. Please provide at least 150 words." });
+      }
+
+      // 2. AI CALL PROTECTION & 3. SAFE FALLBACK LOGIC
       const { generateContent } = await import("./lib/gemini");
       
-      const prompt = `Analyze the writing style of the following text. Focus on vocabulary, tone, sentence structure, and unique patterns. Summarize it in a way that can be used as a prompt for future writing.\n\nText:\n${analysisText}`;
-      
-      const writingStyle = await generateContent(prompt);
+      let writingStyle: string;
+      try {
+        const prompt = `Analyze the writing style of the following text. Focus on vocabulary, tone, sentence structure, and unique patterns. Summarize it in a way that can be used as a prompt for future writing.\n\nText:\n${analysisText}`;
+        writingStyle = await generateContent(prompt);
+      } catch (styleError: any) {
+        console.error("Style analysis AI call failed:", styleError);
+        // Fallback to existing if available
+        const existing = (req.session.user as any).writingStyle;
+        if (existing) {
+          return res.json({ 
+            success: true, 
+            writingStyle: existing,
+            styleProfile: (req.session.user as any).styleProfile,
+            promptStyleInstruction: (req.session.user as any).promptStyleInstruction,
+            styleDNA: (req.session.user as any).styleDNA,
+            writeLikeMePrompt: (req.session.user as any).writeLikeMePrompt,
+            message: "Using existing style profile due to analysis service timeout"
+          });
+        }
+        return res.status(500).json({ error: "Style analysis service is temporarily unavailable" });
+      }
 
       // Extract Style DNA
       let styleDNA = null;
@@ -620,6 +659,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         writeLikeMePrompt = finalWriteLikeMe;
       } catch (dnaError) {
         console.error("Failed to generate Style DNA:", dnaError);
+        // Fallback to existing if available
+        styleDNA = (req.session.user as any).styleDNA || null;
+        writeLikeMePrompt = (req.session.user as any).writeLikeMePrompt || null;
       }
 
       // Derive structured styleProfile and promptStyleInstruction
@@ -648,6 +690,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         promptStyleInstruction = parsed.promptStyleInstruction;
       } catch (structuredError) {
         console.error("Failed to generate structured style profile:", structuredError);
+        // Fallback to existing if available
+        styleProfile = (req.session.user as any).styleProfile || null;
+        promptStyleInstruction = (req.session.user as any).promptStyleInstruction || null;
       }
 
       // Update session and Firestore

@@ -1,0 +1,70 @@
+TASK:
+Fix the backend error causing:
+500 {"error":"Failed to analyze writing style"}
+
+This error happens when analyzing user writing samples.
+The frontend error handling is correct. The backend is failing.
+
+IMPORTANT:
+This is a production system.
+Be conservative. Do NOT refactor unrelated code.
+
+STRICT RULES:
+- Do NOT break existing APIs
+- Do NOT rename endpoints
+- Do NOT change Firebase config or auth
+- Do NOT modify frontend error handling
+- Only ADD guards, validation, and safe fallbacks
+- Prefer 400 errors for bad input, not 500
+
+PROBLEM ANALYSIS:
+The style analysis endpoint is calling an AI model without validating input.
+When writing samples are missing, too short, or not a string, the AI call throws,
+causing an unhandled exception and a 500 error.
+
+REQUIRED FIXES:
+
+1. INPUT VALIDATION (MANDATORY)
+Before calling any AI or style analysis logic:
+- Ensure `writingSamples` exists
+- Ensure it is a string
+- Ensure trimmed length >= 200 characters
+- Ensure word count >= 150
+
+If validation fails:
+Return HTTP 400 with a helpful error message.
+
+2. AI CALL PROTECTION
+Wrap the AI / LLM style analysis call in a try/catch block.
+Log the error server-side.
+Return a controlled 500 error if the AI fails.
+
+3. SAFE FALLBACK LOGIC
+If Style DNA generation fails:
+- Fall back to existing `writingStyle` string if available
+- Fall back to `styleProfile` summary if available
+- NEVER crash
+
+4. ERROR TRANSPARENCY
+Improve backend error responses:
+- 400 for invalid input
+- 500 only for real internal failures
+- Include short error messages (no stack traces in response)
+
+5. NO BREAKING CHANGES
+- Keep existing response shape
+- Keep existing field names
+- Only add defensive logic
+
+EXPECTED OUTPUT:
+- Updated backend endpoint code
+- Clear comments explaining the guards
+- Confirmation that frontend will no longer receive 500 for bad input
+
+DO NOT:
+- Redesign the style system
+- Change database schemas
+- Add new dependencies
+- Touch frontend files unless absolutely required
+
+This fix should stop runtime crashes and make the system robust.
