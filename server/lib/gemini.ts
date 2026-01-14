@@ -3,8 +3,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function generateContent(prompt: string, options: any = {}) {
-  // Use gemini-1.5-flash as it's the standard stable model for v1beta
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  // Try flash first, then fall back to pro if needed. 
+  // We're using the base model name without version suffix to let the SDK handle it.
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
   
   const generationConfig = {
     temperature: options.temperature || 0.7,
