@@ -5,8 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Save, Info, Mic, FileAudio, Link as LinkIcon, X, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sparkles, Save, Info, Mic, FileAudio, Link as LinkIcon, X, Loader2, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
 interface ExtractionCardProps {
   title: string;
@@ -39,6 +39,8 @@ export default function WritingStyle() {
   const { data: user } = useQuery<any>({ queryKey: ["/api/user"] });
   const [style, setStyle] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailContent, setEmailContent] = useState("");
 
   useEffect(() => {
     if (user?.writingStyle) {
@@ -115,10 +117,10 @@ export default function WritingStyle() {
     }
   };
 
-  const handleExtraction = async (type: string) => {
+  const handleExtraction = async (type: string, data?: string) => {
     // Ensure dialog closes before processing
     const closeButton = document.querySelector('[data-state="open"] button[aria-label="Close"]') as HTMLButtonElement;
-    if (closeButton && type !== "voice note") closeButton.click();
+    if (closeButton && type !== "voice note" && type !== "emails") closeButton.click();
 
     try {
       if (type === "voice note") {
@@ -201,21 +203,21 @@ export default function WritingStyle() {
         input.click();
         return;
       } else if (type === "emails") {
+        const emails = data;
+        if (!emails) {
+          setEmailDialogOpen(true);
+          return;
+        }
+
         setIsExtracting(true);
         try {
-          // In a real app, this would fetch from a connected provider
-          // For now, we'll prompt the user to paste a few representative emails
-          const emails = window.prompt("Please paste the content of 2-3 recent emails you've written to analyze your tone:");
-          if (!emails) {
-            setIsExtracting(false);
-            return;
-          }
-
           const res = await apiRequest("POST", "/api/user/writing-style", { text: emails });
-          const data = await res.json();
-          if (data.writingStyle) {
-            setStyle(data.writingStyle);
+          const apiData = await res.json();
+          if (apiData.writingStyle) {
+            setStyle(apiData.writingStyle);
             toast({ title: "Emails Analyzed", description: "Professional tone extracted from your emails." });
+            setEmailDialogOpen(false);
+            setEmailContent("");
           }
         } catch (err) {
           toast({ title: "Email Analysis Failed", variant: "destructive" });
@@ -298,9 +300,56 @@ export default function WritingStyle() {
           <ExtractionCard 
             title="Analyze Emails"
             description="Connect your email to extract your professional tone."
-            icon={LinkIcon}
-            onClick={() => handleExtraction("emails")}
+            icon={Mail}
+            onClick={() => setEmailDialogOpen(true)}
           />
+
+          <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-[#00a0dc]" />
+                  Analyze Your Professional Tone
+                </DialogTitle>
+                <DialogDescription>
+                  Paste the content of 2-3 recent emails you've written. The AI will analyze your sentence structure and vocabulary to replicate your professional voice.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Textarea
+                  placeholder="Paste your email content here (at least 150-200 words recommended)..."
+                  className="min-h-[200px] text-sm resize-none"
+                  value={emailContent}
+                  onChange={(e) => setEmailContent(e.target.value)}
+                />
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setEmailDialogOpen(false);
+                    setEmailContent("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="bg-[#00a0dc] hover:bg-[#008dbf]"
+                  disabled={!emailContent || emailContent.length < 50 || isExtracting}
+                  onClick={() => handleExtraction("emails", emailContent)}
+                >
+                  {isExtracting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    "Analyze Tone"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -308,7 +357,7 @@ export default function WritingStyle() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Your Writing Instructions</h2>
-            {isExtracting && (
+            {isExtracting && !emailDialogOpen && (
               <div className="flex items-center gap-2 text-[#00a0dc] text-xs font-bold animate-pulse">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 Analyzing your content...
