@@ -613,33 +613,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
     const writingStyle = (req.session.user as any).writingStyle || "professional and engaging";
+    const promptStyleInstruction = (req.session.user as any).promptStyleInstruction || "";
 
     try {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert LinkedIn content creator. Write a post based on the user's prompt. 
-              CRITICAL: You MUST use the following writing style profile:
-              
-              ${writingStyle}
-              
-              Keep the post engaging, use appropriate whitespace, and add 2-3 relevant hashtags.`
-            },
-            { role: "user", content: prompt }
-          ],
-        }),
-      });
-
-      const data = await response.json();
-      const text = data.choices[0].message.content;
+      const { generateContent } = await import("./lib/gemini");
+      const systemPrompt = `You are an expert LinkedIn content creator. Write a post based on the user's prompt. 
+      CRITICAL: You MUST use the following writing style profile:
+      
+      ${writingStyle}
+      
+      Additional Style Instructions:
+      ${promptStyleInstruction}
+      
+      Keep the post engaging, use appropriate whitespace, and add 2-3 relevant hashtags.`;
+      
+      const text = await generateContent(`${systemPrompt}\n\nUser Prompt: ${prompt}`);
 
       res.json({ success: true, text });
     } catch (error: any) {
