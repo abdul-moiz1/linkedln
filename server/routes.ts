@@ -411,10 +411,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         plan,
         subscriptionStatus: "trialing",
         trialEndDate,
-        onboardingCompleted: "true",
+        onboardingCompleted: true,
+        authProvider: "firebase", // Default or determine from session
       }).onConflictDoUpdate({
         target: users.id,
-        set: { fullName, email, phone, plan, subscriptionStatus: "trialing", trialEndDate, onboardingCompleted: "true" }
+        set: { 
+          fullName, 
+          email, 
+          phone, 
+          plan, 
+          subscriptionStatus: "trialing", 
+          trialEndDate, 
+          onboardingCompleted: true 
+        }
       });
 
       res.json({ success: true });
