@@ -82,23 +82,11 @@ export default function Create() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { data: templates, isLoading: templatesLoading } = useQuery<CarouselTemplate[]>({
-    queryKey: ["/api/carousel-templates"],
+    queryKey: ["/api/templates"],
   });
 
-  const { data: user, isLoading: isLoadingUser } = useQuery<SessionUser>({
-    queryKey: ["/api/user"],
-    retry: false,
-  });
-
-  useEffect(() => {
-    if (!isLoadingUser && !user) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to create and save your carousels.",
-      });
-      navigate("/login");
-    }
-  }, [user, isLoadingUser, navigate, toast]);
+  const [activeTab, setActiveTab] = useState("Basic");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
 
   const categories = ["Basic", "Professional", "Creative"];
 
@@ -138,6 +126,13 @@ export default function Create() {
     }
   };
 
+  const handleSelectTemplate = (template: CarouselTemplate) => {
+    const config = JSON.parse(template.config);
+    setSelectedTemplateId(template.id);
+    setSelectedCarouselType(config.layout || "tips-howto");
+    setStep("input");
+  };
+
   const TemplateGrid = ({ category }: { category: string }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {templates?.filter(t => t.category === category).map((template) => {
@@ -145,11 +140,8 @@ export default function Create() {
         return (
           <Card 
             key={template.id} 
-            className="group cursor-pointer hover-elevate transition-all border-2 border-transparent hover:border-primary/50 overflow-hidden"
-            onClick={() => {
-              setSelectedCarouselType(config.layout || "tips-howto");
-              setStep("input");
-            }}
+            className={`group cursor-pointer hover-elevate transition-all border-2 overflow-hidden ${selectedTemplateId === template.id ? 'border-primary' : 'border-transparent hover:border-primary/50'}`}
+            onClick={() => handleSelectTemplate(template)}
           >
             <div 
               className="aspect-[4/5] w-full flex items-center justify-center p-8 relative"
@@ -189,7 +181,7 @@ export default function Create() {
               </p>
             </div>
 
-            <Tabs defaultValue="Basic" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="flex items-center justify-between mb-8 border-b pb-4">
                 <TabsList className="bg-muted/50 p-1">
                   {categories.map(cat => (

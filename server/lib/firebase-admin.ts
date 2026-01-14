@@ -54,6 +54,79 @@ function getDb() {
   return adminDb;
 }
 
+export async function getTemplates(): Promise<any[]> {
+  try {
+    const db = getDb();
+    const snapshot = await db.collection("templates").get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Error getting templates from Firestore:", error);
+    return [];
+  }
+}
+
+export async function saveTemplate(templateData: any): Promise<any> {
+  try {
+    const db = getDb();
+    const templateRef = db.collection("templates").doc();
+    const now = new Date();
+    const data = {
+      ...templateData,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await templateRef.set(data);
+    return { id: templateRef.id, ...data };
+  } catch (error) {
+    console.error("Error saving template to Firestore:", error);
+    throw error;
+  }
+}
+
+/**
+ * Seed initial templates if the collection is empty
+ */
+export async function seedTemplates() {
+  if (!isFirebaseConfigured) return;
+  
+  try {
+    const templates = await getTemplates();
+    if (templates.length === 0) {
+      console.log("Seeding initial carousel templates to Firestore...");
+      const initialTemplates = [
+        {
+          name: "Basic Minimal",
+          description: "Clean and simple design for quick tips.",
+          category: "Basic",
+          config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#000000", fontFamily: "Inter" }),
+          isNew: true
+        },
+        {
+          name: "Professional Deep",
+          description: "Bold dark theme for authoritative content.",
+          category: "Professional",
+          config: JSON.stringify({ backgroundColor: "#1a1a1a", textColor: "#ffffff", fontFamily: "Inter" }),
+          isNew: true
+        },
+        {
+          name: "Creative Spark",
+          description: "Vibrant and colorful for higher engagement.",
+          category: "Creative",
+          config: JSON.stringify({ backgroundColor: "#6366f1", textColor: "#ffffff", fontFamily: "Inter" }),
+          isNew: true
+        }
+      ];
+      
+      for (const template of initialTemplates) {
+        await saveTemplate(template);
+      }
+      console.log("Seeding completed.");
+    }
+  } catch (error) {
+    console.error("Failed to seed templates:", error);
+  }
+}
+
 export { adminDb, adminAuth, adminStorage, isFirebaseConfigured, adminDb as adminFirestore };
 
 // ============================================

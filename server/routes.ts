@@ -479,6 +479,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  app.get("/api/templates", async (req: Request, res: Response) => {
+    try {
+      const { getTemplates, seedTemplates } = await import("./lib/firebase-admin");
+      
+      // Seed templates if needed
+      await seedTemplates();
+      
+      const templates = await getTemplates();
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Failed to fetch templates:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch templates" });
+    }
+  });
+
+  app.post("/api/templates", async (req: Request, res: Response) => {
+    try {
+      const { saveTemplate } = await import("./lib/firebase-admin");
+      const template = await saveTemplate(req.body);
+      res.json(template);
+    } catch (error: any) {
+      console.error("Failed to save template:", error);
+      res.status(500).json({ error: error.message || "Failed to save template" });
+    }
+  });
+
   app.post("/api/user/writing-style", async (req: Request, res: Response) => {
     if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
     const { text, audioData, audioType } = req.body;
