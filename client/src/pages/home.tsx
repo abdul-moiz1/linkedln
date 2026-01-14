@@ -46,7 +46,8 @@ export default function Home() {
   useEffect(() => {
     // Only redirect if we have a user and we're not loading
     if (!isLoading && user) {
-      if ((user as any).onboardingCompleted === "true" || (user as any).onboardingCompleted === true) {
+      const onboardingCompleted = (user as any).onboardingCompleted;
+      if (onboardingCompleted === "true" || onboardingCompleted === true) {
         setLocation("/dashboard");
       } else {
         setLocation("/onboarding");
