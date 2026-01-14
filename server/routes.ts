@@ -837,21 +837,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { adminFirestore, isFirebaseConfigured } = await import("./lib/firebase-admin");
       
+      // Fallback to database if Firestore is not configured or fails
+      const dbTemplates = await getDb().select().from(carouselTemplates);
+
       if (isFirebaseConfigured && adminFirestore) {
-        // Fetch from Firestore for global visibility
-        const templatesSnapshot = await adminFirestore.collection("carousel_templates").get();
-        const templates = templatesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // If empty in Firestore, fallback to database or seed
-        if (templates.length === 0) {
-          const dbTemplates = await getDb().select().from(carouselTemplates);
-          return res.json(dbTemplates);
+        try {
+          // Fetch from Firestore for global visibility
+          const templatesSnapshot = await adminFirestore.collection("carousel_templates").get();
+          const templates = templatesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          
+          if (templates.length > 0) {
+            return res.json(templates);
+          }
+        } catch (fsError) {
+          console.error("Firestore fetch failed, falling back to DB:", fsError);
         }
-        
-        return res.json(templates);
       }
       
-      const dbTemplates = await getDb().select().from(carouselTemplates);
       res.json(dbTemplates);
     } catch (error: any) {
       console.error("Fetch templates error:", error);
@@ -862,13 +864,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/seed-templates", async (req: Request, res: Response) => {
     try {
       const { adminFirestore, isFirebaseConfigured } = await import("./lib/firebase-admin");
-      if (!isFirebaseConfigured || !adminFirestore) return res.status(503).json({ error: "Firestore not configured" });
+      if (!isFirebaseConfigured || !adminFirestore) {
+        console.error("Firebase not configured for seeding");
+        return res.status(503).json({ error: "Firestore not configured" });
+      }
 
       const templates = await getDb().select().from(carouselTemplates);
+      console.log(`Found ${templates.length} templates in DB to seed`);
+      
       const batch = adminFirestore.batch();
+      const collectionRef = adminFirestore.collection("carousel_templates");
 
-      templates.forEach((tmpl) => {
-        const docRef = adminFirestore.collection("carousel_templates").doc();
+      for (const tmpl of templates) {
+        const docRef = collectionRef.doc();
         batch.set(docRef, {
           name: tmpl.name,
           description: tmpl.description,
@@ -877,11 +885,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isNew: tmpl.isNew,
           createdAt: tmpl.createdAt.toISOString()
         });
-      });
+      }
 
       await batch.commit();
+      console.log(`Successfully seeded ${templates.length} templates to Firestore`);
       res.json({ success: true, count: templates.length });
     } catch (error: any) {
+      console.error("Seeding error:", error);
       res.status(500).json({ error: error.message });
     }
   });
