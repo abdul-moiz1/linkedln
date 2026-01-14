@@ -508,6 +508,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const writingStyle = await generateContent(prompt);
 
+      // Extract Style DNA
+      let styleDNA = null;
+      let writeLikeMePrompt = null;
+      try {
+        const dnaPrompt = `You are a linguistic expert. Analyze the following text and extract a "Style DNA" profile.
+        
+        Return a JSON object with this EXACT structure:
+        {
+          "version": "v1",
+          "profile": {
+            "voiceToneRules": "rules here",
+            "rhythmFlow": "description here",
+            "structureTemplates": "templates here",
+            "languagePreferences": "preferences here",
+            "doDontRules": "do/don't rules here",
+            "styleChecklist": ["item 1", "item 2"],
+            "signatureElements": ["element 1", "element 2"]
+          },
+          "writeLikeMePrompt": "A full instruction block for an LLM to replicate this style"
+        }
+        
+        Text to analyze:
+        ${analysisText}`;
+
+        const dnaResult = await generateContent(dnaPrompt, { responseMimeType: "application/json" });
+        const parsedDNA = JSON.parse(dnaResult);
+        styleDNA = JSON.stringify({
+          version: parsedDNA.version,
+          generatedAt: new Date().toISOString(),
+          sourceWordCount: analysisText.split(/\s+/).length,
+          locked: false,
+          profile: parsedDNA.profile
+        });
+        writeLikeMePrompt = parsedDNA.writeLikeMePrompt;
+      } catch (dnaError) {
+        console.error("Failed to generate Style DNA:", dnaError);
+      }
+
       // Derive structured styleProfile and promptStyleInstruction
       let styleProfile = null;
       let promptStyleInstruction = null;
@@ -540,17 +578,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (req.session.user as any).writingStyle = writingStyle;
       (req.session.user as any).styleProfile = styleProfile;
       (req.session.user as any).promptStyleInstruction = promptStyleInstruction;
+      (req.session.user as any).styleDNA = styleDNA;
+      (req.session.user as any).writeLikeMePrompt = writeLikeMePrompt;
       
       const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
       if (isFirebaseConfigured && adminFirestore) {
         await adminFirestore.collection("users").doc(req.session.user.profile.sub).set({
           writingStyle,
           styleProfile,
-          promptStyleInstruction
+          promptStyleInstruction,
+          styleDNA,
+          writeLikeMePrompt
         }, { merge: true });
       }
 
-      res.json({ success: true, writingStyle, styleProfile, promptStyleInstruction, transcribedText: analysisText });
+      res.json({ 
+        success: true, 
+        writingStyle, 
+        styleProfile, 
+        promptStyleInstruction, 
+        styleDNA,
+        writeLikeMePrompt,
+        transcribedText: analysisText 
+      });
     } catch (error: any) {
       console.error("Writing style analysis error:", error);
       res.status(500).json({ error: "Failed to analyze writing style" });
@@ -2992,19 +3042,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let slideTexts = [];
       if (aiProvider === "gemini") {
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
-            }],
-            generationConfig: { responseMimeType: "application/json" }
-          }),
+        const { generateContent } = await import("./lib/gemini");
+        const textResponse = await generateContent(`${systemPrompt}\n\n${userPrompt}`, {
+          temperature: 0.7,
+          responseMimeType: "application/json"
         });
-        const json = await response.json();
-        const aiData = JSON.parse(json.candidates?.[0]?.content?.parts?.[0]?.text || '{"slides":[]}');
+        const aiData = JSON.parse(textResponse || '{"slides":[]}');
         slideTexts = aiData.slides;
       } else {
         const { OpenAI } = await import("openai");
@@ -3216,40 +3259,27 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       
       if (selectedAiProvider === "gemini") {
         // Use Gemini for text processing
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-        
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              topP: 0.9,
-            }
-          }),
+        const { generateContent } = await import("./lib/gemini");
+        const textResponse = await generateContent(`${systemPrompt}\n\n${userPrompt}`, {
+          temperature: 0.7,
+          responseMimeType: "application/json"
         });
 
-        const json = await response.json() as any;
-
-        if (json.error) {
-          console.error("Gemini API error:", json.error);
-          throw new Error(json.error.message || "Gemini API error");
-        }
-
-        const textResponse = json.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!textResponse) {
           throw new Error("No response from Gemini");
         }
 
         // Parse JSON from the response
-        const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          aiResponse = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("Failed to parse AI response as JSON");
+        try {
+          aiResponse = JSON.parse(textResponse);
+        } catch (e) {
+          // Fallback if AI didn't return perfect JSON even with responseMimeType
+          const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            aiResponse = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error("Failed to parse AI response as JSON");
+          }
         }
       } else if (aiProvider === "openai") {
         // Use OpenAI for text processing
