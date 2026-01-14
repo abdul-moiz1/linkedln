@@ -1,22 +1,15 @@
-/**
- * Storage Layer
- * 
- * This file is not used in the LinkedIn OAuth2 demo as we use
- * session-based authentication with in-memory storage.
- * 
- * In a production application, you would typically:
- * 1. Store user profiles in a database
- * 2. Implement token refresh logic
- * 3. Cache LinkedIn API responses
- * 4. Track post history and analytics
- */
+import { users, projects, postsCache, sessions, carouselTemplates, type User, type Project, type CarouselTemplate, type InsertCarouselTemplate } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
-  // Placeholder for future database operations
+  getCarouselTemplates(): Promise<CarouselTemplate[]>;
 }
 
 export class MemStorage implements IStorage {
-  constructor() {}
+  async getCarouselTemplates(): Promise<CarouselTemplate[]> {
+    return await db.select().from(carouselTemplates);
+  }
 }
 
 export const storage = new MemStorage();

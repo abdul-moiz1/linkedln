@@ -838,12 +838,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { adminFirestore, isFirebaseConfigured } = await import("./lib/firebase-admin");
       
       // Always fetch from database first as a source of truth
-      const dbTemplates = await getDb().select().from(carouselTemplates);
+      const dbTemplates = await storage.getCarouselTemplates();
 
       // Attempt to use Firestore if configured
       if (isFirebaseConfigured && adminFirestore) {
         try {
-          const templatesSnapshot = await adminFirestore.collection("carousel_templates").get();
+          const collectionRef = adminFirestore.collection("carousel_templates");
+          const templatesSnapshot = await collectionRef.get();
           const templates = templatesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           
           if (templates.length > 0) {
@@ -854,20 +855,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("Firestore templates collection empty, seeding from DB...");
           const batch = adminFirestore.batch();
           for (const tmpl of dbTemplates) {
-            const docRef = adminFirestore.collection("carousel_templates").doc();
+            const docRef = collectionRef.doc();
             batch.set(docRef, {
               name: tmpl.name,
               description: tmpl.description,
               category: tmpl.category,
               config: tmpl.config,
               isNew: tmpl.isNew,
-              createdAt: tmpl.createdAt.toISOString()
+              createdAt: tmpl.createdAt instanceof Date ? tmpl.createdAt.toISOString() : tmpl.createdAt
             });
           }
           await batch.commit();
           
           // Re-fetch after seeding
-          const seededSnapshot = await adminFirestore.collection("carousel_templates").get();
+          const seededSnapshot = await collectionRef.get();
           return res.json(seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         } catch (fsError) {
           console.error("Firestore operation failed:", fsError);
@@ -889,7 +890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(503).json({ error: "Firestore not configured" });
       }
 
-      const templates = await getDb().select().from(carouselTemplates);
+      const templates = await storage.getCarouselTemplates();
       console.log(`Found ${templates.length} templates in DB to seed`);
       
       const batch = adminFirestore.batch();
@@ -903,7 +904,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: tmpl.category,
           config: tmpl.config,
           isNew: tmpl.isNew,
-          createdAt: tmpl.createdAt.toISOString()
+          createdAt: tmpl.createdAt instanceof Date ? tmpl.createdAt.toISOString() : tmpl.createdAt
         });
       }
 
