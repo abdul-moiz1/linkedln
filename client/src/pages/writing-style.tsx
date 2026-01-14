@@ -137,22 +137,18 @@ export default function WritingStyle() {
         
         setIsExtracting(true);
         try {
-          const res = await apiRequest("POST", "/api/carousel/from-url", { url });
+          const res = await apiRequest("POST", "/api/user/writing-style", { text: url }); // Note: API handles link vs text
           const data = await res.json();
-          
-          if (data.slides) {
-            const combinedText = data.slides.map((s: any) => s.finalText).join("\n\n");
-            const analysisRes = await apiRequest("POST", "/api/user/writing-style", {
-              text: combinedText
-            });
-            const analysisData = await analysisRes.json();
-            if (analysisData.writingStyle) {
-              setStyle(analysisData.writingStyle);
-              toast({ title: "Link Analyzed", description: "Your online writing style has been extracted and updated." });
-            }
+          if (data.writingStyle) {
+            setStyle(data.writingStyle);
+            toast({ title: "Link Analyzed", description: "Your online writing style has been extracted and updated." });
           }
-        } catch (err) {
-          toast({ title: "Link Analysis Failed", variant: "destructive" });
+        } catch (err: any) {
+          if (err.message?.includes("401")) {
+            toast({ title: "Session Expired", description: "Please log in again to continue.", variant: "destructive" });
+          } else {
+            toast({ title: "Link Analysis Failed", variant: "destructive" });
+          }
         }
       } else if (type === "document" || type === "audio file") {
         const input = document.createElement('input');
@@ -169,28 +165,42 @@ export default function WritingStyle() {
               reader.readAsDataURL(file);
               reader.onloadend = async () => {
                 const base64Audio = (reader.result as string).split(',')[1];
-                const res = await apiRequest("POST", "/api/user/writing-style", {
-                  audioData: base64Audio,
-                  audioType: file.type
-                });
-                const data = await res.json();
-                if (data.writingStyle) {
-                  setStyle(data.writingStyle);
-                  toast({ title: "Audio Analyzed", description: "Voice style extracted successfully." });
+                try {
+                  const res = await apiRequest("POST", "/api/user/writing-style", {
+                    audioData: base64Audio,
+                    audioType: file.type
+                  });
+                  const data = await res.json();
+                  if (data.writingStyle) {
+                    setStyle(data.writingStyle);
+                    toast({ title: "Audio Analyzed", description: "Voice style extracted successfully." });
+                  }
+                } catch (err: any) {
+                  if (err.message?.includes("401")) {
+                    toast({ title: "Session Expired", description: "Please log in again to continue.", variant: "destructive" });
+                  } else {
+                    toast({ title: "Analysis Failed", variant: "destructive" });
+                  }
                 }
                 setIsExtracting(false);
               };
             } else {
-              // For documents, we'll send as text if it's small or handle via a specialized endpoint
-              // For now, let's treat it as text extraction if possible
               reader.readAsText(file);
               reader.onloadend = async () => {
                 const text = reader.result as string;
-                const res = await apiRequest("POST", "/api/user/writing-style", { text });
-                const data = await res.json();
-                if (data.writingStyle) {
-                  setStyle(data.writingStyle);
-                  toast({ title: "Document Analyzed", description: "Style extracted from document." });
+                try {
+                  const res = await apiRequest("POST", "/api/user/writing-style", { text });
+                  const data = await res.json();
+                  if (data.writingStyle) {
+                    setStyle(data.writingStyle);
+                    toast({ title: "Document Analyzed", description: "Style extracted from document." });
+                  }
+                } catch (err: any) {
+                  if (err.message?.includes("401")) {
+                    toast({ title: "Session Expired", description: "Please log in again to continue.", variant: "destructive" });
+                  } else {
+                    toast({ title: "Analysis Failed", variant: "destructive" });
+                  }
                 }
                 setIsExtracting(false);
               };
@@ -219,14 +229,20 @@ export default function WritingStyle() {
             setEmailDialogOpen(false);
             setEmailContent("");
           }
-        } catch (err) {
-          toast({ title: "Email Analysis Failed", variant: "destructive" });
+        } catch (err: any) {
+          if (err.message?.includes("401")) {
+            toast({ title: "Session Expired", description: "Please log in again to continue.", variant: "destructive" });
+          } else {
+            toast({ title: "Email Analysis Failed", variant: "destructive", description: err.message?.includes("400") ? "Please provide more content (at least 200 characters)." : "Service is temporarily unavailable." });
+          }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({ title: "Extraction failed", variant: "destructive" });
     } finally {
-      if (type !== "voice note") setIsExtracting(false);
+      if (type !== "voice note" && type !== "emails") setIsExtracting(false);
+      // Special handling for emails finally block to allow state updates
+      if (type === "emails" && !data) setIsExtracting(false); 
     }
   };
 
