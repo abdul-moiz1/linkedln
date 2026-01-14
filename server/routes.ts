@@ -837,20 +837,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { adminFirestore, isFirebaseConfigured } = await import("./lib/firebase-admin");
       
-      // Fallback to database if Firestore is not configured or fails
+      // Always fetch from database first as a source of truth
       const dbTemplates = await getDb().select().from(carouselTemplates);
 
+      // Attempt to use Firestore if configured
       if (isFirebaseConfigured && adminFirestore) {
         try {
-          // Fetch from Firestore for global visibility
           const templatesSnapshot = await adminFirestore.collection("carousel_templates").get();
           const templates = templatesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           
           if (templates.length > 0) {
             return res.json(templates);
           }
+          
+          // If Firestore is empty but configured, try to seed it from DB once
+          console.log("Firestore templates collection empty, seeding from DB...");
+          const batch = adminFirestore.batch();
+          for (const tmpl of dbTemplates) {
+            const docRef = adminFirestore.collection("carousel_templates").doc();
+            batch.set(docRef, {
+              name: tmpl.name,
+              description: tmpl.description,
+              category: tmpl.category,
+              config: tmpl.config,
+              isNew: tmpl.isNew,
+              createdAt: tmpl.createdAt.toISOString()
+            });
+          }
+          await batch.commit();
+          
+          // Re-fetch after seeding
+          const seededSnapshot = await adminFirestore.collection("carousel_templates").get();
+          return res.json(seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         } catch (fsError) {
-          console.error("Firestore fetch failed, falling back to DB:", fsError);
+          console.error("Firestore operation failed:", fsError);
         }
       }
       
