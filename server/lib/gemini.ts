@@ -15,6 +15,8 @@ export async function generateContent(prompt: string, options: any = {}) {
 
   const contents: any[] = [{ role: "user", parts: [{ text: prompt }] }];
   
+  console.log(`[Gemini] Calling with prompt snippet: ${prompt.substring(0, 100)}...`);
+  
   if (options.inlineData) {
     contents[0].parts.push({
       inlineData: options.inlineData

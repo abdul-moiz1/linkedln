@@ -612,27 +612,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-    const writingStyle = (req.session.user as any).writingStyle || "professional and engaging";
-    const promptStyleInstruction = (req.session.user as any).promptStyleInstruction || "";
+    // Try to get style info from session, otherwise use generic
+    const userSession = req.session.user as any;
+    const writingStyle = userSession.writingStyle || "professional and engaging";
+    const promptStyleInstruction = userSession.promptStyleInstruction || "";
+    const styleDNA = userSession.styleDNA ? JSON.stringify(userSession.styleDNA) : "";
+    const writeLikeMePrompt = userSession.writeLikeMePrompt || "";
 
     try {
       const { generateContent } = await import("./lib/gemini");
-      const systemPrompt = `You are an expert LinkedIn content creator. Write a post based on the user's prompt. 
-      CRITICAL: You MUST use the following writing style profile:
       
-      ${writingStyle}
+      const systemPrompt = `You are an expert LinkedIn content creator. Write a post based on the user's prompt.
       
-      Additional Style Instructions:
-      ${promptStyleInstruction}
+      CRITICAL - BRAND VOICE & STYLE:
+      You MUST write exactly like the user described in their Style DNA.
       
-      Keep the post engaging, use appropriate whitespace, and add 2-3 relevant hashtags.`;
+      1. Writing Style Description: ${writingStyle}
+      2. Specific Style Instructions: ${promptStyleInstruction}
+      3. Style DNA (Linguistic patterns): ${styleDNA}
+      4. Write Like Me (Core persona rules): ${writeLikeMePrompt}
       
-      const text = await generateContent(`${systemPrompt}\n\nUser Prompt: ${prompt}`);
+      CONSTRAINTS:
+      - Use professional yet approachable LinkedIn tone.
+      - Use appropriate whitespace for readability.
+      - Add 2-3 relevant hashtags.
+      - DO NOT mention being an AI.
+      - DO NOT use generic AI platitudes ("In today's fast-paced world...").
+      - Make it sound human and direct.`;
+      
+      console.log(`[Post Gen] Generating for user: ${userSession.profile?.sub} with prompt: ${prompt.substring(0, 50)}...`);
+      
+      const text = await generateContent(`${systemPrompt}\n\nUSER TOPIC/PROMPT: ${prompt}`);
+
+      if (!text) throw new Error("AI returned empty response");
 
       res.json({ success: true, text });
     } catch (error: any) {
       console.error("Post generation error:", error);
-      res.status(500).json({ error: "Failed to generate post" });
+      res.status(500).json({ error: "Failed to generate post. Check API key and quota." });
     }
   });
 
@@ -709,7 +726,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       updateData.updatedAt = new Date();
 
-      console.log(`[User Update] Attempting to save to doc ${userId} with data:`, JSON.stringify(updateData));
+      console.log(`[User Update] Attempting to save to doc ${userId} with data:`, JSON.stringify(updateData, null, 2));
+
+      // Update session explicitly with everything
+      if (req.session.user) {
+        if (updateData.writingStyle) (req.session.user as any).writingStyle = updateData.writingStyle;
+        if (updateData.styleProfile) (req.session.user as any).styleProfile = updateData.styleProfile;
+        if (updateData.promptStyleInstruction) (req.session.user as any).promptStyleInstruction = updateData.promptStyleInstruction;
+        if (updateData.styleDNA) (req.session.user as any).styleDNA = updateData.styleDNA;
+        if (updateData.writeLikeMePrompt) (req.session.user as any).writeLikeMePrompt = updateData.writeLikeMePrompt;
+      }
 
       // Use adminDb directly which is the Firestore instance
       const userDoc = adminDb.collection("users").doc(userId);
