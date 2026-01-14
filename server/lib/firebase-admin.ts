@@ -32,6 +32,11 @@ if (isFirebaseConfigured) {
     adminAuth = admin.auth();
     adminStorage = admin.storage();
     
+    // Test Firestore connection asynchronously (non-blocking)
+    adminDb.listCollections()
+      .then(() => console.log("Firestore connection verified"))
+      .catch((connError: any) => console.error("Firestore connection test failed:", connError.message));
+    
     if (storageBucket) {
       console.log(`Firebase Storage configured with bucket: ${storageBucket}`);
     } else {
