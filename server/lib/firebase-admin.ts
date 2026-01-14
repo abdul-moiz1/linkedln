@@ -42,8 +42,8 @@ if (isFirebaseConfigured) {
       adminDb.listCollections()
         .then(async (collections) => {
           console.log("Firestore connection verified. Collections:", collections.map(c => c.id));
-          // Trigger seeding if not done
-          await seedTemplates();
+          // Force seed on startup to ensure all templates including Elite 20-25 exist
+          await seedTemplates(true);
         })
         .catch((connError: any) => console.error("Firestore connection test failed:", connError.message));
     } catch (instanceError) {
@@ -108,7 +108,7 @@ export async function saveTemplate(templateData: any): Promise<any> {
   }
 }
 
-export async function seedTemplates() {
+export async function seedTemplates(force = false) {
   if (!isFirebaseConfigured) {
     console.warn("[Firebase] Skipping seed: not configured");
     return;
@@ -117,15 +117,30 @@ export async function seedTemplates() {
     const db = getDb();
     if (!db) return;
     const snapshot = await db.collection("templates").limit(1).get();
-    if (snapshot.empty) {
+    if (snapshot.empty || force) {
       console.log("[Firebase] Seeding initial templates into 'templates' collection...");
       const initial = [
         { name: "Basic Minimal", description: "Clean and simple.", category: "Basic", config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#000000", layout: "tips-howto" }), isNew: true },
         { name: "Professional Deep", description: "Bold dark theme.", category: "Professional", config: JSON.stringify({ backgroundColor: "#1a1a1a", textColor: "#ffffff", layout: "professional-bold" }), isNew: true },
-        { name: "Creative Spark", description: "Vibrant and colorful.", category: "Creative", config: JSON.stringify({ backgroundColor: "#6366f1", textColor: "#ffffff", layout: "creative-vibrant" }), isNew: true }
+        { name: "Creative Spark", description: "Vibrant and colorful.", category: "Creative", config: JSON.stringify({ backgroundColor: "#6366f1", textColor: "#ffffff", layout: "creative-vibrant" }), isNew: true },
+        { name: "Modern Gradient", description: "Sleek gradient background with modern typography.", category: "Modern", config: JSON.stringify({ backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", textColor: "#ffffff", layout: "big_text_center" }), isNew: true },
+        { name: "Corporate Clean", description: "Professional layout for business insights.", category: "Professional", config: JSON.stringify({ backgroundColor: "#f8fafc", textColor: "#0f172a", layout: "points_center" }), isNew: true },
+        { name: "Tech Minimalist", description: "Dark mode optimized for tech creators.", category: "Tech", config: JSON.stringify({ backgroundColor: "#020617", textColor: "#38bdf8", layout: "title_top" }), isNew: true },
+        { name: "Author Spotlight", description: "Personal brand focused with prominent profile area.", category: "Personal", config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#1e293b", layout: "split_image_text" }), isNew: true },
+        { name: "Engagement Booster", description: "Bold colors and high contrast for maximum reach.", category: "Growth", config: JSON.stringify({ backgroundColor: "#f43f5e", textColor: "#ffffff", layout: "big_text_center" }), isNew: true },
+        { name: "Storyteller", description: "Classic narrative flow layout.", category: "Basic", config: JSON.stringify({ backgroundColor: "#fff7ed", textColor: "#431407", layout: "tips-howto" }), isNew: true },
+        { name: "Elite 20", description: "High-impact conversion template.", category: "Elite", config: JSON.stringify({ backgroundColor: "#1e293b", textColor: "#f8fafc", layout: "big_text_center" }), isNew: true },
+        { name: "Elite 21", description: "Sleek dark mode insights.", category: "Elite", config: JSON.stringify({ backgroundColor: "#0f172a", textColor: "#38bdf8", layout: "points_center" }), isNew: true },
+        { name: "Elite 22", description: "Professional B2B authority.", category: "Elite", config: JSON.stringify({ backgroundColor: "#f8fafc", textColor: "#0f172a", layout: "title_top" }), isNew: true },
+        { name: "Elite 23", description: "Creative growth focus.", category: "Elite", config: JSON.stringify({ backgroundColor: "#4f46e5", textColor: "#ffffff", layout: "big_text_center" }), isNew: true },
+        { name: "Elite 24", description: "Minimalist brand builder.", category: "Elite", config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#1e293b", layout: "tips-howto" }), isNew: true },
+        { name: "Elite 25", description: "Bold engagement driver.", category: "Elite", config: JSON.stringify({ backgroundColor: "#be123c", textColor: "#ffffff", layout: "big_text_center" }), isNew: true }
       ];
       for (const t of initial) {
-        await saveTemplate(t);
+        const existing = await db.collection("templates").where("name", "==", t.name).get();
+        if (existing.empty) {
+          await saveTemplate(t);
+        }
       }
       console.log("[Firebase] Seeding complete");
     } else {

@@ -90,7 +90,7 @@ export default function Create() {
   const [activeTab, setActiveTab] = useState("Basic");
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
 
-  const categories = ["Basic", "Professional", "Creative"];
+  const categories = ["Basic", "Professional", "Creative", "Elite"];
 
   const handleProcessText = async () => {
     const rawTexts = slides.map(s => s.text.trim()).filter(t => t.length > 0);
