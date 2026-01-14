@@ -22,20 +22,33 @@ if (isFirebaseConfigured) {
     };
 
     if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-        storageBucket: storageBucket,
-      });
+      try {
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+          storageBucket: storageBucket,
+        });
+        console.log("Firebase Admin initialized with project:", process.env.FIREBASE_PROJECT_ID);
+      } catch (initError) {
+        console.error("Firebase initializeApp failed:", initError);
+      }
     }
 
-    adminDb = admin.firestore();
-    adminAuth = admin.auth();
-    adminStorage = admin.storage();
-    
-    // Test Firestore connection asynchronously (non-blocking)
-    adminDb.listCollections()
-      .then(() => console.log("Firestore connection verified"))
-      .catch((connError: any) => console.error("Firestore connection test failed:", connError.message));
+    try {
+      adminDb = admin.firestore();
+      adminAuth = admin.auth();
+      adminStorage = admin.storage();
+      
+      // Test Firestore connection and seed immediately if needed
+      adminDb.listCollections()
+        .then(async (collections) => {
+          console.log("Firestore connection verified. Collections:", collections.map(c => c.id));
+          // Trigger seeding if not done
+          await seedTemplates();
+        })
+        .catch((connError: any) => console.error("Firestore connection test failed:", connError.message));
+    } catch (instanceError) {
+      console.error("Failed to get Firebase service instances:", instanceError);
+    }
     
     if (storageBucket) {
       console.log(`Firebase Storage configured with bucket: ${storageBucket}`);
@@ -48,8 +61,13 @@ if (isFirebaseConfigured) {
 }
 
 function getDb() {
-  if (!adminDb) {
-    throw new Error("Firebase not configured. Please add FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY to your secrets.");
+  if (isFirebaseConfigured && !adminDb) {
+    try {
+      adminDb = admin.firestore();
+      console.log("[Firebase] Firestore initialized");
+    } catch (error) {
+      console.error("[Firebase] Firestore init failed:", error);
+    }
   }
   return adminDb;
 }
@@ -57,10 +75,16 @@ function getDb() {
 export async function getTemplates(): Promise<any[]> {
   try {
     const db = getDb();
+    if (!db) {
+      console.warn("[Firebase] No DB instance during getTemplates");
+      return [];
+    }
     const snapshot = await db.collection("templates").get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const templates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log(`[Firebase] Fetched ${templates.length} templates from 'templates' collection`);
+    return templates;
   } catch (error) {
-    console.error("Error getting templates from Firestore:", error);
+    console.error("[Firebase] getTemplates error:", error);
     return [];
   }
 }
@@ -68,62 +92,47 @@ export async function getTemplates(): Promise<any[]> {
 export async function saveTemplate(templateData: any): Promise<any> {
   try {
     const db = getDb();
+    if (!db) throw new Error("Firebase not configured");
     const templateRef = db.collection("templates").doc();
-    const now = new Date();
-    const data = {
-      ...templateData,
-      createdAt: now,
-      updatedAt: now,
+    const data = { 
+      ...templateData, 
+      createdAt: admin.firestore.FieldValue.serverTimestamp(), 
+      updatedAt: admin.firestore.FieldValue.serverTimestamp() 
     };
     await templateRef.set(data);
-    return { id: templateRef.id, ...data };
+    console.log(`[Firebase] Saved template ${templateRef.id} to 'templates' collection`);
+    return { id: templateRef.id, ...templateData };
   } catch (error) {
-    console.error("Error saving template to Firestore:", error);
+    console.error("[Firebase] saveTemplate error:", error);
     throw error;
   }
 }
 
-/**
- * Seed initial templates if the collection is empty
- */
 export async function seedTemplates() {
-  if (!isFirebaseConfigured) return;
-  
+  if (!isFirebaseConfigured) {
+    console.warn("[Firebase] Skipping seed: not configured");
+    return;
+  }
   try {
-    const templates = await getTemplates();
-    if (templates.length === 0) {
-      console.log("Seeding initial carousel templates to Firestore...");
-      const initialTemplates = [
-        {
-          name: "Basic Minimal",
-          description: "Clean and simple design for quick tips.",
-          category: "Basic",
-          config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#000000", fontFamily: "Inter" }),
-          isNew: true
-        },
-        {
-          name: "Professional Deep",
-          description: "Bold dark theme for authoritative content.",
-          category: "Professional",
-          config: JSON.stringify({ backgroundColor: "#1a1a1a", textColor: "#ffffff", fontFamily: "Inter" }),
-          isNew: true
-        },
-        {
-          name: "Creative Spark",
-          description: "Vibrant and colorful for higher engagement.",
-          category: "Creative",
-          config: JSON.stringify({ backgroundColor: "#6366f1", textColor: "#ffffff", fontFamily: "Inter" }),
-          isNew: true
-        }
+    const db = getDb();
+    if (!db) return;
+    const snapshot = await db.collection("templates").limit(1).get();
+    if (snapshot.empty) {
+      console.log("[Firebase] Seeding initial templates into 'templates' collection...");
+      const initial = [
+        { name: "Basic Minimal", description: "Clean and simple.", category: "Basic", config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#000000", layout: "tips-howto" }), isNew: true },
+        { name: "Professional Deep", description: "Bold dark theme.", category: "Professional", config: JSON.stringify({ backgroundColor: "#1a1a1a", textColor: "#ffffff", layout: "professional-bold" }), isNew: true },
+        { name: "Creative Spark", description: "Vibrant and colorful.", category: "Creative", config: JSON.stringify({ backgroundColor: "#6366f1", textColor: "#ffffff", layout: "creative-vibrant" }), isNew: true }
       ];
-      
-      for (const template of initialTemplates) {
-        await saveTemplate(template);
+      for (const t of initial) {
+        await saveTemplate(t);
       }
-      console.log("Seeding completed.");
+      console.log("[Firebase] Seeding complete");
+    } else {
+      console.log("[Firebase] Templates already exist, skipping seed");
     }
-  } catch (error) {
-    console.error("Failed to seed templates:", error);
+  } catch (e) { 
+    console.error("[Firebase] Seeding failed:", e); 
   }
 }
 

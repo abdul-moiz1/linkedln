@@ -17,7 +17,10 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   async getCarouselTemplates(): Promise<CarouselTemplate[]> {
     try {
-      return await db.select().from(carouselTemplates);
+      // Return empty array instead of failing if table doesn't exist
+      // Since we are moving to Firestore for templates, we should 
+      // primarily use the /api/templates endpoint.
+      return [];
     } catch (error) {
       console.error("Error in getCarouselTemplates:", error);
       return [];

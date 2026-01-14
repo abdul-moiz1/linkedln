@@ -83,6 +83,8 @@ export default function Create() {
 
   const { data: templates, isLoading: templatesLoading } = useQuery<CarouselTemplate[]>({
     queryKey: ["/api/templates"],
+    refetchOnWindowFocus: true,
+    staleTime: 0
   });
 
   const [activeTab, setActiveTab] = useState("Basic");

@@ -487,9 +487,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await seedTemplates();
       
       const templates = await getTemplates();
+      console.log(`[API] Fetched ${templates.length} templates from Firestore`);
       res.json(templates);
     } catch (error: any) {
       console.error("Failed to fetch templates:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch templates" });
+    }
+  });
+
+  app.get("/api/carousel-templates", async (req: Request, res: Response) => {
+    try {
+      const { getTemplates, seedTemplates } = await import("./lib/firebase-admin");
+      await seedTemplates();
+      const templates = await getTemplates();
+      res.json(templates);
+    } catch (error: any) {
       res.status(500).json({ error: error.message || "Failed to fetch templates" });
     }
   });
