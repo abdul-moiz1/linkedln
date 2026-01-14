@@ -117,6 +117,19 @@ export default function WritingStyle() {
     }
   };
 
+  const handleAnalysisError = (err: any) => {
+    if (err.message?.includes("401")) {
+      toast({ title: "Session Expired", description: "Please log in again to continue.", variant: "destructive" });
+    } else if (err.message?.includes("400")) {
+      const msg = err.message.includes("short") || err.message.includes("words") 
+        ? "The file does not contain enough text for analysis (minimum 150-200 words required)."
+        : "Failed to process the file. Please ensure it's a valid document.";
+      toast({ title: "Analysis Failed", description: msg, variant: "destructive" });
+    } else {
+      toast({ title: "Analysis Failed", description: "The service is temporarily busy. Please try again in a few moments.", variant: "destructive" });
+    }
+  };
+
   const handleExtraction = async (type: string, data?: string) => {
     // Ensure dialog closes before processing
     const closeButton = document.querySelector('[data-state="open"] button[aria-label="Close"]') as HTMLButtonElement;
@@ -185,25 +198,44 @@ export default function WritingStyle() {
                 setIsExtracting(false);
               };
             } else {
-              reader.readAsText(file);
-              reader.onloadend = async () => {
-                const text = reader.result as string;
-                try {
-                  const res = await apiRequest("POST", "/api/user/writing-style", { text });
-                  const data = await res.json();
-                  if (data.writingStyle) {
-                    setStyle(data.writingStyle);
-                    toast({ title: "Document Analyzed", description: "Style extracted from document." });
+              const extension = file.name.split('.').pop()?.toLowerCase();
+              if (extension === 'txt') {
+                reader.readAsText(file);
+                reader.onloadend = async () => {
+                  const text = reader.result as string;
+                  try {
+                    const res = await apiRequest("POST", "/api/user/writing-style", { text });
+                    const data = await res.json();
+                    if (data.writingStyle) {
+                      setStyle(data.writingStyle);
+                      toast({ title: "Document Analyzed", description: "Style extracted from document." });
+                    }
+                  } catch (err: any) {
+                    handleAnalysisError(err);
                   }
-                } catch (err: any) {
-                  if (err.message?.includes("401")) {
-                    toast({ title: "Session Expired", description: "Please log in again to continue.", variant: "destructive" });
-                  } else {
-                    toast({ title: "Analysis Failed", variant: "destructive" });
+                  setIsExtracting(false);
+                };
+              } else {
+                // For binary files (PDF/DOCX), read as base64 and process on server
+                reader.readAsDataURL(file);
+                reader.onloadend = async () => {
+                  const base64 = (reader.result as string).split(',')[1];
+                  try {
+                    const res = await apiRequest("POST", "/api/user/writing-style", { 
+                      fileData: base64,
+                      fileName: file.name
+                    });
+                    const data = await res.json();
+                    if (data.writingStyle) {
+                      setStyle(data.writingStyle);
+                      toast({ title: "Document Analyzed", description: "Style extracted from document." });
+                    }
+                  } catch (err: any) {
+                    handleAnalysisError(err);
                   }
-                }
-                setIsExtracting(false);
-              };
+                  setIsExtracting(false);
+                };
+              }
             }
           } catch (err) {
             toast({ title: "File Processing Failed", variant: "destructive" });

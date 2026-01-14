@@ -528,10 +528,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/user/writing-style", async (req: Request, res: Response) => {
     if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
-    const { text, audioData, audioType } = req.body;
+    const { text, audioData, audioType, fileData, fileName } = req.body;
     
     try {
       let analysisText = text;
+
+      // Handle direct file data if provided (PDF/Docx)
+      if (fileData && fileName) {
+        const buffer = Buffer.from(fileData, 'base64');
+        const extension = fileName.split('.').pop()?.toLowerCase();
+        
+        try {
+          if (extension === 'pdf') {
+            const pdf = await import("pdf-parse");
+            const data = await pdf.default(buffer);
+            analysisText = data.text;
+          } else if (extension === 'docx' || extension === 'doc') {
+            const mammoth = await import("mammoth");
+            const result = await mammoth.extractRawText({ buffer });
+            analysisText = result.value;
+          }
+        } catch (fileError) {
+          console.error("File extraction failed:", fileError);
+          return res.status(400).json({ error: "Failed to extract text from the provided file." });
+        }
+      }
 
       // If audio data is provided, transcribe it first
       if (audioData && audioType) {
