@@ -512,36 +512,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let styleDNA = null;
       let writeLikeMePrompt = null;
       try {
-        const dnaPrompt = `You are a linguistic expert. Analyze the following text and extract a "Style DNA" profile.
+        const dnaPrompt = `You are a linguistic expert and brand strategist. Analyze the following user writing samples (approx 2,500-6,000 words if provided, otherwise the available text) and extract a comprehensive "Style DNA" profile.
+        
+        SAMPLES TO ANALYZE:
+        ${analysisText}
+        
+        GOAL: Create a reusable instruction block that allows an AI to replicate this exact human voice.
         
         Return a JSON object with this EXACT structure:
         {
-          "version": "v1",
+          "version": "v1.1",
           "profile": {
-            "voiceToneRules": "rules here",
-            "rhythmFlow": "description here",
-            "structureTemplates": "templates here",
-            "languagePreferences": "preferences here",
-            "doDontRules": "do/don't rules here",
-            "styleChecklist": ["item 1", "item 2"],
-            "signatureElements": ["element 1", "element 2"]
+            "voiceToneRules": "Detailed rules about tone (e.g., 'direct but empathetic', 'academic but accessible')",
+            "rhythmFlow": "Analysis of sentence variance, punctuation habits, and pacing",
+            "structureTemplates": {
+              "hooks": ["example hook pattern 1", "example hook pattern 2"],
+              "bullets": "How bullets are used (e.g., 'short punchy fragments', 'detailed full sentences')",
+              "endings": ["example ending pattern 1", "example ending pattern 2"]
+            },
+            "languagePreferences": "Specific vocabulary choices, technical depth, or slang usage",
+            "doDontList": {
+              "do": ["specific thing to do", "another thing"],
+              "dont": ["cliche to avoid", "habit to break"]
+            },
+            "styleChecklist": [
+              "Does it use [Specific Habit]?",
+              "Is the opening [Specific Style]?",
+              "Are the hashtags [Specific Count/Style]?"
+            ],
+            "signatureElements": ["phrase 1", "phrase 2", "metaphor style", "formatting quirk"]
           },
-          "writeLikeMePrompt": "A full instruction block for an LLM to replicate this style"
+          "writeLikeMePrompt": "PASTE THIS AT THE TOP OF FUTURE CHATS: [Comprehensive instruction block incorporating all rules above]",
+          "fewShotExamples": [
+            { "input": "A generic topic", "output": "How the user would write it based on samples" },
+            { "input": "Another topic", "output": "How the user would write it based on samples" }
+          ]
         }
         
-        Text to analyze:
-        ${analysisText}`;
+        Return ONLY the JSON object.`;
 
         const dnaResult = await generateContent(dnaPrompt, { responseMimeType: "application/json" });
         const parsedDNA = JSON.parse(dnaResult);
+        
+        // Add few-shot examples to the prompt if available
+        let finalWriteLikeMe = parsedDNA.writeLikeMePrompt;
+        if (parsedDNA.fewShotExamples) {
+          finalWriteLikeMe += "\n\nFEW-SHOT EXAMPLES:\n" + parsedDNA.fewShotExamples.map((ex: any) => `Topic: ${ex.input}\nDraft: ${ex.output}`).join("\n\n");
+        }
+
         styleDNA = JSON.stringify({
           version: parsedDNA.version,
           generatedAt: new Date().toISOString(),
           sourceWordCount: analysisText.split(/\s+/).length,
           locked: false,
-          profile: parsedDNA.profile
+          profile: parsedDNA.profile,
+          fewShotExamples: parsedDNA.fewShotExamples
         });
-        writeLikeMePrompt = parsedDNA.writeLikeMePrompt;
+        writeLikeMePrompt = finalWriteLikeMe;
       } catch (dnaError) {
         console.error("Failed to generate Style DNA:", dnaError);
       }
@@ -646,7 +673,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!text) throw new Error("AI returned empty response");
 
-      res.json({ success: true, text });
+      // Run Style Audit
+      try {
+        const auditPrompt = `Analyze the following draft against the provided Style DNA rules. 
+        Score it from 0-100 on how well it matches the user's voice.
+        Provide a list of specific fixes to make it match the Style DNA perfectly.
+        Then, provide the FINAL REVISED VERSION.
+        
+        STYLE DNA:
+        ${writeLikeMePrompt}
+        
+        DRAFT:
+        ${text}
+        
+        Return a JSON object with:
+        {
+          "score": number,
+          "fixes": ["fix 1", "fix 2"],
+          "revisedText": "Final polished version"
+        }`;
+        
+        const auditResult = await generateContent(auditPrompt, { responseMimeType: "application/json" });
+        const parsedAudit = JSON.parse(auditResult);
+        console.log(`[Post Audit] Score: ${parsedAudit.score}/100`);
+        
+        res.json({ 
+          success: true, 
+          text: parsedAudit.revisedText || text,
+          audit: {
+            score: parsedAudit.score,
+            fixes: parsedAudit.fixes
+          }
+        });
+      } catch (auditError) {
+        console.error("Style Audit failed:", auditError);
+        res.json({ success: true, text });
+      }
     } catch (error: any) {
       console.error("Post generation error:", error);
       res.status(500).json({ error: "Failed to generate post. Check API key and quota." });
