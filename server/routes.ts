@@ -854,13 +854,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const batch = adminDb.batch();
           for (const tmpl of dbTemplates) {
             const docRef = collectionRef.doc();
+            // Ensure date is valid or use current date
+            let createdAtString = new Date().toISOString();
+            if (tmpl.createdAt) {
+              const date = new Date(tmpl.createdAt);
+              if (!isNaN(date.getTime())) {
+                createdAtString = date.toISOString();
+              }
+            }
+            
             batch.set(docRef, {
               name: tmpl.name,
               description: tmpl.description,
               category: tmpl.category,
               config: tmpl.config,
               isNew: tmpl.isNew,
-              createdAt: tmpl.createdAt instanceof Date ? tmpl.createdAt.toISOString() : tmpl.createdAt
+              createdAt: createdAtString
             });
           }
           await batch.commit();
@@ -893,13 +902,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const tmpl of templates) {
         const docRef = collectionRef.doc();
+        // Ensure date is valid or use current date
+        let createdAtString = new Date().toISOString();
+        if (tmpl.createdAt) {
+          const date = new Date(tmpl.createdAt);
+          if (!isNaN(date.getTime())) {
+            createdAtString = date.toISOString();
+          }
+        }
+
         batch.set(docRef, {
           name: tmpl.name,
           description: tmpl.description,
           category: tmpl.category,
           config: tmpl.config,
           isNew: tmpl.isNew,
-          createdAt: tmpl.createdAt instanceof Date ? tmpl.createdAt.toISOString() : tmpl.createdAt
+          createdAt: createdAtString
         });
       }
 
