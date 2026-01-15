@@ -1,0 +1,120 @@
+TASK:
+Build a Carousel Maker Templates system similar to LinkedIn carousel tools.
+
+Users should see 10–15 predefined templates.
+Templates are stored in Firestore and are accessible to ALL users.
+When a user opens a template, they can fully customize it without affecting the original template.
+
+IMPORTANT:
+This is a production app.
+Be additive and safe.
+Do NOT break existing Carousel Maker features.
+
+GOAL OVERVIEW:
+1) Admin-defined carousel templates
+2) Templates stored in Firestore
+3) Any user can use any template
+4) Customization creates a user-owned copy
+5) Original templates remain unchanged
+
+--------------------------------
+FIRESTORE DATA MODEL (REQUIRED)
+--------------------------------
+
+Create a new collection:
+
+Collection: `carouselTemplates`
+
+Each document represents ONE template.
+
+Fields:
+- id (auto)
+- name (string) — template name
+- category (string) — e.g. "Basic", "Educational", "Story"
+- thumbnailUrl (string)
+- slideCount (number)
+- isPublic (boolean, default true)
+- createdAt (timestamp)
+
+- designSchema (object):
+  - slides (array)
+    Each slide includes:
+      - backgroundColor
+      - titleText
+      - bodyText
+      - fontFamily
+      - fontSize
+      - textAlignment
+      - imagePlaceholder (boolean)
+      - padding
+      - accentColor
+
+--------------------------------
+FRONTEND — TEMPLATE GALLERY PAGE
+--------------------------------
+
+Requirements:
+- Fetch all templates from `carouselTemplates`
+- Show them in a grid (card layout)
+- Each card shows:
+  - Thumbnail
+  - Template name
+  - Slide count
+- Clicking a template opens the editor
+
+--------------------------------
+FRONTEND — TEMPLATE EDITOR
+--------------------------------
+
+When a user opens a template:
+- DO NOT edit the original template
+- Clone the template into local state
+- Allow full customization:
+  - Text editing
+  - Colors
+  - Fonts
+  - Slide order
+  - Add/remove slides
+- Changes affect ONLY the user’s copy
+
+--------------------------------
+SAVE LOGIC (VERY IMPORTANT)
+--------------------------------
+
+When user clicks "Save":
+- Save to a separate collection:
+  `userCarousels`
+
+Fields:
+- userId
+- templateId
+- customizedDesignSchema
+- status (draft / scheduled / published)
+- createdAt
+- updatedAt
+
+Original `carouselTemplates` must NEVER be modified.
+
+--------------------------------
+RULES & CONSTRAINTS
+--------------------------------
+
+- Do NOT hardcode templates in frontend
+- Templates MUST come from Firestore
+- Templates MUST be reusable
+- All users see the same templates
+- Customization is per-user
+- No breaking changes
+- Clean, readable code
+
+--------------------------------
+EXPECTED RESULT
+--------------------------------
+
+- 10–15 templates visible for all users
+- Clicking a template opens a fully customizable editor
+- User saves their own version
+- Templates remain unchanged
+- System is scalable (easy to add more templates later)
+
+This is the foundation for a real SaaS carousel builder.
