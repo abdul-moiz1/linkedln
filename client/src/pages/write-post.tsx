@@ -278,12 +278,24 @@ export default function WritePost() {
                     className="absolute inset-0 opacity-0 cursor-pointer z-50 w-full h-full"
                     style={{ 
                       colorScheme: "light",
+                      pointerEvents: "auto",
+                      display: "block",
                     }}
                     onChange={(e) => {
                       setScheduledTime(e.target.value);
                       console.log("Time selected:", e.target.value);
                     }}
                     value={scheduledTime}
+                    onClick={(e) => {
+                      // Some browsers need explicit showPicker call on click
+                      if (typeof (e.target as any).showPicker === 'function') {
+                        try {
+                          (e.target as any).showPicker();
+                        } catch (err) {
+                          console.error("showPicker failed", err);
+                        }
+                      }
+                    }}
                   />
                   <Button 
                     variant="outline" 
