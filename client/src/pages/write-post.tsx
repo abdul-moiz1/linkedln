@@ -287,6 +287,7 @@ export default function WritePost() {
                       console.log("Time selected:", e.target.value);
                     }}
                     value={scheduledTime}
+                    data-testid="input-schedule-time"
                   />
                   <div 
                     className="flex items-center justify-center rounded-full px-6 gap-2 h-11 border border-slate-200 font-bold w-full bg-white text-slate-900"
@@ -299,11 +300,16 @@ export default function WritePost() {
                   <Button 
                     className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 animate-in fade-in slide-in-from-right-1" 
                     onClick={handleSchedulePost}
+                    data-testid="button-confirm-schedule"
                   >
                     Confirm Schedule
                   </Button>
                 )}
-                <Button className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2" onClick={() => toast({ title: "Publishing...", description: "Your post is being sent to LinkedIn." })}>
+                <Button 
+                  className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2" 
+                  onClick={() => toast({ title: "Publishing...", description: "Your post is being sent to LinkedIn." })}
+                  data-testid="button-publish-now"
+                >
                   Publish
                   <ChevronDown className="w-4 h-4 opacity-50 border-l border-white/20 pl-1" />
                 </Button>

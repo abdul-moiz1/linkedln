@@ -33,8 +33,20 @@ export default function CalendarPage() {
   }
 
   const postsByDate = (date: Date) => {
-    return scheduledPosts?.filter(post => isSameDay(new Date(post.scheduledTime), date)) || [];
+    return scheduledPosts?.filter(post => {
+      const postDate = new Date(post.scheduledTime);
+      return isSameDay(postDate, date);
+    }) || [];
   };
+
+  const getTimeSlotPosts = (date: Date, hour: number) => {
+    return postsByDate(date).filter(post => {
+      const postDate = new Date(post.scheduledTime);
+      return postDate.getHours() === hour;
+    });
+  };
+
+  const hours = Array.from({ length: 24 }).map((_, i) => i);
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-white">
@@ -94,10 +106,10 @@ export default function CalendarPage() {
       </div>
 
       {/* Calendar Grid */}
-      <div className="flex-1 overflow-x-auto">
-        <div className="min-w-[1000px] h-full flex flex-col">
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-[1000px] flex flex-col">
           {/* Days Header */}
-          <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
+          <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-20">
             {weekDays.map(day => (
               <div key={day.toString()} className="py-3 text-center border-r border-slate-100 last:border-r-0">
                 <span className={`text-[11px] font-bold uppercase tracking-widest ${isToday(day) ? 'text-[#00a0dc]' : 'text-slate-400'}`}>
@@ -112,37 +124,42 @@ export default function CalendarPage() {
             ))}
           </div>
 
-          {/* Time Grid (Simplified for the layout) */}
-          <div className="flex-1 grid grid-cols-7 divide-x divide-slate-100">
+          {/* Time Grid */}
+          <div className="grid grid-cols-7 divide-x divide-slate-100">
             {weekDays.map(day => (
-              <div key={day.toString()} className="flex flex-col p-2 gap-4 bg-white min-h-[500px]">
-                {/* 9:00 AM Slot example like in the image */}
-                <Card className="border-slate-100 shadow-none bg-slate-50/30">
-                  <CardHeader className="p-3 pb-1 flex flex-row items-center justify-between space-y-0">
-                    <span className="text-[10px] font-bold text-slate-400">9:00 AM</span>
-                    <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-300">
-                      <MoreHorizontal className="w-3 h-3" />
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="p-3 pt-0 flex items-center justify-center min-h-[80px]">
-                    <div className="text-center">
-                      {postsByDate(day).length > 0 ? (
-                        <div className="space-y-2">
-                          {postsByDate(day).map(post => (
-                            <div key={post.id} className="text-[11px] font-medium text-slate-700 bg-white border border-slate-100 p-2 rounded shadow-sm text-left line-clamp-2">
-                              {post.content}
-                            </div>
+              <div key={day.toString()} className="flex flex-col p-2 gap-2 bg-white min-h-[800px]">
+                {hours.map(hour => {
+                  const hourPosts = getTimeSlotPosts(day, hour);
+                  return (
+                    <div key={hour} className="group min-h-[60px] relative">
+                      <div className="text-[10px] font-bold text-slate-300 mb-1 group-hover:text-slate-400 transition-colors">
+                        {format(new Date().setHours(hour, 0), "h:00 aa")}
+                      </div>
+                      {hourPosts.length > 0 ? (
+                        <div className="space-y-1">
+                          {hourPosts.map(post => (
+                            <Card key={post.id} className="border-blue-100 shadow-sm bg-blue-50/50 hover:bg-blue-100/50 transition-colors cursor-pointer">
+                              <CardContent className="p-2">
+                                <p className="text-[11px] font-medium text-slate-700 line-clamp-2 leading-tight">
+                                  {post.content}
+                                </p>
+                                <div className="flex items-center gap-1 mt-1">
+                                  <div className={`w-1.5 h-1.5 rounded-full ${
+                                    post.status === 'posted' ? 'bg-green-500' : 
+                                    post.status === 'failed' ? 'bg-red-500' : 'bg-blue-400'
+                                  }`} />
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{post.status}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-[11px] font-bold text-slate-300 uppercase italic">Empty</span>
+                        <div className="h-full border-t border-dashed border-slate-50 group-hover:border-slate-100 transition-colors" />
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Additional empty space below */}
-                <div className="flex-1 border-t border-dashed border-slate-50 mt-2" />
+                  );
+                })}
               </div>
             ))}
           </div>
