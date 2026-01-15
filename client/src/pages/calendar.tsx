@@ -1,0 +1,153 @@
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Settings } from "lucide-react";
+import { useState } from "react";
+import { format, startOfWeek, addDays, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, isToday } from "date-fns";
+
+interface ScheduledPost {
+  id: string;
+  userId: string;
+  content: string;
+  scheduledTime: string;
+  status: "pending" | "posted" | "failed";
+}
+
+export default function CalendarPage() {
+  const [view, setView] = useState<"week" | "month">("week");
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const { data: scheduledPosts } = useQuery<ScheduledPost[]>({
+    queryKey: ["/api/posts/scheduled"],
+  });
+
+  const startDate = startOfWeek(currentDate);
+  const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(startDate, i));
+
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(monthStart);
+  const monthDays = eachDayOfInterval({ start: startOfWeek(monthStart), end: endOfWeek(monthEnd) });
+
+  function endOfWeek(date: Date) {
+    return addDays(startOfWeek(date), 6);
+  }
+
+  const postsByDate = (date: Date) => {
+    return scheduledPosts?.filter(post => isSameDay(new Date(post.scheduledTime), date)) || [];
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-white">
+      {/* Header */}
+      <header className="p-6 flex items-center justify-between border-b border-slate-100">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
+          <p className="text-sm text-slate-500">Manage your content calendar from here.</p>
+        </div>
+        <Button variant="outline" className="gap-2 rounded-full border-slate-200 text-slate-600 font-bold h-10">
+          <Settings className="w-4 h-4" />
+          Time Slot Settings
+        </Button>
+      </header>
+
+      {/* Toolbar */}
+      <div className="p-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-bold text-slate-800">
+            {format(currentDate, "MMMM yyyy")}
+            <span className="text-slate-400 font-medium ml-2 text-sm">Week {format(currentDate, "w")} • America/Denver</span>
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-full border border-slate-200">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" className="h-8 px-4 rounded-full bg-white shadow-sm font-bold text-sm" onClick={() => setCurrentDate(new Date())}>
+              Today
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-full border border-slate-200">
+            <Button 
+              variant={view === "week" ? "default" : "ghost"} 
+              className={`h-8 px-4 rounded-full text-sm font-bold gap-2 ${view === "week" ? "bg-[#00a0dc]" : "text-slate-500"}`}
+              onClick={() => setView("week")}
+            >
+              <Calendar className="w-4 h-4" />
+              Week
+            </Button>
+            <Button 
+              variant={view === "month" ? "default" : "ghost"} 
+              className={`h-8 px-4 rounded-full text-sm font-bold gap-2 ${view === "month" ? "bg-[#00a0dc]" : "text-slate-500"}`}
+              onClick={() => setView("month")}
+            >
+              <Calendar className="w-4 h-4" />
+              Month
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="flex-1 overflow-x-auto">
+        <div className="min-w-[1000px] h-full flex flex-col">
+          {/* Days Header */}
+          <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
+            {weekDays.map(day => (
+              <div key={day.toString()} className="py-3 text-center border-r border-slate-100 last:border-r-0">
+                <span className={`text-[11px] font-bold uppercase tracking-widest ${isToday(day) ? 'text-[#00a0dc]' : 'text-slate-400'}`}>
+                  {format(day, "EEE d")}
+                </span>
+                {isToday(day) && (
+                  <div className="mt-1 flex justify-center">
+                    <div className="h-1 w-8 bg-[#00a0dc] rounded-full" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Time Grid (Simplified for the layout) */}
+          <div className="flex-1 grid grid-cols-7 divide-x divide-slate-100">
+            {weekDays.map(day => (
+              <div key={day.toString()} className="flex flex-col p-2 gap-4 bg-white min-h-[500px]">
+                {/* 9:00 AM Slot example like in the image */}
+                <Card className="border-slate-100 shadow-none bg-slate-50/30">
+                  <CardHeader className="p-3 pb-1 flex flex-row items-center justify-between space-y-0">
+                    <span className="text-[10px] font-bold text-slate-400">9:00 AM</span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-300">
+                      <MoreHorizontal className="w-3 h-3" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0 flex items-center justify-center min-h-[80px]">
+                    <div className="text-center">
+                      {postsByDate(day).length > 0 ? (
+                        <div className="space-y-2">
+                          {postsByDate(day).map(post => (
+                            <div key={post.id} className="text-[11px] font-medium text-slate-700 bg-white border border-slate-100 p-2 rounded shadow-sm text-left line-clamp-2">
+                              {post.content}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] font-bold text-slate-300 uppercase italic">Empty</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Additional empty space below */}
+                <div className="flex-1 border-t border-dashed border-slate-50 mt-2" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

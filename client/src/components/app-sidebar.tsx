@@ -61,7 +61,7 @@ const menuItems = [
   ]},
   { group: "Drafts & Scheduling", items: [
     { title: "Kanban", icon: LayoutDashboard, url: "/kanban" },
-    { title: "Calendar", icon: Calendar, url: "/scheduled" },
+    { title: "Calendar", icon: Calendar, url: "/calendar" },
   ]},
   { group: "Content Inspiration", items: [
     { title: "Viral Posts", icon: TrendingUp, url: "/viral" },
