@@ -2227,7 +2227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { content, scheduledTime } = createScheduledPostSchema.parse(req.body);
       const { profile } = req.session.user;
-      const personId = profile.sub.replace(/^linkedin-person-/, '');
+      const personId = profile.sub; // Use full sub for consistency with other lookups
 
       // Verify scheduled time is in the future
       const scheduledDate = new Date(scheduledTime);
@@ -2272,7 +2272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { profile } = req.session.user;
-      const personId = profile.sub.replace(/^linkedin-person-/, '');
+      const personId = profile.sub; // Use full sub for consistency
 
       const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
       if (!isFirebaseConfigured || !adminFirestore) {

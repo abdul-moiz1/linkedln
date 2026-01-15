@@ -34,6 +34,7 @@ export default function CalendarPage() {
 
   const postsByDate = (date: Date) => {
     return scheduledPosts?.filter(post => {
+      if (!post.scheduledTime) return false;
       const postDate = new Date(post.scheduledTime);
       return isSameDay(postDate, date);
     }) || [];
