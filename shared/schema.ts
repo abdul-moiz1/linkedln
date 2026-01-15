@@ -140,15 +140,44 @@ export const createScheduledPostSchema = z.object({
 
 export type CreateScheduledPost = z.infer<typeof createScheduledPostSchema>;
 
+// Carousel Template Design Schema
+export const templateDesignSchema = z.object({
+  slides: z.array(z.object({
+    backgroundColor: z.string(),
+    titleText: z.string().optional(),
+    bodyText: z.string().optional(),
+    fontFamily: z.string(),
+    fontSize: z.string(),
+    textAlignment: z.enum(["left", "center", "right"]),
+    imagePlaceholder: z.boolean().default(false),
+    padding: z.string(),
+    accentColor: z.string(),
+  })),
+});
+
+export type TemplateDesign = z.infer<typeof templateDesignSchema>;
+
+// Admin-defined carousel templates
 export const carouselTemplates = pgTable("carousel_templates", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  description: text("description"),
-  category: text("category").notNull(), // e.g., 'Basic', 'Professional', 'Creative'
+  category: text("category").notNull(), // e.g. "Basic", "Educational", "Story"
   thumbnailUrl: text("thumbnail_url"),
-  config: text("config").notNull(), // JSON string for template-specific styles/layouts
-  isNew: boolean("is_new").default(false).notNull(),
+  slideCount: integer("slide_count").notNull(),
+  isPublic: boolean("is_public").default(true).notNull(),
+  designSchema: text("design_schema").notNull(), // JSON string of TemplateDesign
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// User-owned customized carousels
+export const userCarousels = pgTable("user_carousels", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  templateId: integer("template_id").references(() => carouselTemplates.id),
+  customizedDesignSchema: text("customized_design_schema").notNull(), // JSON string
+  status: text("status").default("draft").notNull(), // draft, scheduled, published
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const insertCarouselTemplateSchema = createInsertSchema(carouselTemplates).omit({
@@ -156,8 +185,16 @@ export const insertCarouselTemplateSchema = createInsertSchema(carouselTemplates
   createdAt: true,
 });
 
+export const insertUserCarouselSchema = createInsertSchema(userCarousels).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type CarouselTemplate = typeof carouselTemplates.$inferSelect;
+export type UserCarousel = typeof userCarousels.$inferSelect;
 export type InsertCarouselTemplate = z.infer<typeof insertCarouselTemplateSchema>;
+export type InsertUserCarousel = z.infer<typeof insertUserCarouselSchema>;
 
 export interface Carousel {
   id: string;

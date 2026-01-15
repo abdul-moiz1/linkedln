@@ -562,12 +562,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/carousel-templates", async (req: Request, res: Response) => {
     try {
-      const { getTemplates, seedTemplates } = await import("./lib/firebase-admin");
-      await seedTemplates();
-      const templates = await getTemplates();
+      const { adminFirestore } = await import("./lib/firebase-admin");
+      if (!adminFirestore) return res.status(503).json({ error: "Firestore not configured" });
+      
+      const snapshot = await adminFirestore.collection("carouselTemplates").get();
+      const templates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       res.json(templates);
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Failed to fetch templates" });
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/user-carousels", async (req: Request, res: Response) => {
+    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { adminFirestore } = await import("./lib/firebase-admin");
+      if (!adminFirestore) throw new Error("Firestore not configured");
+      
+      const data = {
+        ...req.body,
+        userId: req.session.user.profile.sub,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const docRef = await adminFirestore.collection("userCarousels").add(data);
+      res.json({ id: docRef.id, ...data });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

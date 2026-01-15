@@ -124,57 +124,61 @@ export async function seedTemplates(force = false) {
   try {
     const db = getDb();
     if (!db) return;
-    const collections = await db.listCollections();
-    console.log(`[Firebase] Firestore verified. Collections: ${collections.map(c => c.id).join(", ")}`);
     
-    const snapshot = await db.collection("templates").limit(1).get();
-    console.log(`[Firebase] Checking templates in 'templates' collection... snapshot empty=${snapshot.empty}`);
+    const snapshot = await db.collection("carouselTemplates").limit(1).get();
     
-    // Check if Elite templates are missing
-    const eliteSnapshot = await db.collection("templates").where("category", "==", "Elite").limit(1).get();
-    const needsElite = eliteSnapshot.empty;
-    console.log(`[Firebase] Needs Elite templates: ${needsElite}`);
-
-    if (snapshot.empty || force || needsElite) {
-      console.log("[Firebase] Seeding templates into 'templates' collection...");
+    if (snapshot.empty || force) {
+      console.log("[Firebase] Seeding templates into 'carouselTemplates' collection...");
       const initial = [
-        { name: "Basic Minimal", description: "Clean and simple.", category: "Basic", config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#000000", layout: "tips-howto" }), isNew: true },
-        { name: "Professional Deep", description: "Bold dark theme.", category: "Professional", config: JSON.stringify({ backgroundColor: "#1a1a1a", textColor: "#ffffff", layout: "professional-bold" }), isNew: true },
-        { name: "Creative Spark", description: "Vibrant and colorful.", category: "Creative", config: JSON.stringify({ backgroundColor: "#6366f1", textColor: "#ffffff", layout: "creative-vibrant" }), isNew: true },
-        { name: "Modern Gradient", description: "Sleek gradient background with modern typography.", category: "Modern", config: JSON.stringify({ backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", textColor: "#ffffff", layout: "big_text_center" }), isNew: true },
-        { name: "Corporate Clean", description: "Professional layout for business insights.", category: "Professional", config: JSON.stringify({ backgroundColor: "#f8fafc", textColor: "#0f172a", layout: "points_center" }), isNew: true },
-        { name: "Tech Minimalist", description: "Dark mode optimized for tech creators.", category: "Tech", config: JSON.stringify({ backgroundColor: "#020617", textColor: "#38bdf8", layout: "title_top" }), isNew: true },
-        { name: "Author Spotlight", description: "Personal brand focused with prominent profile area.", category: "Personal", config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#1e293b", layout: "split_image_text" }), isNew: true },
-        { name: "Engagement Booster", description: "Bold colors and high contrast for maximum reach.", category: "Growth", config: JSON.stringify({ backgroundColor: "#f43f5e", textColor: "#ffffff", layout: "big_text_center" }), isNew: true },
-        { name: "Storyteller", description: "Classic narrative flow layout.", category: "Basic", config: JSON.stringify({ backgroundColor: "#fff7ed", textColor: "#431407", layout: "tips-howto" }), isNew: true },
-        { name: "Elite 20", description: "High-impact conversion template.", category: "Elite", config: JSON.stringify({ backgroundColor: "#1e293b", textColor: "#f8fafc", layout: "big_text_center" }), isNew: true },
-        { name: "Elite 21", description: "Sleek dark mode insights.", category: "Elite", config: JSON.stringify({ backgroundColor: "#0f172a", textColor: "#38bdf8", layout: "points_center" }), isNew: true },
-        { name: "Elite 22", description: "Professional B2B authority.", category: "Elite", config: JSON.stringify({ backgroundColor: "#f8fafc", textColor: "#0f172a", layout: "title_top" }), isNew: true },
-        { name: "Elite 23", description: "Creative growth focus.", category: "Elite", config: JSON.stringify({ backgroundColor: "#4f46e5", textColor: "#ffffff", layout: "big_text_center" }), isNew: true },
-        { name: "Elite 24", description: "Minimalist brand builder.", category: "Elite", config: JSON.stringify({ backgroundColor: "#ffffff", textColor: "#1e293b", layout: "tips-howto" }), isNew: true },
-        { name: "Elite 25", description: "Bold engagement driver.", category: "Elite", config: JSON.stringify({ backgroundColor: "#be123c", textColor: "#ffffff", layout: "big_text_center" }), isNew: true }
+        { 
+          name: "Modern Professional", 
+          category: "Basic", 
+          thumbnailUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400",
+          slideCount: 5,
+          isPublic: true,
+          designSchema: JSON.stringify({
+            slides: Array(5).fill({
+              backgroundColor: "#ffffff",
+              titleText: "Slide Title",
+              bodyText: "Build your authority with this clean template.",
+              fontFamily: "Inter",
+              fontSize: "24px",
+              textAlignment: "center",
+              imagePlaceholder: false,
+              padding: "40px",
+              accentColor: "#00a0dc"
+            })
+          })
+        },
+        { 
+          name: "Dark Authority", 
+          category: "Professional", 
+          thumbnailUrl: "https://images.unsplash.com/photo-1557683316-973673baf926?w=400",
+          slideCount: 7,
+          isPublic: true,
+          designSchema: JSON.stringify({
+            slides: Array(7).fill({
+              backgroundColor: "#111827",
+              titleText: "Executive Summary",
+              bodyText: "High-impact dark theme for B2B creators.",
+              fontFamily: "Roboto",
+              fontSize: "22px",
+              textAlignment: "left",
+              imagePlaceholder: true,
+              padding: "32px",
+              accentColor: "#3b82f6"
+            })
+          })
+        }
       ];
 
-      let seededCount = 0;
       for (const t of initial) {
-        try {
-          const existing = await db.collection("templates").where("name", "==", t.name).get();
-          if (existing.empty) {
-            const templateRef = db.collection("templates").doc();
-            await templateRef.set({ 
-              ...t, 
-              createdAt: admin.firestore.FieldValue.serverTimestamp(), 
-              updatedAt: admin.firestore.FieldValue.serverTimestamp() 
-            });
-            seededCount++;
-          }
-        } catch (err: any) {
-          console.error(`[Firebase] Failed to seed template '${t.name}':`, err.message);
-        }
+        await db.collection("carouselTemplates").add({ 
+          ...t, 
+          createdAt: admin.firestore.FieldValue.serverTimestamp() 
+        });
       }
-      console.log(`[Firebase] Seeding complete. Added ${seededCount} new templates.`);
-    } else {
-      console.log("[Firebase] Templates exist, skipping seed.");
+      console.log(`[Firebase] Seeding complete. Added ${initial.length} new templates.`);
     }
   } catch (e) { 
     console.error("[Firebase] Seeding failed:", e); 
