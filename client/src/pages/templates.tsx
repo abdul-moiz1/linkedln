@@ -7,9 +7,11 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocation } from "wouter";
 
 export default function TemplateGallery() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [selectedTemplate, setSelectedTemplate] = useState<CarouselTemplate | null>(null);
   const [editedDesign, setEditedDesign] = useState<TemplateDesign | null>(null);
 
