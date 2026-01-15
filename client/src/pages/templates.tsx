@@ -126,8 +126,7 @@ export default function TemplateGallery() {
               )}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                  <Button variant="secondary" className="font-bold" onClick={() => {
-                   setSelectedTemplate(template);
-                   setEditedDesign(JSON.parse(template.designSchema));
+                   setLocation("/carousel-editor");
                  }}>Use Template</Button>
               </div>
             </div>

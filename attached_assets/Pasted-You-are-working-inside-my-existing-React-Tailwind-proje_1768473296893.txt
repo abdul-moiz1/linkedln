@@ -1,0 +1,334 @@
+You are working inside my existing React + Tailwind project.
+
+✅ Task
+
+Build a LinkedIn Carousel Editor page (like Taplio/Supergrow style) with a 3-column editor UI:
+
+✅ Left sidebar = brand + user + colors + fonts
+✅ Middle = current slide editor (title/description)
+✅ Right = live preview of the carousel slide
+✅ Bottom navigation = slide 1/5 with next/prev arrows
+✅ Save + Continue buttons in header
+✅ Everything updates in real-time
+✅ Support 5 slides
+✅ Save/load from localStorage
+
+✅ DO NOT DO THESE THINGS
+
+Do NOT display Slide 1, Slide 2, Slide 3… stacked vertically (my old layout)
+
+Do NOT remove or break any existing pages/features
+
+Do NOT use external UI libraries (no Material UI)
+
+Do NOT overcomplicate with backend (no Firebase in this step)
+
+✅ Create a New Page
+
+Create a new page:
+
+📌 /pages/CarouselEditor.jsx
+
+Also add route:
+
+/carousel-editor
+
+This page will be the new modern editor UI.
+
+✅ File / Component Structure (MUST FOLLOW)
+
+Create these components:
+
+components/CarouselHeader.jsx
+
+components/CarouselSidebar.jsx
+
+components/SlideEditor.jsx
+
+components/CarouselPreview.jsx
+
+components/SlideNavigation.jsx
+
+Keep code clean and reusable.
+
+✅ Data Model (MUST USE)
+
+Create a single main state object:
+
+const [carousel, setCarousel] = useState({
+  meta: {
+    title: "Basic #22",
+    lastSaved: "Jan 15, 2026, 3:14 PM",
+  },
+  profile: {
+    name: "Jon Snow",
+    handle: "@jon-snow",
+    avatar: "", // base64 string from upload, or empty
+  },
+  theme: {
+    backgroundMode: "solid", // "solid" or "image"
+    backgroundColor: "#27115F",
+    primaryColor: "#D9D6FE",
+    secondaryColor: "#FFFFFF",
+    primaryFont: "Onest",
+    secondaryFont: "Inter",
+  },
+  slides: [
+    {
+      title: "The Title of Your Visual Post Here",
+      description: "Lorem ipsum: Lorem ipsum dolor sit amet, consetetur sadipscing.",
+    },
+    {
+      title: "Slide 2 Title",
+      description: "This is slide 2 description.",
+    },
+    {
+      title: "Slide 3 Title",
+      description: "This is slide 3 description.",
+    },
+    {
+      title: "Slide 4 Title",
+      description: "This is slide 4 description.",
+    },
+    {
+      title: "Slide 5 Title",
+      description: "This is slide 5 description.",
+    },
+  ],
+});
+
+
+Also track:
+
+const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+✅ Page Layout (MUST MATCH)
+
+Use a full-screen layout with light background:
+
+Top Header
+
+Left side:
+
+back arrow button
+
+big title text: Basic #22
+
+small subtitle: Last saved on Jan 15, 2026, 3:14 PM
+
+Right side:
+
+Save button (outline)
+
+Continue button (blue filled)
+
+Header should be sticky at top.
+
+✅ Main Editor Layout (3 Columns)
+
+Below header, create a grid:
+
+Column 1 (Sidebar)
+
+Width around 320px and scrollable.
+
+Sections:
+
+✅ Sidebar Sections
+1) Brand Kit Card
+
+Title: “Brand Kit”
+
+Subtitle: “Select brand kit to get your brand details automatically applied to the carousel.”
+
+Show a card with:
+
+Placeholder illustration (simple icon)
+
+Text: “No brand kit found”
+
+Button: + Create Brand Kit
+This is UI-only (no backend logic).
+
+2) Your Name
+
+Input field bound to:
+carousel.profile.name
+
+3) Profile Pic
+
+Show circular avatar preview
+
+If empty, show placeholder circle
+
+Upload button for image file
+
+Save uploaded image as base64 in state
+
+Add delete icon button to clear avatar
+
+4) Handle
+
+Input bound to:
+carousel.profile.handle
+
+5) Background Selector
+
+Tabs:
+
+Solid (default active)
+
+Image
+
+When Solid selected:
+
+show small color palette buttons (8 colors)
+
+show hex input bound to carousel.theme.backgroundColor
+
+show color preview square
+
+When Image selected:
+
+show file upload placeholder
+
+store base64 background in state (optional)
+For now preview can still fallback to solid if no image.
+
+6) Primary Color
+
+Hex input bound to:
+carousel.theme.primaryColor
+
+7) Secondary Color
+
+Hex input bound to:
+carousel.theme.secondaryColor
+
+8) Primary Font
+
+Dropdown with options:
+
+Onest
+
+Inter
+
+Poppins
+
+Roboto
+
+Montserrat
+
+Bind to:
+carousel.theme.primaryFont
+
+9) Secondary Font
+
+Dropdown with same options
+Bind to:
+carousel.theme.secondaryFont
+
+✅ Column 2 (Slide Editor)
+
+This column contains the editor for only the active slide.
+
+At the top show:
+
+SLIDE 1
+(where slide number = currentSlideIndex + 1)
+
+Then show:
+
+Slide Title Input
+
+Bound to:
+carousel.slides[currentSlideIndex].title
+
+Slide Description Textarea
+
+Bound to:
+carousel.slides[currentSlideIndex].description
+
+✅ On the right side of each input, show a small settings icon button (UI only)
+
+✅ Column 3 (Live Preview)
+
+This column shows a preview card exactly like a LinkedIn carousel slide:
+
+Preview Card Design
+
+Background: use carousel.theme.backgroundColor or gradient
+
+Top-left: handle text
+
+Big title text (large, bold)
+
+Description text smaller
+
+Bottom strip containing:
+
+Avatar circle
+
+Name text
+
+Decorative dots pattern (can be CSS circles)
+
+Preview card must update instantly from state.
+
+✅ Slide Navigation (Bottom)
+
+Below editor add navigation UI:
+
+Left arrow button (disabled on slide 1)
+Text: Slides 1 / 5
+Right arrow button (disabled on slide 5)
+
+Buttons should update currentSlideIndex.
+
+✅ Save Logic (MUST WORK)
+
+When user clicks Save button:
+
+Save the full carousel object to localStorage:
+key: "carousel_editor_data"
+
+Update carousel.meta.lastSaved to current local time string
+
+When the page loads:
+
+If localStorage contains saved data, load it automatically into state.
+
+✅ Continue Button
+
+On click, show simple toast or alert:
+✅ “Carousel saved. Ready to publish!”
+
+(No publishing logic needed.)
+
+✅ Tailwind Styling Rules
+
+Background: bg-gray-50
+
+Sidebar: white card style, border, rounded
+
+Inputs: modern, padding, rounded, focus ring
+
+Preview card: large, centered, shadow, rounded
+
+Must look like a real SaaS editor
+
+Must be responsive:
+
+Desktop: 3-column layout
+
+Mobile: stack sections vertically
+
+✅ Final Deliverable
+
+After implementing, ensure:
+✅ The new UI is visible at /carousel-editor
+✅ Slide editing works
+✅ Preview updates live
+✅ Next/Prev navigation works
+✅ Save loads correctly after refresh
+✅ Code is clean + separated into components
