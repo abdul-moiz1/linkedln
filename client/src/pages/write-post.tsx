@@ -271,22 +271,25 @@ export default function WritePost() {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative">
+                <div className="relative h-11">
                   <input
                     type="datetime-local"
-                    className="absolute inset-0 opacity-0 cursor-pointer z-30 w-full h-full"
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    value={scheduledTime}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-50 w-full h-full"
                     style={{ colorScheme: "light" }}
+                    onChange={(e) => {
+                      setScheduledTime(e.target.value);
+                      console.log("Time selected:", e.target.value);
+                    }}
+                    value={scheduledTime}
                   />
-                  <Button variant="outline" className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10">
+                  <Button variant="outline" className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10 pointer-events-none">
                     <CalendarIcon className="w-4 h-4" />
                     {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
                   </Button>
                 </div>
                 {scheduledTime && (
                   <Button 
-                    className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2" 
+                    className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 animate-in fade-in slide-in-from-right-1" 
                     onClick={handleSchedulePost}
                   >
                     Confirm Schedule
