@@ -418,20 +418,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateContent } = await import("./lib/gemini");
-      const prompt = `Based on the user's writing style and current post content/keywords, generate 2-3 distinct FULL post versions.
+      const prompt = `Based on the user's writing style and current post content/keywords, generate 2-3 distinct FULL LinkedIn post versions.
       
       User's Style Analysis: ${writingStyle}
       Style DNA: ${styleDNA}
       Current Content/Keywords: "${content}"
       
-      Instructions:
-      1. Each version should be a complete LinkedIn post.
-      2. Follow the user's voice tone, rhythm, and structure from the Style DNA.
-      3. Keep posts under 1300 characters.
-      4. Use professional formatting (line breaks, bullet points if appropriate).
+      CRITICAL INSTRUCTIONS:
+      1. IGNORE any non-LinkedIn formats (like emails, formal documents, or applications) found in the style samples.
+      2. EXTRACT only the user's vocabulary, tone, and unique "voice" (e.g., specific words they use, their level of casualness vs. professionality).
+      3. ADAPT this voice to a LinkedIn Post format:
+         - Start with a strong hook (first line).
+         - Use frequent line breaks for readability (avoid long paragraphs).
+         - Use professional LinkedIn formatting (emojis sparingly, bullet points for lists).
+         - Include a clear call-to-action or closing thought.
+      4. Keep each post under 1300 characters.
       
       Return ONLY a JSON object with a "versions" array of strings. 
-      Example: { "versions": ["Post version 1...", "Post version 2..."] }`;
+      Example: { "versions": ["LinkedIn post version 1...", "LinkedIn post version 2..."] }`;
 
       const response = await generateContent(prompt);
       // Try to parse JSON from the response
