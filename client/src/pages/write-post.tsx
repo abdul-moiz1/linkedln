@@ -6,12 +6,11 @@ import {
   Smile, 
   Sparkles, 
   AlignLeft, 
-  Hook, 
   Copy, 
   ImageIcon, 
   Video, 
   FileText,
-  Calendar,
+  Calendar as CalendarIcon,
   Send,
   Monitor,
   Smartphone,
@@ -28,6 +27,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
 import { SessionUser } from "@shared/schema";
+
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
@@ -65,6 +66,38 @@ export default function WritePost() {
     const tag = prompt("Enter a tag:");
     if (tag && !tags.includes(tag)) {
       setTags([...tags, tag]);
+    }
+  };
+
+  const [scheduledTime, setScheduledTime] = useState("");
+
+  const handleSchedulePost = async () => {
+    if (!content || !scheduledTime) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter content and select a date/time.",
+      });
+      return;
+    }
+
+    try {
+      await apiRequest("POST", "/api/posts/schedule", {
+        content,
+        scheduledTime: new Date(scheduledTime).toISOString(),
+      });
+      toast({
+        title: "Post Scheduled",
+        description: `Your post has been scheduled for ${new Date(scheduledTime).toLocaleString()}.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts/scheduled"] });
+      setLocation("/calendar");
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Scheduling Failed",
+        description: "Could not schedule the post. Please try again.",
+      });
     }
   };
 
@@ -234,10 +267,26 @@ export default function WritePost() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold" onClick={() => setLocation("/calendar")}>
-                  <Calendar className="w-4 h-4" />
-                  Schedule
-                </Button>
+                <div className="relative">
+                  <input
+                    type="datetime-local"
+                    className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    value={scheduledTime}
+                  />
+                  <Button variant="outline" className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10">
+                    <CalendarIcon className="w-4 h-4" />
+                    {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
+                  </Button>
+                </div>
+                {scheduledTime && (
+                  <Button 
+                    className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2" 
+                    onClick={handleSchedulePost}
+                  >
+                    Confirm Schedule
+                  </Button>
+                )}
                 <Button className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2" onClick={() => toast({ title: "Publishing...", description: "Your post is being sent to LinkedIn." })}>
                   Publish
                   <ChevronDown className="w-4 h-4 opacity-50 border-l border-white/20 pl-1" />
