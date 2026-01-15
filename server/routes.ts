@@ -2300,11 +2300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify scheduled time is in the future
       const scheduledDate = new Date(scheduledTime);
-      const now = new Date();
-      // Add a small buffer (e.g., 5 minutes) to account for client/server clock drift
-      const futureBuffer = new Date(now.getTime() - 5 * 60 * 1000);
-
-      if (scheduledDate <= futureBuffer) {
+      if (scheduledDate <= new Date()) {
         return res.status(400).json({ 
           error: "Scheduled time must be in the future" 
         });

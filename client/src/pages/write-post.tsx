@@ -271,15 +271,16 @@ export default function WritePost() {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative h-11 min-w-[140px]">
+                <div className="relative h-11">
                   <input
                     id="scheduled-time-picker"
                     type="datetime-local"
-                    className="absolute inset-0 opacity-0 cursor-pointer z-50 w-full h-full"
+                    className="absolute inset-0 opacity-0 cursor-pointer z-50 w-full h-full block"
                     style={{ 
                       colorScheme: "light",
                       pointerEvents: "auto",
                       visibility: "visible",
+                      display: "block",
                       WebkitAppearance: "none",
                       appearance: "none",
                     }}
@@ -291,12 +292,8 @@ export default function WritePost() {
                   />
                   <Button 
                     variant="outline" 
-                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold w-full"
-                    onClick={(e) => {
-                      // Trigger the hidden input when the button is clicked
-                      const input = document.getElementById('scheduled-time-picker');
-                      if (input) (input as any).showPicker?.() || input.click();
-                    }}
+                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10 pointer-events-none"
+                    tabIndex={-1}
                   >
                     <CalendarIcon className="w-4 h-4" />
                     {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
