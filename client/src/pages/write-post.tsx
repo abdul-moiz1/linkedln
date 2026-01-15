@@ -292,7 +292,7 @@ export default function WritePost() {
                   />
                   <div className="flex items-center justify-center rounded-full px-6 gap-2 h-11 border border-slate-200 font-bold w-full bg-white text-slate-900 pointer-events-none">
                     <CalendarIcon className="w-4 h-4" />
-                    {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
+                    {scheduledTime ? new Date(scheduledTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : "Schedule"}
                   </div>
                 </div>
                 {scheduledTime && (
