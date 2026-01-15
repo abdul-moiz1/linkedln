@@ -280,8 +280,9 @@ export default function WritePost() {
                       colorScheme: "light",
                       pointerEvents: "auto",
                       display: "block",
-                      WebkitAppearance: "none",
+                      // Force native appearance
                       appearance: "none",
+                      WebkitAppearance: "none",
                     }}
                     onChange={(e) => {
                       setScheduledTime(e.target.value);
@@ -289,14 +290,10 @@ export default function WritePost() {
                     }}
                     value={scheduledTime}
                   />
-                  <Button 
-                    variant="outline" 
-                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold w-full"
-                    tabIndex={-1}
-                  >
+                  <div className="flex items-center justify-center rounded-full px-6 gap-2 h-11 border border-slate-200 font-bold w-full bg-white text-slate-900 pointer-events-none">
                     <CalendarIcon className="w-4 h-4" />
                     {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
-                  </Button>
+                  </div>
                 </div>
                 {scheduledTime && (
                   <Button 
