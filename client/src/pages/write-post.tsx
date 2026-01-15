@@ -275,14 +275,13 @@ export default function WritePost() {
                   <input
                     id="scheduled-time-picker"
                     type="datetime-local"
-                    className="absolute inset-0 opacity-0 cursor-pointer z-50 w-full h-full"
+                    className="absolute inset-0 cursor-pointer z-50 w-full h-full opacity-0"
                     style={{ 
                       colorScheme: "light",
                       pointerEvents: "auto",
                       display: "block",
-                      // Force native appearance
-                      appearance: "none",
-                      WebkitAppearance: "none",
+                      // Removing absolute appearance overrides to ensure native behavior
+                      // but keeping it invisible
                     }}
                     onChange={(e) => {
                       setScheduledTime(e.target.value);
@@ -290,7 +289,7 @@ export default function WritePost() {
                     }}
                     value={scheduledTime}
                   />
-                  <div className="flex items-center justify-center rounded-full px-6 gap-2 h-11 border border-slate-200 font-bold w-full bg-white text-slate-900 pointer-events-none">
+                  <div className="flex items-center justify-center rounded-full px-6 gap-2 h-11 border border-slate-200 font-bold w-full bg-white text-slate-900">
                     <CalendarIcon className="w-4 h-4" />
                     {scheduledTime ? new Date(scheduledTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : "Schedule"}
                   </div>
