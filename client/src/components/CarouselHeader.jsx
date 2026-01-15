@@ -2,14 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, ChevronRight } from "lucide-react";
 import { useLocation } from "wouter";
 
-interface CarouselHeaderProps {
-  title: string;
-  lastSaved: string;
-  onSave: () => void;
-  onContinue: () => void;
-}
-
-export default function CarouselHeader({ title, lastSaved, onSave, onContinue }: CarouselHeaderProps) {
+export default function CarouselHeader({ title, lastSaved, onSave, onContinue }) {
   const [, setLocation] = useLocation();
 
   return (
