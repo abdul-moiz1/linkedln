@@ -271,16 +271,19 @@ export default function WritePost() {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative h-11 min-w-[140px]">
+                <div className="relative h-11 min-w-[140px] group">
+                  <div 
+                    className="flex items-center justify-center rounded-full px-6 gap-2 h-11 border border-slate-200 font-bold w-full bg-white text-slate-900 group-hover:border-slate-300 transition-colors"
+                  >
+                    <CalendarIcon className="w-4 h-4" />
+                    {scheduledTime ? new Date(scheduledTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : "Schedule"}
+                  </div>
                   <input
                     id="scheduled-time-picker"
                     type="datetime-local"
-                    className="absolute inset-0 cursor-pointer z-50 w-full h-full"
+                    className="absolute inset-0 cursor-pointer z-[60] w-full h-full opacity-0"
                     style={{ 
                       colorScheme: "light",
-                      pointerEvents: "auto",
-                      display: "block",
-                      opacity: 0,
                     }}
                     onChange={(e) => {
                       setScheduledTime(e.target.value);
@@ -289,16 +292,10 @@ export default function WritePost() {
                     value={scheduledTime}
                     data-testid="input-schedule-time"
                   />
-                  <div 
-                    className="flex items-center justify-center rounded-full px-6 gap-2 h-11 border border-slate-200 font-bold w-full bg-white text-slate-900"
-                  >
-                    <CalendarIcon className="w-4 h-4" />
-                    {scheduledTime ? new Date(scheduledTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : "Schedule"}
-                  </div>
                 </div>
                 {scheduledTime && (
                   <Button 
-                    className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 animate-in fade-in slide-in-from-right-1" 
+                    className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 animate-in fade-in slide-in-from-right-1 relative z-[70]" 
                     onClick={handleSchedulePost}
                     data-testid="button-confirm-schedule"
                   >
@@ -306,7 +303,7 @@ export default function WritePost() {
                   </Button>
                 )}
                 <Button 
-                  className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2" 
+                  className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 relative z-[70]" 
                   onClick={() => toast({ title: "Publishing...", description: "Your post is being sent to LinkedIn." })}
                   data-testid="button-publish-now"
                 >
