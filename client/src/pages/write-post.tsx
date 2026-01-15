@@ -281,9 +281,10 @@ export default function WritePost() {
                   <input
                     id="scheduled-time-picker"
                     type="datetime-local"
-                    className="absolute inset-0 cursor-pointer z-[80] w-full h-full opacity-0"
+                    className="absolute inset-0 cursor-pointer z-[100] w-full h-full opacity-0"
                     style={{ 
                       colorScheme: "light",
+                      pointerEvents: "auto"
                     }}
                     onChange={(e) => {
                       setScheduledTime(e.target.value);
@@ -295,7 +296,7 @@ export default function WritePost() {
                 </div>
                 {scheduledTime && (
                   <Button 
-                    className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 animate-in fade-in slide-in-from-right-1 relative z-[70]" 
+                    className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 animate-in fade-in slide-in-from-right-1 relative z-[100]" 
                     onClick={handleSchedulePost}
                     data-testid="button-confirm-schedule"
                   >
@@ -303,7 +304,7 @@ export default function WritePost() {
                   </Button>
                 )}
                 <Button 
-                  className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 relative z-[70]" 
+                  className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 relative z-[100]" 
                   onClick={() => toast({ title: "Publishing...", description: "Your post is being sent to LinkedIn." })}
                   data-testid="button-publish-now"
                 >
