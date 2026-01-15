@@ -461,12 +461,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { fullName, email, phone, plan } = req.body;
     
     try {
-      const db = getDb();
+      const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
+      if (!isFirebaseConfigured || !adminFirestore) {
+        throw new Error("Firestore not configured");
+      }
+
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 7);
 
-      await db.insert(users).values({
-        id: userId,
+      await adminFirestore.collection("users").doc(userId).set({
         fullName,
         email,
         phone,
@@ -474,22 +477,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subscriptionStatus: "trialing",
         trialEndDate,
         onboardingCompleted: true,
-        authProvider: "firebase", // Default or determine from session
-      }).onConflictDoUpdate({
-        target: users.id,
-        set: { 
-          fullName, 
-          email, 
-          phone, 
-          plan, 
-          subscriptionStatus: "trialing", 
-          trialEndDate, 
-          onboardingCompleted: true 
-        }
-      });
+        authProvider: "firebase",
+        updatedAt: new Date(),
+      }, { merge: true });
 
       res.json({ success: true });
     } catch (e) {
+      console.error("Onboarding error:", e);
       res.status(500).json({ error: "Failed to save profile" });
     }
   });
@@ -2285,8 +2279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * API: Schedule a Post
    * 
-   * Stores a post in the database to be published at a future date/time.
-   * A background job will check the database and post when the time arrives.
+   * Stores a post in Firestore to be published at a future date/time.
    */
   app.post("/api/posts/schedule", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -2306,35 +2299,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Insert into database
-      const [scheduledPost] = await getDb().insert(scheduledPosts).values({
+      const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
+      if (!isFirebaseConfigured || !adminFirestore) {
+        throw new Error("Firestore not configured");
+      }
+
+      // Insert into Firestore
+      const docRef = await adminFirestore.collection("scheduled_posts").add({
         userId: personId,
         content,
         scheduledTime: scheduledDate,
         status: "pending",
-      }).returning();
+        createdAt: new Date(),
+      });
 
       res.json({ 
         success: true, 
-        scheduledPost,
+        scheduledPost: { id: docRef.id, content, scheduledTime, status: "pending" },
         message: "Post scheduled successfully" 
       });
     } catch (error: any) {
       console.error("Schedule post error:", error);
-      if (error.message?.includes("DATABASE_URL not configured")) {
-        return res.status(503).json({ 
-          error: "Scheduled posts feature is currently unavailable. Database not configured." 
-        });
-      }
       res.status(500).json({ error: error.message || "Failed to schedule post" });
     }
   });
 
   /**
    * API: Get Scheduled Posts
-   * 
-   * Returns all scheduled posts for the authenticated user.
-   * Includes pending, posted, and failed posts.
    */
   app.get("/api/posts/scheduled", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -2345,29 +2336,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { profile } = req.session.user;
       const personId = profile.sub.replace(/^linkedin-person-/, '');
 
-      // Fetch all scheduled posts for this user
-      const userScheduledPosts = await getDb()
-        .select()
-        .from(scheduledPosts)
-        .where(eq(scheduledPosts.userId, personId))
-        .orderBy(scheduledPosts.scheduledTime);
+      const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
+      if (!isFirebaseConfigured || !adminFirestore) {
+        throw new Error("Firestore not configured");
+      }
+
+      const snapshot = await adminFirestore.collection("scheduled_posts")
+        .where("userId", "==", personId)
+        .orderBy("scheduledTime")
+        .get();
+
+      const userScheduledPosts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        scheduledTime: (doc.data().scheduledTime as any).toDate ? (doc.data().scheduledTime as any).toDate().toISOString() : doc.data().scheduledTime
+      }));
 
       res.json(userScheduledPosts);
     } catch (error: any) {
       console.error("Get scheduled posts error:", error);
-      if (error.message?.includes("DATABASE_URL not configured")) {
-        return res.status(503).json({ 
-          error: "Scheduled posts feature is currently unavailable. Database not configured." 
-        });
-      }
       res.status(500).json({ error: error.message || "Failed to fetch scheduled posts" });
     }
   });
 
   /**
    * API: Delete Scheduled Post
-   * 
-   * Deletes a pending scheduled post before it's published.
    */
   app.delete("/api/posts/scheduled/:id", async (req: Request, res: Response) => {
     if (!req.session.user) {
@@ -2379,32 +2372,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { profile } = req.session.user;
       const personId = profile.sub.replace(/^linkedin-person-/, '');
 
-      // Delete only if owned by this user and still pending
-      const result = await getDb()
-        .delete(scheduledPosts)
-        .where(
-          and(
-            eq(scheduledPosts.id, parseInt(id)),
-            eq(scheduledPosts.userId, personId),
-            eq(scheduledPosts.status, "pending")
-          )
-        )
-        .returning();
+      const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
+      if (!isFirebaseConfigured || !adminFirestore) {
+        throw new Error("Firestore not configured");
+      }
 
-      if (result.length === 0) {
+      const docRef = adminFirestore.collection("scheduled_posts").doc(id);
+      const doc = await docRef.get();
+
+      if (!doc.exists || doc.data()?.userId !== personId || doc.data()?.status !== "pending") {
         return res.status(404).json({ 
           error: "Scheduled post not found or already posted" 
         });
       }
 
+      await docRef.delete();
       res.json({ success: true, message: "Scheduled post deleted" });
     } catch (error: any) {
       console.error("Delete scheduled post error:", error);
-      if (error.message?.includes("DATABASE_URL not configured")) {
-        return res.status(503).json({ 
-          error: "Scheduled posts feature is currently unavailable. Database not configured." 
-        });
-      }
       res.status(500).json({ error: error.message || "Failed to delete scheduled post" });
     }
   });

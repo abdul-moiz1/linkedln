@@ -113,45 +113,34 @@ app.use((req, res, next) => {
    * Background job that checks for scheduled posts every minute and publishes
    * them to LinkedIn when their scheduled time arrives.
    */
-  if (process.env.DATABASE_URL) {
-    const db = getDb();
+  const { isFirebaseConfigured, adminFirestore } = await import("./lib/firebase-admin");
+  if (isFirebaseConfigured && adminFirestore) {
     setInterval(async () => {
       try {
         const now = new Date();
-        const pendingPosts = await db
-          .select()
-          .from(scheduledPosts)
-          .where(
-            and(
-              eq(scheduledPosts.status, "pending"),
-              lte(scheduledPosts.scheduledTime, now)
-            )
-          );
+        const snapshot = await adminFirestore.collection("scheduled_posts")
+          .where("status", "==", "pending")
+          .where("scheduledTime", "<=", now)
+          .get();
 
-        if (!pendingPosts || pendingPosts.length === 0) return;
+        if (snapshot.empty) return;
 
-        for (const post of pendingPosts) {
+        for (const doc of snapshot.docs) {
+          const post = { id: doc.id, ...doc.data() } as any;
           try {
             log(`[Scheduler] Processing post ${post.id}`);
             // In a real app, you'd fetch the user's LinkedIn token and call the LinkedIn API here
-            // For now, we'll just mark it as posted
-            await db
-              .update(scheduledPosts)
-              .set({ status: "posted" })
-              .where(eq(scheduledPosts.id, post.id));
+            await doc.ref.update({ status: "posted", updatedAt: new Date() });
             log(`[Scheduler] Post ${post.id} marked as posted`);
           } catch (postError) {
             console.error(`[Scheduler] Failed to process post ${post.id}:`, postError);
-            await db
-              .update(scheduledPosts)
-              .set({ status: "failed", error: String(postError) })
-              .where(eq(scheduledPosts.id, post.id));
+            await doc.ref.update({ status: "failed", error: String(postError), updatedAt: new Date() });
           }
         }
       } catch (error) {
         console.error("[Scheduler] Background job error:", error);
       }
     }, 60000); // Check every minute
-    log("Scheduled post processor: Background processing enabled");
+    log("Scheduled post processor: Background processing enabled (Firestore)");
   }
 })();

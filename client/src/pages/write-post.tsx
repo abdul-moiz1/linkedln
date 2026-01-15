@@ -294,12 +294,25 @@ export default function WritePost() {
                     variant="outline" 
                     className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10"
                     tabIndex={-1}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       const picker = document.getElementById('scheduled-time-picker') as HTMLInputElement;
-                      if (picker && typeof picker.showPicker === 'function') {
-                        picker.showPicker();
-                      } else if (picker) {
-                        picker.click();
+                      if (picker) {
+                        try {
+                          // Try showPicker first
+                          if (typeof picker.showPicker === 'function') {
+                            picker.showPicker();
+                          } else {
+                            // Fallback for some browsers
+                            picker.focus();
+                            picker.click();
+                          }
+                        } catch (err) {
+                          console.error("Picker failed:", err);
+                          picker.focus();
+                          picker.click();
+                        }
                       }
                     }}
                   >
