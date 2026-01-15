@@ -29,10 +29,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
 import { SessionUser } from "@shared/schema";
 
+import { Badge } from "@/components/ui/badge";
+import { useLocation } from "wouter";
 import { Separator } from "@/components/ui/separator";
 
 export default function WritePost() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [content, setContent] = useState("");
   const [device, setDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
   const [versions, setVersions] = useState<string[]>([]);
