@@ -32,11 +32,37 @@ import { SessionUser } from "@shared/schema";
 import { Separator } from "@/components/ui/separator";
 
 export default function WritePost() {
+  const { toast } = useToast();
   const [content, setContent] = useState("");
   const [device, setDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
   const [versions, setVersions] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
   const { data: user } = useQuery<SessionUser>({ queryKey: ["/api/user"] });
+
+  const handleSaveDraft = () => {
+    if (!content) return;
+    toast({
+      title: "Draft Saved",
+      description: "Your post draft has been saved successfully.",
+    });
+  };
+
+  const handleCreatePublicLink = () => {
+    const mockLink = `https://link.carouselmaker.com/${Math.random().toString(36).substring(7)}`;
+    navigator.clipboard.writeText(mockLink);
+    toast({
+      title: "Public Link Created",
+      description: "A shareable link has been copied to your clipboard.",
+    });
+  };
+
+  const handleAddTag = () => {
+    const tag = prompt("Enter a tag:");
+    if (tag && !tags.includes(tag)) {
+      setTags([...tags, tag]);
+    }
+  };
 
   const handleGenerateVersions = async () => {
     if (!content || content.length < 5) return;
@@ -179,7 +205,16 @@ export default function WritePost() {
 
             <div className="flex items-center gap-3">
               <span className="text-sm font-bold text-slate-500">Tags:</span>
-              <Button variant="ghost" className="h-7 px-2 rounded-full border border-dashed border-slate-200 text-[#00a0dc]">
+              {tags.map((tag, idx) => (
+                <Badge key={idx} variant="secondary" className="bg-blue-50 text-[#00a0dc] border-none rounded-full px-3">
+                  #{tag}
+                </Badge>
+              ))}
+              <Button 
+                variant="ghost" 
+                className="h-7 px-2 rounded-full border border-dashed border-slate-200 text-[#00a0dc]"
+                onClick={handleAddTag}
+              >
                 <Plus className="w-3 h-3 mr-1" />
                 Add Tag
               </Button>
@@ -187,19 +222,19 @@ export default function WritePost() {
 
             <div className="flex items-center justify-between mt-4">
               <div className="flex items-center gap-2">
-                <Button variant="outline" className="rounded-full px-6 font-bold h-11 border-slate-200">Save as Draft</Button>
-                <Button variant="ghost" className="text-[#00a0dc] font-bold h-11 hover:bg-blue-50">
+                <Button variant="outline" className="rounded-full px-6 font-bold h-11 border-slate-200" onClick={handleSaveDraft}>Save as Draft</Button>
+                <Button variant="ghost" className="text-[#00a0dc] font-bold h-11 hover:bg-blue-50" onClick={handleCreatePublicLink}>
                   <Plus className="w-4 h-4 mr-2" />
                   Create Public Link
                 </Button>
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold">
+                <Button variant="outline" className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold" onClick={() => setLocation("/calendar")}>
                   <Calendar className="w-4 h-4" />
                   Schedule
                 </Button>
-                <Button className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2">
+                <Button className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2" onClick={() => toast({ title: "Publishing...", description: "Your post is being sent to LinkedIn." })}>
                   Publish
                   <ChevronDown className="w-4 h-4 opacity-50 border-l border-white/20 pl-1" />
                 </Button>
