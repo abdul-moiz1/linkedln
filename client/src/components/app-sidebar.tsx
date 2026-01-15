@@ -24,7 +24,8 @@ import {
   Users,
   LogOut,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Layout
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,6 +46,7 @@ import { CreatePostModal } from "./create-post-modal";
 const menuItems = [
   { group: "Main", items: [
     { title: "Dashboard", icon: LayoutDashboard, url: "/dashboard" },
+    { title: "Templates", icon: Layout, url: "/templates" },
     { title: "Settings", icon: Settings, url: "/settings" },
     { title: "Analytics", icon: BarChart3, url: "/analytics" },
   ]},
