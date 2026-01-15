@@ -283,7 +283,6 @@ export default function WritePost() {
                       display: "block",
                       WebkitAppearance: "none",
                       appearance: "none",
-                      minWidth: "140px"
                     }}
                     onChange={(e) => {
                       setScheduledTime(e.target.value);
@@ -293,7 +292,7 @@ export default function WritePost() {
                   />
                   <Button 
                     variant="outline" 
-                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10 pointer-events-none w-full"
+                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10 pointer-events-none"
                     tabIndex={-1}
                   >
                     <CalendarIcon className="w-4 h-4" />
