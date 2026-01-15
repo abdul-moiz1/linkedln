@@ -24,8 +24,7 @@ import {
   Users,
   LogOut,
   Sparkles,
-  ChevronRight,
-  Layout
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -46,7 +45,6 @@ import { CreatePostModal } from "./create-post-modal";
 const menuItems = [
   { group: "Main", items: [
     { title: "Dashboard", icon: LayoutDashboard, url: "/dashboard" },
-    { title: "Templates", icon: Layout, url: "/templates" },
     { title: "Settings", icon: Settings, url: "/settings" },
     { title: "Analytics", icon: BarChart3, url: "/analytics" },
   ]},
@@ -54,7 +52,7 @@ const menuItems = [
     { title: "PostCast", icon: Mic, url: "/postcast", badge: "BETA" },
     { title: "Writing Style", icon: Sparkles, url: "/writing-style" },
     { title: "Post Generator", icon: PenTool, url: "/posts" },
-    { title: "Carousel Maker", icon: Layers, url: "/create" },
+    { title: "Carousel Maker", icon: Layers, url: "/templates" },
     { title: "Voice Notes", icon: Mic, url: "/voice-notes" },
     { title: "My LinkedIn Posts", icon: Users, url: "/profile" },
   ]},
