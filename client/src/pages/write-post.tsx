@@ -87,17 +87,42 @@ export default function WritePost() {
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col p-6 overflow-hidden">
-          <div className="flex items-center gap-1 mb-6 border-b border-slate-100 pb-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><Bold className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><Italic className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><Smile className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><Sparkles className="w-4 h-4" /></Button>
+        <div className="flex-1 flex flex-col p-6 overflow-y-auto">
+          <div className="flex items-center gap-1 mb-6 border-b border-slate-100 pb-2 sticky top-0 bg-white z-10">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => {
+              const textarea = document.querySelector('textarea');
+              if (textarea) {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const text = textarea.value;
+                const before = text.substring(0, start);
+                const after = text.substring(end);
+                const selected = text.substring(start, end);
+                setContent(before + `**${selected}**` + after);
+              }
+            }}><Bold className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => {
+              const textarea = document.querySelector('textarea');
+              if (textarea) {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const text = textarea.value;
+                const before = text.substring(0, start);
+                const after = text.substring(end);
+                const selected = text.substring(start, end);
+                setContent(before + `*${selected}*` + after);
+              }
+            }}><Italic className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => setContent(prev => prev + " 😊")}><Smile className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={handleGenerateVersions}><Sparkles className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><AlignLeft className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><Plus className="w-4 h-4" /></Button>
             
             <div className="ml-auto flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><Copy className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => {
+                navigator.clipboard.writeText(content);
+                // toast({ title: "Copied to clipboard" });
+              }}><Copy className="w-4 h-4" /></Button>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><ImageIcon className="w-4 h-4" /></Button>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><Video className="w-4 h-4" /></Button>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><FileText className="w-4 h-4" /></Button>
@@ -108,7 +133,7 @@ export default function WritePost() {
             placeholder="Add your content or keywords..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="flex-1 resize-none border-none focus-visible:ring-0 text-lg placeholder:text-slate-300 p-0"
+            className="min-h-[300px] resize-none border-none focus-visible:ring-0 text-lg placeholder:text-slate-300 p-0"
           />
 
           <div className="flex justify-start mb-4">
