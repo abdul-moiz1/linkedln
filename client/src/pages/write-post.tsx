@@ -280,27 +280,30 @@ export default function WritePost() {
                       colorScheme: "light",
                       pointerEvents: "auto",
                       display: "block",
+                      // Ensure it's not hidden by any browser styles
+                      WebkitAppearance: "listbox",
                     }}
                     onChange={(e) => {
                       setScheduledTime(e.target.value);
                       console.log("Time selected:", e.target.value);
                     }}
                     value={scheduledTime}
-                    onClick={(e) => {
-                      // Some browsers need explicit showPicker call on click
-                      if (typeof (e.target as any).showPicker === 'function') {
-                        try {
-                          (e.target as any).showPicker();
-                        } catch (err) {
-                          console.error("showPicker failed", err);
-                        }
-                      }
-                    }}
                   />
                   <Button 
                     variant="outline" 
                     className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold w-full"
                     tabIndex={-1}
+                    onClick={() => {
+                      const picker = document.getElementById('scheduled-time-picker') as HTMLInputElement;
+                      if (picker) {
+                        picker.focus();
+                        if (typeof picker.showPicker === 'function') {
+                          picker.showPicker();
+                        } else {
+                          picker.click();
+                        }
+                      }
+                    }}
                   >
                     <CalendarIcon className="w-4 h-4" />
                     {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
