@@ -31,6 +31,7 @@ import { SessionUser } from "@shared/schema";
 
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 
 export default function WritePost() {
