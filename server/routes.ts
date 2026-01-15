@@ -1006,52 +1006,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Carousel Templates
   app.get("/api/carousel-templates", async (_req: Request, res: Response) => {
     try {
-      const { adminDb, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      const { adminFirestore, isFirebaseConfigured, getTemplates, seedTemplates } = await import("./lib/firebase-admin");
       
-      const dbTemplates = await storage.getCarouselTemplates();
-
-      if (isFirebaseConfigured && adminDb) {
-        try {
-          const collectionRef = adminDb.collection("carousel_templates");
-          const templatesSnapshot = await collectionRef.get();
-          const templates = templatesSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-          
-          if (templates.length > 0) {
-            return res.json(templates);
-          }
-          
-          console.log("Firestore templates collection empty, seeding from DB...");
-          const batch = adminDb.batch();
-          for (const tmpl of dbTemplates) {
-            const docRef = collectionRef.doc();
-            // Ensure date is valid or use current date
-            let createdAtString = new Date().toISOString();
-            if (tmpl.createdAt) {
-              const date = new Date(tmpl.createdAt);
-              if (!isNaN(date.getTime())) {
-                createdAtString = date.toISOString();
-              }
-            }
-            
-            batch.set(docRef, {
-              name: tmpl.name,
-              description: tmpl.description,
-              category: tmpl.category,
-              config: tmpl.config,
-              isNew: tmpl.isNew,
-              createdAt: createdAtString
-            });
-          }
-          await batch.commit();
-          
-          const seededSnapshot = await collectionRef.get();
-          return res.json(seededSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
-        } catch (fsError) {
-          console.error("Firestore operation failed:", fsError);
-        }
+      if (isFirebaseConfigured && adminFirestore) {
+        await seedTemplates();
+        const templates = await getTemplates();
+        return res.json(templates);
       }
       
-      res.json(dbTemplates);
+      res.json([]);
     } catch (error: any) {
       console.error("Fetch templates error:", error);
       res.status(500).json({ error: "Failed to fetch templates" });
@@ -1060,39 +1023,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/seed-templates", async (req: Request, res: Response) => {
     try {
-      const { adminDb, isFirebaseConfigured } = await import("./lib/firebase-admin");
-      if (!isFirebaseConfigured || !adminDb) {
+      const { adminFirestore, isFirebaseConfigured, seedTemplates } = await import("./lib/firebase-admin");
+      if (!isFirebaseConfigured || !adminFirestore) {
         console.error("Firebase not configured for seeding");
         return res.status(503).json({ error: "Firestore not configured" });
       }
 
-      const templates = await storage.getCarouselTemplates();
-      const batch = adminDb.batch();
-      const collectionRef = adminDb.collection("carousel_templates");
-
-      for (const tmpl of templates) {
-        const docRef = collectionRef.doc();
-        // Ensure date is valid or use current date
-        let createdAtString = new Date().toISOString();
-        if (tmpl.createdAt) {
-          const date = new Date(tmpl.createdAt);
-          if (!isNaN(date.getTime())) {
-            createdAtString = date.toISOString();
-          }
-        }
-
-        batch.set(docRef, {
-          name: tmpl.name,
-          description: tmpl.description,
-          category: tmpl.category,
-          config: tmpl.config,
-          isNew: tmpl.isNew,
-          createdAt: createdAtString
-        });
-      }
-
-      await batch.commit();
-      res.json({ success: true, count: templates.length });
+      await seedTemplates(true);
+      res.json({ success: true, message: "Templates seeded in Firestore" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

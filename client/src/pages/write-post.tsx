@@ -271,18 +271,13 @@ export default function WritePost() {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative h-11">
+                <div className="relative h-11 min-w-[140px]">
                   <input
                     id="scheduled-time-picker"
                     type="datetime-local"
-                    className="absolute inset-0 opacity-0 cursor-pointer z-50 w-full h-full block"
+                    className="absolute inset-0 opacity-0 cursor-pointer z-50 w-full h-full"
                     style={{ 
                       colorScheme: "light",
-                      pointerEvents: "auto",
-                      visibility: "visible",
-                      display: "block",
-                      WebkitAppearance: "none",
-                      appearance: "none",
                     }}
                     onChange={(e) => {
                       setScheduledTime(e.target.value);
@@ -292,29 +287,8 @@ export default function WritePost() {
                   />
                   <Button 
                     variant="outline" 
-                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10"
+                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold w-full"
                     tabIndex={-1}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const picker = document.getElementById('scheduled-time-picker') as HTMLInputElement;
-                      if (picker) {
-                        try {
-                          // Try showPicker first
-                          if (typeof picker.showPicker === 'function') {
-                            picker.showPicker();
-                          } else {
-                            // Fallback for some browsers
-                            picker.focus();
-                            picker.click();
-                          }
-                        } catch (err) {
-                          console.error("Picker failed:", err);
-                          picker.focus();
-                          picker.click();
-                        }
-                      }
-                    }}
                   >
                     <CalendarIcon className="w-4 h-4" />
                     {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
