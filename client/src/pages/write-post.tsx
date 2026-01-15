@@ -292,8 +292,16 @@ export default function WritePost() {
                   />
                   <Button 
                     variant="outline" 
-                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10 pointer-events-none"
+                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10"
                     tabIndex={-1}
+                    onClick={() => {
+                      const picker = document.getElementById('scheduled-time-picker') as HTMLInputElement;
+                      if (picker && typeof picker.showPicker === 'function') {
+                        picker.showPicker();
+                      } else if (picker) {
+                        picker.click();
+                      }
+                    }}
                   >
                     <CalendarIcon className="w-4 h-4" />
                     {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}

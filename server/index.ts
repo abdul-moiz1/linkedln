@@ -128,6 +128,8 @@ app.use((req, res, next) => {
             )
           );
 
+        if (!pendingPosts || pendingPosts.length === 0) return;
+
         for (const post of pendingPosts) {
           try {
             log(`[Scheduler] Processing post ${post.id}`);
