@@ -2384,7 +2384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .delete(scheduledPosts)
         .where(
           and(
-            eq(scheduledPosts.id, id),
+            eq(scheduledPosts.id, parseInt(id)),
             eq(scheduledPosts.userId, personId),
             eq(scheduledPosts.status, "pending")
           )
