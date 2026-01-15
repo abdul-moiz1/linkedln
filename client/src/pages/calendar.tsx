@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Settings, Calendar as CalendarIcon } from "lucide-react";
 import { useState } from "react";
 import { format, startOfWeek, addDays, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, isToday } from "date-fns";
 
@@ -78,7 +78,7 @@ export default function CalendarPage() {
               className={`h-8 px-4 rounded-full text-sm font-bold gap-2 ${view === "week" ? "bg-[#00a0dc]" : "text-slate-500"}`}
               onClick={() => setView("week")}
             >
-              <Calendar className="w-4 h-4" />
+              <CalendarIcon className="w-4 h-4" />
               Week
             </Button>
             <Button 
@@ -86,7 +86,7 @@ export default function CalendarPage() {
               className={`h-8 px-4 rounded-full text-sm font-bold gap-2 ${view === "month" ? "bg-[#00a0dc]" : "text-slate-500"}`}
               onClick={() => setView("month")}
             >
-              <Calendar className="w-4 h-4" />
+              <CalendarIcon className="w-4 h-4" />
               Month
             </Button>
           </div>
