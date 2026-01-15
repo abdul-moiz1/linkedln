@@ -113,7 +113,11 @@ export default function WritePost() {
       });
       const data = await res.json();
       if (data.versions) {
-        setVersions(data.versions);
+        const cleanVersions = data.versions.map((v: string) => {
+        // Remove "Version X: [Title]" or similar prefixes
+        return v.replace(/^Version\s+\d+:?\s*.*?\n+/i, '').trim();
+      });
+      setVersions(cleanVersions);
       }
     } catch (err) {
       console.error("Failed to generate versions:", err);
@@ -270,12 +274,12 @@ export default function WritePost() {
                 <div className="relative">
                   <input
                     type="datetime-local"
-                    className="absolute inset-0 opacity-0 cursor-pointer z-20 w-full h-full"
+                    className="absolute inset-0 opacity-0 cursor-pointer z-30 w-full h-full"
                     onChange={(e) => setScheduledTime(e.target.value)}
                     value={scheduledTime}
                     style={{ colorScheme: "light" }}
                   />
-                  <Button variant="outline" className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10 pointer-events-none">
+                  <Button variant="outline" className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold relative z-10">
                     <CalendarIcon className="w-4 h-4" />
                     {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
                   </Button>
