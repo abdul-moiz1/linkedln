@@ -418,20 +418,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateContent } = await import("./lib/gemini");
-      const prompt = `Based on the user's writing style and current post content, suggest 3-4 short phrases or keywords (2-5 words each) that would naturally come next or enhance the post.
+      const prompt = `Based on the user's writing style and current post content/keywords, generate 2-3 distinct FULL post versions.
       
       User's Style Analysis: ${writingStyle}
       Style DNA: ${styleDNA}
-      Current Content: "${content}"
+      Current Content/Keywords: "${content}"
       
-      Return ONLY a JSON array of strings. Example: ["expert insights", "future of tech", "strategic growth"]`;
+      Instructions:
+      1. Each version should be a complete LinkedIn post.
+      2. Follow the user's voice tone, rhythm, and structure from the Style DNA.
+      3. Keep posts under 1300 characters.
+      4. Use professional formatting (line breaks, bullet points if appropriate).
+      
+      Return ONLY a JSON object with a "versions" array of strings. 
+      Example: { "versions": ["Post version 1...", "Post version 2..."] }`;
 
       const response = await generateContent(prompt);
       // Try to parse JSON from the response
-      const jsonMatch = response.match(/\[.*\]/s);
-      const suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+      const jsonMatch = response.match(/\{.*\}/s);
+      const data = jsonMatch ? JSON.parse(jsonMatch[0]) : { versions: [] };
 
-      res.json({ success: true, suggestions });
+      res.json({ success: true, versions: data.versions });
     } catch (error) {
       console.error("Failed to get suggestions:", error);
       res.json({ success: true, suggestions: [] }); // Fail silently for UI

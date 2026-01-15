@@ -34,36 +34,30 @@ import { Separator } from "@/components/ui/separator";
 export default function WritePost() {
   const [content, setContent] = useState("");
   const [device, setDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [versions, setVersions] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
   const { data: user } = useQuery<SessionUser>({ queryKey: ["/api/user"] });
 
-  // Suggestion logic
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (content.length > 10) {
-        setIsSuggesting(true);
-        try {
-          const res = await fetch("/api/post/suggestions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content })
-          });
-          const data = await res.json();
-          if (data.suggestions) {
-            setSuggestions(data.suggestions);
-          }
-        } catch (err) {
-          console.error("Failed to get suggestions:", err);
-        } finally {
-          setIsSuggesting(false);
-        }
-      } else {
-        setSuggestions([]);
+  const handleGenerateVersions = async () => {
+    if (!content || content.length < 5) return;
+    
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/post/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content })
+      });
+      const data = await res.json();
+      if (data.versions) {
+        setVersions(data.versions);
       }
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [content]);
+    } catch (err) {
+      console.error("Failed to generate versions:", err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const initials = user?.profile?.name
     ? user.profile.name.split(" ").map((n) => n[0]).join("").toUpperCase()
@@ -111,30 +105,42 @@ export default function WritePost() {
           </div>
 
           <Textarea 
-            placeholder="Add your content..."
+            placeholder="Add your content or keywords..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
             className="flex-1 resize-none border-none focus-visible:ring-0 text-lg placeholder:text-slate-300 p-0"
           />
 
+          <div className="flex justify-start mb-4">
+            <Button 
+              variant="outline" 
+              className="rounded-full gap-2 border-[#00a0dc] text-[#00a0dc] hover:bg-blue-50 font-bold"
+              onClick={handleGenerateVersions}
+              disabled={isGenerating || content.length < 5}
+            >
+              <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
+              {isGenerating ? "Generating Versions..." : "Generate Full Post Versions"}
+            </Button>
+          </div>
+
           {/* AI Suggestions */}
-          {suggestions.length > 0 && (
-            <div className="mt-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100/50 space-y-3">
-              <div className="flex items-center gap-2 text-blue-700 font-bold text-xs uppercase tracking-wider">
+          {versions.length > 0 && (
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center gap-2 text-[#00a0dc] font-bold text-xs uppercase tracking-wider">
                 <Sparkles className="w-3 h-3" />
-                AI Style Suggestions
+                AI Draft Versions (Based on your style)
               </div>
-              <div className="flex flex-wrap gap-2">
-                {suggestions.map((suggestion, idx) => (
-                  <Button 
-                    key={idx}
-                    variant="outline" 
-                    size="sm" 
-                    className="bg-white border-blue-100 text-blue-700 hover:bg-blue-100 rounded-full h-8 text-xs font-medium"
-                    onClick={() => setContent(prev => prev + (prev.endsWith(' ') ? '' : ' ') + suggestion)}
-                  >
-                    + {suggestion}
-                  </Button>
+              <div className="grid grid-cols-1 gap-4">
+                {versions.map((version, idx) => (
+                  <Card key={idx} className="border-blue-100 bg-blue-50/30 hover:bg-blue-50/50 transition-colors cursor-pointer group" onClick={() => setContent(version)}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-blue-400 uppercase tracking-tight">Option {idx + 1}</span>
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] font-bold text-[#00a0dc] p-0 group-hover:underline">Use this version</Button>
+                      </div>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-4">{version}</p>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </div>
