@@ -34,7 +34,36 @@ import { Separator } from "@/components/ui/separator";
 export default function WritePost() {
   const [content, setContent] = useState("");
   const [device, setDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const { data: user } = useQuery<SessionUser>({ queryKey: ["/api/user"] });
+
+  // Suggestion logic
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (content.length > 10) {
+        setIsSuggesting(true);
+        try {
+          const res = await fetch("/api/post/suggestions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content })
+          });
+          const data = await res.json();
+          if (data.suggestions) {
+            setSuggestions(data.suggestions);
+          }
+        } catch (err) {
+          console.error("Failed to get suggestions:", err);
+        } finally {
+          setIsSuggesting(false);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [content]);
 
   const initials = user?.profile?.name
     ? user.profile.name.split(" ").map((n) => n[0]).join("").toUpperCase()
@@ -87,6 +116,29 @@ export default function WritePost() {
             onChange={(e) => setContent(e.target.value)}
             className="flex-1 resize-none border-none focus-visible:ring-0 text-lg placeholder:text-slate-300 p-0"
           />
+
+          {/* AI Suggestions */}
+          {suggestions.length > 0 && (
+            <div className="mt-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100/50 space-y-3">
+              <div className="flex items-center gap-2 text-blue-700 font-bold text-xs uppercase tracking-wider">
+                <Sparkles className="w-3 h-3" />
+                AI Style Suggestions
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((suggestion, idx) => (
+                  <Button 
+                    key={idx}
+                    variant="outline" 
+                    size="sm" 
+                    className="bg-white border-blue-100 text-blue-700 hover:bg-blue-100 rounded-full h-8 text-xs font-medium"
+                    onClick={() => setContent(prev => prev + (prev.endsWith(' ') ? '' : ' ') + suggestion)}
+                  >
+                    + {suggestion}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 border-t border-slate-100 pt-6 flex flex-col gap-6">
             <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-tight">

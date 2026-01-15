@@ -393,6 +393,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * Also fetches profileUrl from Firestore if available.
    * Used by the frontend to display user information.
    */
+  /**
+   * API: Get AI Suggestions for Post Content
+   * 
+   * Analyzes current content and provides keyword-based suggestions
+   * using the user's saved writing style and style DNA.
+   */
+  app.post("/api/post/suggestions", async (req: Request, res: Response) => {
+    if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+    const { content } = req.body;
+    const userId = req.session.user.profile.sub;
+
+    try {
+      const { getUser, isFirebaseConfigured } = await import("./lib/firebase-admin");
+      let writingStyle = req.session.user.writingStyle || "";
+      let styleDNA = "";
+
+      if (isFirebaseConfigured) {
+        const userData = await getUser(userId);
+        if (userData) {
+          writingStyle = (userData as any).writingStyle || writingStyle;
+          styleDNA = (userData as any).styleDNA || "";
+        }
+      }
+
+      const { generateContent } = await import("./lib/gemini");
+      const prompt = `Based on the user's writing style and current post content, suggest 3-4 short phrases or keywords (2-5 words each) that would naturally come next or enhance the post.
+      
+      User's Style Analysis: ${writingStyle}
+      Style DNA: ${styleDNA}
+      Current Content: "${content}"
+      
+      Return ONLY a JSON array of strings. Example: ["expert insights", "future of tech", "strategic growth"]`;
+
+      const response = await generateContent(prompt);
+      // Try to parse JSON from the response
+      const jsonMatch = response.match(/\[.*\]/s);
+      const suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+
+      res.json({ success: true, suggestions });
+    } catch (error) {
+      console.error("Failed to get suggestions:", error);
+      res.json({ success: true, suggestions: [] }); // Fail silently for UI
+    }
+  });
+
   app.post("/api/onboarding", async (req: Request, res: Response) => {
     if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
     const userId = req.session.user.profile.sub;
