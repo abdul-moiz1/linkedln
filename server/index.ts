@@ -4,7 +4,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { scheduledPosts } from "@shared/schema";
 import { storage, getDb } from "./storage";
-import { eq, and, lte } from "drizzle-orm";
+import { eq, and, lte, sql } from "drizzle-orm";
 
 const app = express();
 
@@ -118,7 +118,7 @@ app.use((req, res, next) => {
     setInterval(async () => {
       try {
         const now = new Date();
-        const pendingPosts = await db
+        const pendingPosts = await getDb()
           .select()
           .from(scheduledPosts)
           .where(
