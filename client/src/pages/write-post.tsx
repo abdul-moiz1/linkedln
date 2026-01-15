@@ -271,34 +271,33 @@ export default function WritePost() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold min-w-[140px]"
-                  onClick={() => {
-                    const picker = document.getElementById('scheduled-time-picker') as HTMLInputElement;
-                    if (picker) {
-                      picker.focus();
-                      if (typeof picker.showPicker === 'function') {
-                        picker.showPicker();
-                      } else {
-                        picker.click();
-                      }
-                    }
-                  }}
-                >
-                  <CalendarIcon className="w-4 h-4" />
-                  {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
+                <div className="relative h-11 min-w-[140px]">
                   <input
                     id="scheduled-time-picker"
                     type="datetime-local"
-                    className="sr-only"
+                    className="absolute inset-0 opacity-0 cursor-pointer z-50 w-full h-full"
+                    style={{ 
+                      colorScheme: "light",
+                      pointerEvents: "auto",
+                      display: "block",
+                      WebkitAppearance: "none",
+                      appearance: "none",
+                    }}
                     onChange={(e) => {
                       setScheduledTime(e.target.value);
                       console.log("Time selected:", e.target.value);
                     }}
                     value={scheduledTime}
                   />
-                </Button>
+                  <Button 
+                    variant="outline" 
+                    className="rounded-full px-6 gap-2 h-11 border-slate-200 font-bold w-full"
+                    tabIndex={-1}
+                  >
+                    <CalendarIcon className="w-4 h-4" />
+                    {scheduledTime ? new Date(scheduledTime).toLocaleDateString() : "Schedule"}
+                  </Button>
+                </div>
                 {scheduledTime && (
                   <Button 
                     className="rounded-full px-8 h-11 bg-[#00a0dc] hover:bg-[#008dbf] text-white font-bold gap-2 animate-in fade-in slide-in-from-right-1" 
