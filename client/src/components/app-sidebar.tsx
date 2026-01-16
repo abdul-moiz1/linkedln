@@ -52,7 +52,7 @@ const menuItems = [
     { title: "PostCast", icon: Mic, url: "/postcast", badge: "BETA" },
     { title: "Writing Style", icon: Sparkles, url: "/writing-style" },
     { title: "Post Generator", icon: PenTool, url: "/posts" },
-    { title: "Carousel Maker", icon: Layers, url: "/carousel-editor" },
+    { title: "Carousel Maker", icon: Layers, url: "/templates" },
     { title: "Voice Notes", icon: Mic, url: "/voice-notes" },
     { title: "My LinkedIn Posts", icon: Users, url: "/profile" },
   ]},
