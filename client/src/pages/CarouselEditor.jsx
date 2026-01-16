@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 const INITIAL_STATE = {
   meta: {
     title: "Basic #22",
-    lastSaved: "Jan 15, 2026, 3:14 PM",
+    lastSaved: "Jan 15, 2026, 10:14 AM",
   },
   profile: {
     name: "Jon Snow",
@@ -86,7 +86,7 @@ export default function CarouselEditor() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-white flex flex-col overflow-hidden text-[#1a1a1a]">
       <CarouselHeader 
         title={carousel.meta.title}
         lastSaved={carousel.meta.lastSaved}
@@ -94,22 +94,26 @@ export default function CarouselEditor() {
         onContinue={handleContinue}
       />
       
-      <main className="flex flex-1 relative h-[calc(100vh-65px-64px)]">
-        <CarouselSidebar 
-          carousel={carousel} 
-          setCarousel={setCarousel} 
-        />
+      <main className="flex flex-1 relative h-[calc(100vh-65px-64px)] bg-[#f8fafc]">
+        <div className="w-[320px] border-r bg-white overflow-y-auto scrollbar-none">
+          <CarouselSidebar 
+            carousel={carousel} 
+            setCarousel={setCarousel} 
+          />
+        </div>
         
         <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 overflow-y-auto scrollbar-thin">
-            <SlideEditor 
-              slide={carousel.slides[currentSlideIndex]}
-              index={currentSlideIndex}
-              onUpdate={updateSlideContent}
-            />
+          <div className="flex-1 overflow-y-auto p-8 flex justify-center scrollbar-none">
+            <div className="w-full max-w-2xl">
+              <SlideEditor 
+                slide={carousel.slides[currentSlideIndex]}
+                index={currentSlideIndex}
+                onUpdate={updateSlideContent}
+              />
+            </div>
           </div>
           
-          <div className="flex-1 bg-slate-50 border-l overflow-y-auto hidden lg:flex scrollbar-thin">
+          <div className="flex-1 bg-[#f1f5f9] border-l overflow-y-auto hidden lg:flex items-center justify-center p-8 scrollbar-none">
             <CarouselPreview 
               carousel={carousel}
               currentSlideIndex={currentSlideIndex}
@@ -118,12 +122,14 @@ export default function CarouselEditor() {
         </div>
       </main>
 
-      <SlideNavigation 
-        currentIndex={currentSlideIndex}
-        totalSlides={carousel.slides.length}
-        onPrev={() => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))}
-        onNext={() => setCurrentSlideIndex(Math.min(carousel.slides.length - 1, currentSlideIndex + 1))}
-      />
+      <div className="h-16 border-t bg-white flex items-center justify-center">
+        <SlideNavigation 
+          currentIndex={currentSlideIndex}
+          totalSlides={carousel.slides.length}
+          onPrev={() => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))}
+          onNext={() => setCurrentSlideIndex(Math.min(carousel.slides.length - 1, currentSlideIndex + 1))}
+        />
+      </div>
     </div>
   );
 }
