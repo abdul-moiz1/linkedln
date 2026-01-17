@@ -134,6 +134,11 @@ export async function seedTemplates(force = false) {
           name: "Modern Professional", 
           category: "Basic", 
           thumbnailUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400",
+          previewSlides: JSON.stringify([
+            "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400",
+            "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400",
+            "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400"
+          ]),
           slideCount: 5,
           isPublic: true,
           designSchema: JSON.stringify({
@@ -154,6 +159,11 @@ export async function seedTemplates(force = false) {
           name: "Dark Authority", 
           category: "Professional", 
           thumbnailUrl: "https://images.unsplash.com/photo-1557683316-973673baf926?w=400",
+          previewSlides: JSON.stringify([
+            "https://images.unsplash.com/photo-1557683316-973673baf926?w=400",
+            "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400",
+            "https://images.unsplash.com/photo-1558655146-d09347e92766?w=400"
+          ]),
           slideCount: 7,
           isPublic: true,
           designSchema: JSON.stringify({
