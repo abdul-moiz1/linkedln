@@ -1,0 +1,93 @@
+TASK:
+Enhance the Carousel Templates page by adding a hover-based slideshow preview
+for each template, similar to Supergrow.
+
+When a user hovers over a template card, it should automatically preview
+multiple slides from that template in sequence.
+
+IMPORTANT:
+- This is a UI/UX enhancement
+- Do NOT break existing template selection logic
+- Do NOT hardcode slides
+- Use Firestore data
+- Performance matters (no heavy re-renders)
+
+--------------------------------
+DATA REQUIREMENTS (CONFIRM / EXTEND)
+--------------------------------
+
+Each carousel template in Firestore should support preview slides.
+
+Add (if missing):
+
+previewSlides (array of strings)
+- Each item is an image URL
+- Represents slide thumbnails in order (slide 1, slide 2, slide 3…)
+
+Example:
+previewSlides: [
+  "https://.../slide1.png",
+  "https://.../slide2.png",
+  "https://.../slide3.png"
+]
+
+DO NOT remove existing fields.
+
+--------------------------------
+HOVER SLIDESHOW BEHAVIOR
+--------------------------------
+
+On hover over a template card:
+
+1. Start slideshow after a short delay (300–500ms)
+2. Automatically cycle through previewSlides
+3. Change slide every ~800–1000ms
+4. Loop back to the first slide
+5. Stop immediately when hover ends
+6. Reset to first slide on mouse leave
+
+NO autoplay unless hovering.
+
+--------------------------------
+IMPLEMENTATION REQUIREMENTS
+--------------------------------
+
+- Use React state + timers (setInterval / clearInterval)
+- Each card manages its own slideshow state
+- Prevent memory leaks:
+  - Clear timers on unmount
+  - Clear timers on mouse leave
+- Use CSS transitions for smooth fades
+- Avoid layout shift
+
+--------------------------------
+VISUAL REQUIREMENTS
+--------------------------------
+
+- Slides must stay inside the card
+- Same aspect ratio as template preview
+- Smooth cross-fade or slide animation
+- No flickering
+- Rounded corners preserved
+
+--------------------------------
+PERFORMANCE & SAFETY
+--------------------------------
+
+- Do NOT load all preview images eagerly
+- Lazy-load images where possible
+- Limit slideshow to first 3–5 slides max
+- If previewSlides is empty:
+  - Show static thumbnail only
+
+--------------------------------
+EXPECTED RESULT
+--------------------------------
+
+- Hovering a template shows animated slide previews
+- Each template feels alive and premium
+- UX closely matches Supergrow
+- No console errors
+- No lag or memory leaks
+
+This feature should significantly increase perceived quality.

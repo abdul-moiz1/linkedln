@@ -1,0 +1,112 @@
+TASK:
+Redesign the Carousel Templates page to closely match the look, structure,
+and UX quality of Supergrow’s carousel template gallery.
+
+Templates are already stored in Firestore.
+The goal is to make them LOOK and FEEL premium and elegant like Supergrow.
+
+IMPORTANT:
+- Do NOT hardcode templates
+- Do NOT remove Firestore usage
+- Do NOT break existing template selection logic
+- Focus on UI/UX parity with Supergrow
+- This is a visual + structural task, not just data
+
+--------------------------------
+REFERENCE (VERY IMPORTANT)
+--------------------------------
+Use Supergrow’s Carousel Templates page as the visual benchmark:
+
+- Large elegant template cards
+- Clean typography
+- Strong preview images
+- Clear hierarchy: Title → Category → Slide count
+- Plenty of spacing and rounded corners
+- Minimal but premium look
+
+--------------------------------
+FIRESTORE STRUCTURE (CONFIRM / ADJUST)
+--------------------------------
+
+Each template document should include:
+
+- name (string)
+- category (string) // e.g. Basic, Professional
+- description (string, optional)
+- thumbnailUrl (string) // REQUIRED for elegant preview
+- slideCount (number)
+- isPublic (boolean)
+- createdAt (timestamp)
+
+DO NOT remove existing fields.
+Only add missing ones if needed.
+
+--------------------------------
+FRONTEND — TEMPLATE CARD DESIGN
+--------------------------------
+
+Each template card MUST include:
+
+1. Large preview image (thumbnailUrl)
+   - Aspect ratio similar to Supergrow
+   - Rounded corners (xl)
+   - Cover-style image (object-cover)
+
+2. Template name
+   - Bold
+   - Clear hierarchy
+   - No truncation unless very long
+
+3. Category label
+   - Subtle (lighter text)
+   - Shown under title
+
+4. Slide count badge
+   - Small pill badge (e.g. "5 slides")
+   - Positioned top-right or bottom-right
+
+5. Hover interaction
+   - Slight scale OR shadow
+   - Cursor pointer
+   - Smooth transition
+
+--------------------------------
+LAYOUT REQUIREMENTS
+--------------------------------
+
+- Grid-based layout
+- Responsive (3 columns desktop, 2 tablet, 1 mobile)
+- Consistent spacing between cards
+- Section header like:
+  "Carousel Templates"
+  "Choose a professional template to get started."
+
+--------------------------------
+INTERACTION
+--------------------------------
+
+- Clicking a template:
+  - Opens template editor
+  - Clones template into user workspace
+  - Original template remains unchanged
+
+--------------------------------
+DO NOT DO
+--------------------------------
+
+- Do NOT use placeholder gradients unless no image exists
+- Do NOT hardcode styles per template
+- Do NOT mix editor logic into gallery
+- Do NOT simplify UI to basic cards
+
+--------------------------------
+EXPECTED RESULT
+--------------------------------
+
+- Templates visually comparable to Supergrow
+- Elegant, clean, premium appearance
+- Each template looks distinct
+- Firestore-driven and scalable
+- Easy to add more templates later
+
+This page should feel like a paid SaaS product.

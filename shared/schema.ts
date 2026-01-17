@@ -163,6 +163,7 @@ export const carouselTemplates = pgTable("carousel_templates", {
   name: text("name").notNull(),
   category: text("category").notNull(), // e.g. "Basic", "Educational", "Story"
   thumbnailUrl: text("thumbnail_url"),
+  previewSlides: text("preview_slides"), // JSON string array of slide image URLs
   slideCount: integer("slide_count").notNull(),
   isPublic: boolean("is_public").default(true).notNull(),
   designSchema: text("design_schema").notNull(), // JSON string of TemplateDesign
