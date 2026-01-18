@@ -424,37 +424,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       Style DNA: ${styleDNA}
       Core Idea: "${content}"
       
-      MANDATORY STRUCTURE (Modeled after professional top-tier posts):
-      1. THE HOOK: Start with a provocative, curiosity-driven question or a bold contrarian statement (max 2 lines).
+      MANDATORY VISUAL STRUCTURE (Copy this exact pacing):
+      1. THE HOOK: A provocative, one-line question or bold statement.
       
-      2. THE CONTEXT: 
-         - Open with a relatable observation or a shift in the current landscape.
-         - Use short, punchy sentences (LinkedIn-style).
+      2. THE PROBLEM ( whitespace-heavy):
+         - 1-2 sentences explaining a current trend or trap.
+         - Use a separate line for emphasis: "We still call them [X]."
+         - Follow with: "But functionally, they behave like [Y]."
       
-      3. THE SHIFT:
-         - "We still call them [X]... But functionally, they behave like [Y]."
-         - Use metaphorical comparisons (e.g., Enterprise Architecture as an "Operating System").
+      3. THE SHIFT (Short sentences):
+         - List 2-3 behavioral observations. 
+         - Each observation must be its own line.
       
-      4. THE NUMBERED FRAMEWORK (Enforced format):
+      4. THE INSIGHT (Transition):
+         - A bold summary sentence (e.g., "To scale this safely, [System] must become the operating system for [Outcome].")
+      
+      5. THE NUMBERED FRAMEWORK (Enforced format):
          - Use 1️⃣, 2️⃣, 3️⃣ emojis.
-         - Every point must have a Bold Title and a catchy metaphor (e.g., "The Corporate Card").
-         - 2-3 lines of deep explanation for each point.
+         - Format: 
+           [Emoji] [Bold Title] ([Catchy Metaphor])
+           [2-3 lines of deep, strategic explanation.]
+         - Leave double space between points.
       
-      5. THE IMPLICATION:
-         - Ask an "uncomfortable question."
-         - Highlight what happens if the reader DOES NOT act.
+      6. THE UNCOMFORTABLE QUESTION:
+         - A separate section starting with "Now the uncomfortable question:"
+         - Followed by 2-3 lines of implication.
       
-      6. THE CONCLUSION:
-         - Use a powerful closing statement about innovation vs architecture.
-         - End with a final provocative line that forces the reader to pause.
+      7. THE CLOSING:
+         - A powerful 2-line summary.
+         - Example: "Innovation is the engine. [Strategy] is the steering wheel."
       
-      READABILITY RULES:
-      - EVERY paragraph is 1-2 lines max.
-      - Use white space aggressively (double space between major transitions).
-      - NO marketing hype, NO "excited" emojis (except for 1️⃣2️⃣3️⃣).
+      READABILITY & HYGIENE:
+      - NO paragraphs longer than 2 lines.
+      - Use aggressive white space.
+      - NO emojis except for the 1️⃣2️⃣3️⃣ framework.
       - 3-6 hashtags ONLY at the very bottom (format: hashtag#TopicName).
       
-      GOAL: The post must be long, visually structured, and authoritative. It must dominate the reader's feed.
+      GOAL: The post must be long, visually airy, and authoritative. It must dominate the reader's feed.
       
       Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.
       Example: { "versions": ["Post 1 content...", "Post 2 content..."] }`;
