@@ -425,23 +425,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       Core Idea: "${content}"
       
       STRUCTURE & FORMATTING (MANDATORY):
-      1. HOOK: Start with a bold, curiosity-driven question or statement (1-2 lines).
-      2. NARRATIVE FLOW: Problem → Insight → Explanation → Implication.
-      3. READABILITY: Use frequent line breaks. No paragraph longer than 2 lines. Avoid walls of text.
-      4. NUMBERED SECTIONS: Use emoji numbers (1️⃣, 2️⃣, 3️⃣) for key points. Each section needs a short title and concise explanation.
-      5. CLOSING: End with a provocative or reflective question to spark discussion.
-      6. HASHTAGS: ONLY at the end. Use 3-6 relevant hashtags like #TopicName.
+      1. HOOK: Start with a bold, curiosity-driven question or statement (1-2 lines). This MUST be the first line.
+      2. NARRATIVE FLOW: Follow this flow: Problem → Insight → Explanation → Implication.
+      3. READABILITY: Use frequent line breaks. No paragraph longer than 2 lines. Use natural line spacing (LinkedIn-friendly). AVOID walls of text.
+      4. NUMBERED SECTIONS: Use emoji numbers (1️⃣, 2️⃣, 3️⃣) for key points. Each section needs a short title and a concise explanation.
+      5. CLOSING: End with a strong provocative or reflective question to spark discussion.
+      6. HASHTAGS: Place hashtags ONLY at the end. Use 3-6 relevant hashtags. Format: #TopicName (no inline hashtags).
       
       TONE & STYLE:
-      - Confident, strategic, and authoritative (Thought Leader tone).
+      - Confident, strategic, and leadership-focused.
       - NO hype words, NO "marketing" speak.
       - NO emojis except for the numbered sections.
-      - Sound senior and experienced.
+      - Sound like a senior professional or founder.
       
       CRITICAL:
-      - Do NOT change the core intent.
-      - Expand the 1-3 lines into a full, editor-filling post.
-      - Extract the user's vocabulary and voice from the analysis provided, but adapt it to this professional LinkedIn format.
+      - Target Length: 200–350 words. The post MUST visually fill the editor.
+      - Do NOT change the core intent. Only expand, structure, and elevate it.
+      - Extract the user's vocabulary and voice from the analysis, but force it into this structured long-form format.
       
       Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.
       Example: { "versions": ["Post 1 content...", "Post 2 content..."] }`;
