@@ -418,49 +418,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateContent } = await import("./lib/gemini");
-      const prompt = `CRITICAL: You are a senior founder and thought leader. You must expand the user's short idea into a HIGH-IMPACT, LONG-FORM LinkedIn post (250-350 words).
+      const prompt = `CRITICAL: You are a senior founder and high-level strategist. You must expand the user's short idea into a HIGH-IMPACT, LONG-FORM LinkedIn post (300-450 words) that matches the EXACT length, emotional weight, and structural pacing of the provided example.
       
       User's Style Analysis: ${writingStyle}
       Style DNA: ${styleDNA}
       Core Idea: "${content}"
       
-      MANDATORY VISUAL STRUCTURE (Copy this exact pacing):
-      1. THE HOOK: A provocative, one-line question or bold statement.
+      MANDATORY EMOTIONAL PACING (Copy this logic):
+      1. THE PROVOCATIVE HOOK: A single, powerful question that challenges the status quo (e.g., "If an AI agent makes a mistake, who do you fire?").
       
-      2. THE PROBLEM ( whitespace-heavy):
-         - 1-2 sentences explaining a current trend or trap.
-         - Use a separate line for emphasis: "We still call them [X]."
-         - Follow with: "But functionally, they behave like [Y]."
+      2. THE SHIFT (The Reality Check): 
+         - 1-2 lines exposing a hidden truth.
+         - Use separate, punchy lines for emphasis: "We still call them [Tools]." / "But functionally, they behave like [Staff]."
       
-      3. THE SHIFT (Short sentences):
-         - List 2-3 behavioral observations. 
-         - Each observation must be its own line.
+      3. THE BUILD-UP (Short, ominous sentences):
+         - List 3-4 specific behaviors or implications, each on its own line.
+         - Use a transition line about "Not building a strategy, but building Shadow AI."
       
-      4. THE INSIGHT (Transition):
-         - A bold summary sentence (e.g., "To scale this safely, [System] must become the operating system for [Outcome].")
+      4. THE STRATEGIC INSIGHT:
+         - A bold sentence defining a new "Operating System" or "Operating Model" for the problem.
       
       5. THE NUMBERED FRAMEWORK (Enforced format):
          - Use 1️⃣, 2️⃣, 3️⃣ emojis.
          - Format: 
-           [Emoji] [Bold Title] ([Catchy Metaphor])
-           [2-3 lines of deep, strategic explanation.]
-         - Leave double space between points.
+           [Emoji] [Bold Title] ([Catchy Corporate Metaphor])
+           [3-4 lines of deep, authoritative explanation of WHY this matters and HOW it works.]
+         - Must leave significant white space between points.
       
-      6. THE UNCOMFORTABLE QUESTION:
-         - A separate section starting with "Now the uncomfortable question:"
-         - Followed by 2-3 lines of implication.
+      6. THE UNCOMFORTABLE QUESTION (Mid-point reflection):
+         - A separate section starting with: "Now the uncomfortable question:"
+         - 2-3 lines of deep organizational implication.
       
-      7. THE CLOSING:
-         - A powerful 2-line summary.
-         - Example: "Innovation is the engine. [Strategy] is the steering wheel."
+      7. THE REVELATION:
+         - A separate section about who/what manages this new reality.
+         - A bold, punchy summary (e.g., "That’s not a tooling problem. That’s architecture.").
+      
+      8. THE POWERFUL CLOSING:
+         - A metaphor-driven summary (Innovation vs Architecture).
+         - A final ominous warning line: "If you don't [Action] now, they won't just work for you, they'll quietly start working around you."
       
       READABILITY & HYGIENE:
-      - NO paragraphs longer than 2 lines.
-      - Use aggressive white space.
-      - NO emojis except for the 1️⃣2️⃣3️⃣ framework.
-      - 3-6 hashtags ONLY at the very bottom (format: hashtag#TopicName).
-      
-      GOAL: The post must be long, visually airy, and authoritative. It must dominate the reader's feed.
+      - LENGTH: Must be 300-450 words. Do NOT truncate. Expand deeply on the implications.
+      - EMOTION: Serious, authoritative, urgent, and strategic.
+      - FORMAT: No paragraphs > 2 lines. Aggressive whitespace.
+      - HASHTAGS: 3-6 at the very bottom ONLY.
       
       Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.
       Example: { "versions": ["Post 1 content...", "Post 2 content..."] }`;
