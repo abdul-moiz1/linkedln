@@ -118,12 +118,18 @@ app.use((req, res, next) => {
         const now = new Date();
         const snapshot = await adminFirestore.collection("scheduled_posts")
           .where("status", "==", "pending")
-          .where("scheduledTime", "<=", now)
           .get();
 
         if (snapshot.empty) return;
 
-        for (const doc of snapshot.docs) {
+        const postsToProcess = snapshot.docs.filter(doc => {
+          const data = doc.data();
+          return data.scheduledTime && data.scheduledTime.toDate() <= now;
+        });
+
+        if (postsToProcess.length === 0) return;
+
+        for (const doc of postsToProcess) {
           const post = { id: doc.id, ...doc.data() } as any;
           try {
             log(`[Scheduler] Processing post ${post.id}`);

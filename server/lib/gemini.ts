@@ -15,7 +15,9 @@ export async function generateContent(prompt: string, options: any = {}) {
     for (const modelName of modelsToTry) {
       try {
         console.log(`[Gemini] Attempting with model: ${modelName}`);
-        const model = genAI.getGenerativeModel({ model: modelName });
+        // Ensure model name has the prefix if not present, though the lib usually handles it
+        const formattedModelName = modelName.startsWith("models/") ? modelName : `models/${modelName}`;
+        const model = genAI.getGenerativeModel({ model: formattedModelName });
         
         const generationConfig = {
           temperature: options.temperature || 0.7,
