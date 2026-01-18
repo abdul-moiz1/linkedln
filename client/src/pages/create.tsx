@@ -192,83 +192,75 @@ export default function Create() {
       <main className="max-w-7xl mx-auto px-4 py-12">
         {step === "template-select" && (
           <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-bold text-slate-900">Carousel Maker</h1>
-              <p className="text-slate-500">Design high-performing LinkedIn carousel posts in minutes.</p>
+            <div className="space-y-2">
+              <h1 className="text-4xl font-extrabold text-[#1a1a1a] tracking-tight">Carousel Templates</h1>
+              <p className="text-slate-500 text-lg">Choose a professional template to get started.</p>
             </div>
 
-            <div className="w-full">
-              <div className="flex items-center gap-8 border-b border-slate-200 mb-8">
-                <button 
-                  className={`pb-4 text-sm font-bold transition-all relative ${activeTab !== "Saved" && activeTab !== "Text to Carousel" ? "text-blue-500" : "text-slate-500 hover:text-slate-700"}`}
-                  onClick={() => setActiveTab("Basic")}
-                >
-                  Templates
-                  {activeTab !== "Saved" && activeTab !== "Text to Carousel" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />}
-                </button>
-                <button 
-                  className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "Saved" ? "text-blue-500" : "text-slate-500 hover:text-slate-700"}`}
-                  onClick={() => setActiveTab("Saved")}
-                >
-                  Saved
-                  <span className="bg-blue-500 text-white px-1.5 py-0.5 rounded-full text-[10px]">7</span>
-                  {activeTab === "Saved" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />}
-                </button>
-                <button 
-                  className={`pb-4 text-sm font-bold transition-all relative ${activeTab === "Text to Carousel" ? "text-blue-500" : "text-slate-500 hover:text-slate-700"}`}
-                  onClick={() => setActiveTab("Text to Carousel")}
-                >
-                  Text to Carousel
-                  {activeTab === "Text to Carousel" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />}
-                </button>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">
+              {templatesLoading ? (
+                [1, 2, 3].map((i) => (
+                  <div key={i} className="aspect-[4/5] bg-slate-100 animate-pulse rounded-xl" />
+                ))
+              ) : (
+                templates?.map((template) => {
+                  const config = JSON.parse(template.config);
+                  return (
+                    <Card 
+                      key={template.id}
+                      className="overflow-hidden border-none shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer bg-white rounded-xl"
+                      onClick={() => handleSelectTemplate(template)}
+                    >
+                      <div className="aspect-[4/5] relative overflow-hidden bg-slate-100">
+                        <div className="absolute inset-0 transition-opacity duration-500">
+                          {template.thumbnailUrl ? (
+                            <img 
+                              src={template.thumbnailUrl} 
+                              alt={template.name} 
+                              className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div 
+                              className="w-full h-full flex items-center justify-center p-8"
+                              style={{ 
+                                background: config.backgroundGradient || config.backgroundColor,
+                                backgroundColor: config.backgroundColor 
+                              }}
+                            >
+                              <h3 
+                                className="text-2xl font-bold text-center leading-tight drop-shadow-sm"
+                                style={{ color: config.textColor }}
+                              >
+                                {template.name}
+                              </h3>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="absolute top-3 right-3 z-10">
+                          <Badge className="bg-white/90 hover:bg-white text-[#1a1a1a] border-none shadow-sm font-bold px-2 py-0.5 text-[10px] rounded-full">
+                            {template.slideCount || 7} slides
+                          </Badge>
+                        </div>
 
-              {activeTab !== "Saved" && activeTab !== "Text to Carousel" && (
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="bg-transparent h-auto p-0 flex gap-4 mb-8">
-                    {categories.map(cat => (
-                      <TabsTrigger 
-                        key={cat} 
-                        value={cat} 
-                        className="rounded-full border border-slate-200 data-[state=active]:bg-blue-500 data-[state=active]:text-white px-6 py-2 h-auto"
-                      >
-                        {cat}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-
-                  {categories.map(cat => (
-                    <TabsContent key={cat} value={cat} className="mt-0">
-                      <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-slate-900">{cat}</h2>
-                        <p className="text-slate-500">
-                          {cat === "Basic" ? "For those who want to get started quickly." : 
-                           cat === "Professional" ? "Sleek, corporate designs for B2B authority." : 
-                           "Bold, unique layouts to stand out in the feed."}
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                           <Button variant="secondary" className="font-bold shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 rounded-full px-6">
+                             Use Template
+                           </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 space-y-1">
+                        <h3 className="font-bold text-[#1a1a1a] text-lg leading-tight group-hover:text-[#00a0dc] transition-colors">
+                          {template.name}
+                        </h3>
+                        <p className="text-sm text-slate-400 font-medium">
+                          {template.category}
                         </p>
                       </div>
-                      {templatesLoading ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                          {[1,2,3,4].map(i => <div key={i} className="aspect-[4/5] bg-slate-100 animate-pulse rounded-2xl" />)}
-                        </div>
-                      ) : (
-                        <TemplateGrid category={cat} />
-                      )}
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              )}
-
-              {activeTab === "Saved" && (
-                <div className="text-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                  <p className="text-slate-500">You haven't saved any templates yet.</p>
-                </div>
-              )}
-
-              {activeTab === "Text to Carousel" && (
-                <div className="text-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                  <p className="text-slate-500">AI Text to Carousel generation coming soon.</p>
-                </div>
+                    </Card>
+                  );
+                })
               )}
             </div>
           </div>
