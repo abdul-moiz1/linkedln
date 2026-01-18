@@ -418,38 +418,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateContent } = await import("./lib/gemini");
-      const prompt = `CRITICAL: You are a senior founder and thought leader. You must expand the user's short idea into a HIGH-IMPACT, LONG-FORM LinkedIn post of 250-350 words.
+      const prompt = `CRITICAL: You are a senior founder and thought leader. You must expand the user's short idea into a HIGH-IMPACT, LONG-FORM LinkedIn post (250-350 words).
       
       User's Style Analysis: ${writingStyle}
       Style DNA: ${styleDNA}
       Core Idea: "${content}"
       
-      MANDATORY STRUCTURE (A complete post must look exactly like this):
-      1. HOOK: First line must be a BOLD, curiosity-driven question or statement (max 2 lines).
+      MANDATORY STRUCTURE (Modeled after professional top-tier posts):
+      1. THE HOOK: Start with a provocative, curiosity-driven question or a bold contrarian statement (max 2 lines).
       
-      2. NARRATIVE: 
-         - Problem: Explain the current struggle or status quo.
-         - Insight: Provide a unique perspective or "Aha!" moment.
-         - Explanation: Deep dive into the "Why" and "How".
-         - Implication: What happens if we don't act?
+      2. THE CONTEXT: 
+         - Open with a relatable observation or a shift in the current landscape.
+         - Use short, punchy sentences (LinkedIn-style).
       
-      3. NUMBERED SECTIONS (Visual Clarity):
+      3. THE SHIFT:
+         - "We still call them [X]... But functionally, they behave like [Y]."
+         - Use metaphorical comparisons (e.g., Enterprise Architecture as an "Operating System").
+      
+      4. THE NUMBERED FRAMEWORK (Enforced format):
          - Use 1️⃣, 2️⃣, 3️⃣ emojis.
-         - Each needs a Bold Title and 1-2 sentences of explanation.
+         - Every point must have a Bold Title and a catchy metaphor (e.g., "The Corporate Card").
+         - 2-3 lines of deep explanation for each point.
       
-      4. READABILITY RULES:
-         - NO walls of text.
-         - Every paragraph must be 1-2 lines max.
-         - Use white space aggressively. Double space between major sections.
+      5. THE IMPLICATION:
+         - Ask an "uncomfortable question."
+         - Highlight what happens if the reader DOES NOT act.
       
-      5. CLOSING: A provocative, reflective question to spark heavy discussion.
+      6. THE CONCLUSION:
+         - Use a powerful closing statement about innovation vs architecture.
+         - End with a final provocative line that forces the reader to pause.
       
-      6. HYGIENE:
-         - NO marketing fluff or hype.
-         - NO emojis except for the 1️⃣2️⃣3️⃣ sections.
-         - 3-6 hashtags ONLY at the very bottom (e.g., #Strategy #Leadership).
+      READABILITY RULES:
+      - EVERY paragraph is 1-2 lines max.
+      - Use white space aggressively (double space between major transitions).
+      - NO marketing hype, NO "excited" emojis (except for 1️⃣2️⃣3️⃣).
+      - 3-6 hashtags ONLY at the very bottom (format: hashtag#TopicName).
       
-      GOAL: The post must be long enough to visually dominate the LinkedIn feed and editor.
+      GOAL: The post must be long, visually structured, and authoritative. It must dominate the reader's feed.
       
       Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.
       Example: { "versions": ["Post 1 content...", "Post 2 content..."] }`;
