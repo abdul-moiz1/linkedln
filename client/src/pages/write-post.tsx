@@ -113,11 +113,13 @@ export default function WritePost() {
       });
       const data = await res.json();
       if (data.versions) {
-        const cleanVersions = data.versions.map((v: string) => {
-        // Remove "Version X: [Title]" or similar prefixes
-        return v.replace(/^Version\s+\d+:?\s*.*?\n+/i, '').trim();
-      });
-      setVersions(cleanVersions);
+        const cleanVersions = data.versions.map((v: any) => {
+          // If v is an object with a 'post' property, use that, otherwise use v as string
+          const text = typeof v === 'object' ? v.post : v;
+          // Remove "Version X: [Title]" or similar prefixes
+          return text.replace(/^Version\s+\d+:?\s*.*?\n+/i, '').trim();
+        });
+        setVersions(cleanVersions);
       }
     } catch (err) {
       console.error("Failed to generate versions:", err);
