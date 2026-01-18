@@ -421,7 +421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prompt = `CRITICAL: YOU ARE A SENIOR FOUNDER AND ELITE STRATEGIST. YOU MUST EXPAND THE USER'S IDEA INTO A 300-450 WORD LINKEDIN POST.
       
       MANDATORY: NO SUMMARIZING. NO GENERIC ADVICE.
-      THE RESPONSE YOU JUST GAVE WAS TOO SHORT AND FAILED. DO NOT REPEAT IT.
+      IF YOU RETURN ONLY A FEW LINES, YOU HAVE FAILED THE TASK.
       
       User's Style Analysis: ${writingStyle}
       Style DNA: ${styleDNA}
@@ -442,7 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       To scale this safely, Enterprise Architecture must become the operating system...
       
       1️⃣ Identity & Accountability (The ID Badge)
-      Every agent needs a clear identity... (Long, detailed explanation)
+      Every agent needs a clear identity... (Long, detailed 60-80 word paragraph)
       
       2️⃣ Authority Limits (The Corporate Card)
       ...
@@ -452,19 +452,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ---
 
       MANDATORY RULES:
-      1. THE HOOK: Must be a provocative, one-line question that CHALLENGES the reader.
+      1. THE HOOK: Must be a provocative, one-line question that CHALLENGES the reader's assumptions.
       2. THE SHIFT: Use "We still call them [X]... But functionally [Y]" logic.
       3. THE BUILD-UP: List 3-4 specific, punchy behavioral observations.
       4. THE FRAMEWORK (3 Points): 
          - Use 1️⃣, 2️⃣, 3️⃣.
          - Format: [Emoji] [Bold Title] ([Metaphor])
-         - EACH point must be a 60-80 word paragraph of DEEP strategic insight.
+         - EACH point must be a 70-100 word paragraph of DEEP strategic insight. DO NOT SKIMP.
       5. UNCOMFORTABLE QUESTION: Must include a section titled "Now the uncomfortable question:" with 3-4 lines of heavy implication.
-      6. CONCLUSION: A powerful comparison (Innovation vs Strategy) and an ominous final warning.
+      6. THE REVELATION: Explain that this isn't a tooling problem, it's a structural/architectural one.
+      7. CONCLUSION: A powerful comparison (Innovation vs Strategy) and an ominous final warning.
       
       PACING: Double space between ALL sections. Short paragraphs only (max 2 lines).
       
-      LENGTH: THE POST MUST BE 300-450 WORDS. DO NOT RETURN ANYTHING SHORT.
+      TOTAL LENGTH: THE POST MUST BE 300-450 WORDS. EXPAND EVERY SECTION.
       
       Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.`;
 
