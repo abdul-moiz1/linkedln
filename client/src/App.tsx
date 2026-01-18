@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { WritingStyleSidebar } from "@/components/writing-style-sidebar";
 import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import Onboarding from "@/pages/onboarding";
