@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { CarouselTemplate } from "@shared/schema";
+import type { CarouselTemplate } from "@shared/schema";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";

@@ -94,13 +94,13 @@ export function AppSidebar() {
           <div className="bg-[#00a0dc] p-1.5 rounded-lg">
              <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-[#1a1a1a]">VoicePrint</span>
+          <span className="font-bold text-xl tracking-tight text-[#1a1a1a]">Supergrow</span>
         </div>
         <Button 
           className="w-full bg-[#00a0dc] hover:bg-[#008dbf] text-white rounded-xl h-12 flex items-center justify-center gap-2 shadow-sm border-none"
           onClick={() => setIsCreateModalOpen(true)}
         >
-          <PlusCircle className="w-5 h-5" />
+          <Plus className="w-5 h-5" />
           <span className="font-bold text-sm">Write Post</span>
         </Button>
         <CreatePostModal isOpen={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
