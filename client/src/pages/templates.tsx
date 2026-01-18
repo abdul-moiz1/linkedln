@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 const TemplateCard = ({ template }: { template: CarouselTemplate }) => {
   const [, setLocation] = useLocation();
-  const config = template.config ? JSON.parse(template.config) : {};
+  const config = template.designSchema ? JSON.parse(template.designSchema) : {};
 
   return (
     <div 

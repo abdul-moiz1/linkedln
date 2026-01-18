@@ -35,9 +35,9 @@ export default function Header() {
     ? user.profile.name.split(" ").map((n) => n[0]).join("").toUpperCase()
     : user?.profile?.email?.[0]?.toUpperCase() || "U";
 
-  const isLandingPage = location === "/";
+  const isAppPage = location.startsWith("/templates") || location.startsWith("/carousel-editor") || location.startsWith("/write-post");
 
-  if (isLandingPage) {
+  if (!isAppPage) {
     return (
       <header className="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
@@ -61,7 +61,7 @@ export default function Header() {
               <Button 
                 onClick={() => navigate("/login")}
                 size="sm"
-                className="rounded-full px-6 bg-white text-slate-900 hover:bg-slate-100 hover:scale-105 transition-all shadow-lg shadow-white/10"
+                className="rounded-full px-6 bg-white text-slate-900 hover:bg-slate-100 hover:scale-105 transition-all shadow-lg shadow-white/10 border border-slate-200"
               >
                 Get Started
               </Button>
@@ -85,7 +85,7 @@ export default function Header() {
       <div className="flex items-center gap-2">
         <div className="bg-slate-100 px-3 py-1 rounded-md border border-slate-200 flex items-center gap-2">
           <span className="text-xs font-bold text-slate-400">k</span>
-          <span className="text-xs font-bold text-slate-700">{user?.profile?.name || "My"}'s Workspace</span>
+          <span className="text-xs font-bold text-slate-700">{user?.profile?.name ? `${user.profile.name}'s` : "My"} Workspace</span>
           <span className="text-[10px] text-slate-400 font-medium bg-slate-200/50 px-1.5 rounded">(Admin)</span>
           <ChevronDown className="w-3 h-3 text-slate-400" />
         </div>
