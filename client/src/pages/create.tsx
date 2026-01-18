@@ -136,34 +136,50 @@ export default function Create() {
   };
 
   const TemplateGrid = ({ category }: { category: string }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
       {templates?.filter(t => t.category === category).map((template) => {
         const config = JSON.parse(template.config);
         return (
-          <Card 
+          <div 
             key={template.id} 
-            className={`group cursor-pointer hover-elevate transition-all border-2 overflow-hidden ${selectedTemplateId === template.id ? 'border-primary' : 'border-transparent hover:border-primary/50'}`}
+            className="group cursor-pointer flex flex-col gap-4"
             onClick={() => handleSelectTemplate(template)}
           >
             <div 
-              className="aspect-[4/5] w-full flex items-center justify-center p-8 relative"
-              style={{ backgroundColor: config.backgroundColor }}
+              className={`aspect-[4/5] w-full rounded-[2rem] flex items-center justify-center p-8 relative transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-xl ${selectedTemplateId === template.id ? 'ring-4 ring-blue-500 ring-offset-4' : ''}`}
+              style={{ 
+                background: config.backgroundGradient || config.backgroundColor,
+                backgroundColor: config.backgroundColor 
+              }}
             >
+              <div className="absolute top-6 right-6">
+                <Badge className="bg-white/90 backdrop-blur-sm text-slate-900 hover:bg-white border-none rounded-full px-3 py-1 text-[11px] font-bold shadow-sm">
+                  {template.slideCount || 7} slides
+                </Badge>
+              </div>
+              
               {template.isNew && (
-                <Badge className="absolute top-4 right-4 bg-blue-500 hover:bg-blue-600">New</Badge>
+                <Badge className="absolute top-6 left-6 bg-blue-500 hover:bg-blue-600 border-none rounded-full px-3 py-1 text-[11px] font-bold shadow-lg">New</Badge>
               )}
-              <h3 
-                className="text-2xl font-bold text-center leading-tight"
-                style={{ color: config.textColor }}
-              >
-                {template.name}
-              </h3>
+
+              <div className="w-full h-full flex items-center justify-center pointer-events-none opacity-90">
+                {template.thumbnailUrl ? (
+                  <img src={template.thumbnailUrl} alt={template.name} className="w-full h-full object-cover rounded-2xl" />
+                ) : (
+                  <h3 
+                    className="text-2xl font-bold text-center leading-tight drop-shadow-sm"
+                    style={{ color: config.textColor }}
+                  >
+                    {template.name}
+                  </h3>
+                )}
+              </div>
             </div>
-            <CardContent className="p-4 bg-card">
-              <CardTitle className="text-lg">{template.name}</CardTitle>
-              <CardDescription className="text-sm line-clamp-1">{template.description}</CardDescription>
-            </CardContent>
-          </Card>
+            <div className="px-2">
+              <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{template.name}</h3>
+              <p className="text-sm font-medium text-slate-400">{template.category}</p>
+            </div>
+          </div>
         );
       })}
     </div>
@@ -175,55 +191,86 @@ export default function Create() {
       
       <main className="max-w-7xl mx-auto px-4 py-12">
         {step === "template-select" && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="text-center max-w-2xl mx-auto mb-12">
-              <h1 className="text-4xl font-bold mb-4">Choose a Template</h1>
-              <p className="text-muted-foreground text-lg">
-                Select a high-performing design to start your LinkedIn carousel.
-              </p>
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-3xl font-bold text-slate-900">Carousel Maker</h1>
+              <p className="text-slate-500">Design high-performing LinkedIn carousel posts in minutes.</p>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <div className="flex items-center justify-between mb-8 border-b pb-4">
-                <TabsList className="bg-muted/50 p-1">
-                  {categories.map(cat => (
-                    <TabsTrigger key={cat} value={cat} className="px-8">{cat}</TabsTrigger>
-                  ))}
-                </TabsList>
-                
-                <div className="flex gap-4">
-                  <Badge variant="outline" className="px-4 py-1 cursor-pointer hover:bg-muted transition-colors">
-                    Templates
-                  </Badge>
-                  <Badge variant="outline" className="px-4 py-1 cursor-pointer hover:bg-muted transition-colors">
-                    Saved <span className="ml-1 bg-blue-500 text-white px-1.5 rounded-full text-[10px]">0</span>
-                  </Badge>
-                  <Badge variant="outline" className="px-4 py-1 cursor-pointer hover:bg-muted transition-colors">
-                    Text to Carousel
-                  </Badge>
-                </div>
+            <div className="w-full">
+              <div className="flex items-center gap-8 border-b border-slate-200 mb-8">
+                <button 
+                  className={`pb-4 text-sm font-bold transition-all relative ${activeTab !== "Saved" && activeTab !== "Text to Carousel" ? "text-blue-500" : "text-slate-500 hover:text-slate-700"}`}
+                  onClick={() => setActiveTab("Basic")}
+                >
+                  Templates
+                  {activeTab !== "Saved" && activeTab !== "Text to Carousel" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />}
+                </button>
+                <button 
+                  className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "Saved" ? "text-blue-500" : "text-slate-500 hover:text-slate-700"}`}
+                  onClick={() => setActiveTab("Saved")}
+                >
+                  Saved
+                  <span className="bg-blue-500 text-white px-1.5 py-0.5 rounded-full text-[10px]">7</span>
+                  {activeTab === "Saved" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />}
+                </button>
+                <button 
+                  className={`pb-4 text-sm font-bold transition-all relative ${activeTab === "Text to Carousel" ? "text-blue-500" : "text-slate-500 hover:text-slate-700"}`}
+                  onClick={() => setActiveTab("Text to Carousel")}
+                >
+                  Text to Carousel
+                  {activeTab === "Text to Carousel" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />}
+                </button>
               </div>
 
-              {categories.map(cat => (
-                <TabsContent key={cat} value={cat} className="mt-0">
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold">{cat}</h2>
-                    <p className="text-muted-foreground">
-                      {cat === "Basic" ? "For those who want to get started quickly." : 
-                       cat === "Professional" ? "Sleek, corporate designs for B2B authority." : 
-                       "Bold, unique layouts to stand out in the feed."}
-                    </p>
-                  </div>
-                  {templatesLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {[1,2,3].map(i => <div key={i} className="aspect-[4/5] bg-muted animate-pulse rounded-lg" />)}
-                    </div>
-                  ) : (
-                    <TemplateGrid category={cat} />
-                  )}
-                </TabsContent>
-              ))}
-            </Tabs>
+              {activeTab !== "Saved" && activeTab !== "Text to Carousel" && (
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="bg-transparent h-auto p-0 flex gap-4 mb-8">
+                    {categories.map(cat => (
+                      <TabsTrigger 
+                        key={cat} 
+                        value={cat} 
+                        className="rounded-full border border-slate-200 data-[state=active]:bg-blue-500 data-[state=active]:text-white px-6 py-2 h-auto"
+                      >
+                        {cat}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+
+                  {categories.map(cat => (
+                    <TabsContent key={cat} value={cat} className="mt-0">
+                      <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-slate-900">{cat}</h2>
+                        <p className="text-slate-500">
+                          {cat === "Basic" ? "For those who want to get started quickly." : 
+                           cat === "Professional" ? "Sleek, corporate designs for B2B authority." : 
+                           "Bold, unique layouts to stand out in the feed."}
+                        </p>
+                      </div>
+                      {templatesLoading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {[1,2,3,4].map(i => <div key={i} className="aspect-[4/5] bg-slate-100 animate-pulse rounded-2xl" />)}
+                        </div>
+                      ) : (
+                        <TemplateGrid category={cat} />
+                      )}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              )}
+
+              {activeTab === "Saved" && (
+                <div className="text-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                  <p className="text-slate-500">You haven't saved any templates yet.</p>
+                </div>
+              )}
+
+              {activeTab === "Text to Carousel" && (
+                <div className="text-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                  <p className="text-slate-500">AI Text to Carousel generation coming soon.</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
