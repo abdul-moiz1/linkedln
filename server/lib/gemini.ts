@@ -5,10 +5,10 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 export async function generateContent(prompt: string, options: any = {}) {
     // List of models to try in order of preference
     const modelsToTry = [
+      "gemini-2.0-flash-exp",
       "gemini-1.5-flash",
       "gemini-1.5-pro",
-      "gemini-1.5-flash-8b",
-      "gemini-2.0-flash-exp"
+      "gemini-1.5-flash-8b"
     ];
 
     let lastError: any;

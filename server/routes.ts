@@ -469,12 +469,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.`;
 
+      console.log(`[Gemini] Requesting suggestions for userId: ${userId}`);
       const response = await generateContent(prompt);
+      console.log(`[Gemini] Raw response received. Length: ${response.length}`);
+      
       // Try to parse JSON from the response
-      const jsonMatch = response.match(/\{.*\}/s);
-      const data = jsonMatch ? JSON.parse(jsonMatch[0]) : { versions: [] };
+      // Look for a JSON array or object
+      let data = { versions: [] };
+      try {
+        const jsonMatch = response.match(/\[\s*\{.*\}\s*\]|\{\s*"versions".*\}/s);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          data = Array.isArray(parsed) ? { versions: parsed } : parsed;
+        } else {
+          // Fallback: search for anything that looks like a JSON block
+          const blockMatch = response.match(/\{[\s\S]*\}/);
+          if (blockMatch) {
+            data = JSON.parse(blockMatch[0]);
+          }
+        }
+      } catch (parseError) {
+        console.error("[Gemini] JSON parse failed, attempting line-based extraction:", parseError);
+        // If it's not valid JSON, maybe it's just a list of versions
+        const sections = response.split(/Post \d+:|Version \d+:/i).filter(s => s.trim().length > 50);
+        if (sections.length > 0) {
+          data.versions = sections.slice(0, 4).map(content => ({
+            post: content.trim(),
+            type: "Strategic"
+          }));
+        }
+      }
 
-      res.json({ success: true, versions: data.versions });
+      console.log(`[Gemini] Extracted ${data.versions?.length || 0} versions`);
+      res.json({ success: true, versions: data.versions || [] });
     } catch (error) {
       console.error("Failed to get suggestions:", error);
       res.json({ success: true, suggestions: [] }); // Fail silently for UI
