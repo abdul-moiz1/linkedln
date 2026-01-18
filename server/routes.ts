@@ -418,56 +418,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateContent } = await import("./lib/gemini");
-      const prompt = `CRITICAL: You are a senior founder and high-level strategist. You must expand the user's short idea into a HIGH-IMPACT, LONG-FORM LinkedIn post (300-450 words) that matches the EXACT length, emotional weight, and structural pacing of the provided example.
+      const prompt = `CRITICAL: YOU ARE A SENIOR FOUNDER AND ELITE STRATEGIST. YOU MUST EXPAND THE USER'S IDEA INTO A 300-450 WORD LINKEDIN POST.
+      
+      MANDATORY: NO SUMMARIZING. NO GENERIC ADVICE.
+      THE RESPONSE YOU JUST GAVE WAS TOO SHORT AND FAILED. DO NOT REPEAT IT.
       
       User's Style Analysis: ${writingStyle}
       Style DNA: ${styleDNA}
       Core Idea: "${content}"
 
-      MANDATORY: DO NOT summarize. You must write a FULL post that is 300-450 words long. 
-      If you return only a few lines, you have FAILED.
+      INSPIRATION EXAMPLE (Match this exact structural pacing and length):
+      ---
+      If an AI agent makes a million-dollar mistake, who do you fire?
       
-      MANDATORY EMOTIONAL PACING (Copy this logic):
-      1. THE PROVOCATIVE HOOK: A single, powerful question that challenges the status quo (e.g., "If an AI agent makes a mistake, who do you fire?").
+      We’re about to onboard digital employees (AI agents) into our companies...
       
-      2. THE SHIFT (The Reality Check): 
-         - 1-2 lines exposing a hidden truth.
-         - Use separate, punchy lines for emphasis: "We still call them [Tools]." / "But functionally, they behave like [Staff]."
+      We still call them “tools.”
+      But functionally, they behave like staff.
       
-      3. THE BUILD-UP (Short, ominous sentences):
-         - List 3-4 specific behaviors or implications, each on its own line.
-         - Use a transition line about "Not building a strategy, but building Shadow AI."
+      They read sensitive data.
+      Soon, they’ll execute transactions on our behalf.
       
-      4. THE STRATEGIC INSIGHT:
-         - A bold sentence defining a new "Operating System" or "Operating Model" for the problem.
+      To scale this safely, Enterprise Architecture must become the operating system...
       
-      5. THE NUMBERED FRAMEWORK (Enforced format):
-         - Use 1️⃣, 2️⃣, 3️⃣ emojis.
-         - Format: 
-           [Emoji] [Bold Title] ([Catchy Corporate Metaphor])
-           [Write a VERY long, 4-5 line paragraph of deep, authoritative explanation of WHY this matters and HOW it works. Be detailed.]
-         - Must leave significant white space between points.
+      1️⃣ Identity & Accountability (The ID Badge)
+      Every agent needs a clear identity... (Long, detailed explanation)
       
-      6. THE UNCOMFORTABLE QUESTION (Mid-point reflection):
-         - A separate section starting with: "Now the uncomfortable question:"
-         - 2-3 lines of deep organizational implication.
+      2️⃣ Authority Limits (The Corporate Card)
+      ...
       
-      7. THE REVELATION:
-         - A separate section about who/what manages this new reality.
-         - A bold, punchy summary (e.g., "That’s not a tooling problem. That’s architecture.").
+      Now the uncomfortable question:
+      Who manages these digital employees?
+      ---
+
+      MANDATORY RULES:
+      1. THE HOOK: Must be a provocative, one-line question that CHALLENGES the reader.
+      2. THE SHIFT: Use "We still call them [X]... But functionally [Y]" logic.
+      3. THE BUILD-UP: List 3-4 specific, punchy behavioral observations.
+      4. THE FRAMEWORK (3 Points): 
+         - Use 1️⃣, 2️⃣, 3️⃣.
+         - Format: [Emoji] [Bold Title] ([Metaphor])
+         - EACH point must be a 60-80 word paragraph of DEEP strategic insight.
+      5. UNCOMFORTABLE QUESTION: Must include a section titled "Now the uncomfortable question:" with 3-4 lines of heavy implication.
+      6. CONCLUSION: A powerful comparison (Innovation vs Strategy) and an ominous final warning.
       
-      8. THE POWERFUL CLOSING:
-         - A metaphor-driven summary (Innovation vs Architecture).
-         - A final ominous warning line: "If you don't [Action] now, they won't just work for you, they'll quietly start working around you."
+      PACING: Double space between ALL sections. Short paragraphs only (max 2 lines).
       
-      READABILITY & HYGIENE:
-      - TOTAL LENGTH: 300-450 words. Expand deeply on the implications.
-      - EMOTION: Serious, authoritative, urgent, and strategic.
-      - FORMAT: No paragraphs > 2 lines. Aggressive whitespace.
-      - HASHTAGS: 3-6 at the very bottom ONLY.
+      LENGTH: THE POST MUST BE 300-450 WORDS. DO NOT RETURN ANYTHING SHORT.
       
-      Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.
-      Example: { "versions": ["Post 1 content...", "Post 2 content..."] }`;
+      Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.`;
 
       const response = await generateContent(prompt);
       // Try to parse JSON from the response
