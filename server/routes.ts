@@ -418,30 +418,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateContent } = await import("./lib/gemini");
-      const prompt = `Expand the following idea into a high-impact, long-form LinkedIn post (200-350 words) that sounds like a senior founder or thought leader.
+      const prompt = `CRITICAL: You are a senior founder and thought leader. You must expand the user's short idea into a HIGH-IMPACT, LONG-FORM LinkedIn post of 250-350 words.
       
       User's Style Analysis: ${writingStyle}
       Style DNA: ${styleDNA}
       Core Idea: "${content}"
       
-      STRUCTURE & FORMATTING (MANDATORY):
-      1. HOOK: Start with a bold, curiosity-driven question or statement (1-2 lines). This MUST be the first line.
-      2. NARRATIVE FLOW: Follow this flow: Problem → Insight → Explanation → Implication.
-      3. READABILITY: Use frequent line breaks. No paragraph longer than 2 lines. Use natural line spacing (LinkedIn-friendly). AVOID walls of text.
-      4. NUMBERED SECTIONS: Use emoji numbers (1️⃣, 2️⃣, 3️⃣) for key points. Each section needs a short title and a concise explanation.
-      5. CLOSING: End with a strong provocative or reflective question to spark discussion.
-      6. HASHTAGS: Place hashtags ONLY at the end. Use 3-6 relevant hashtags. Format: #TopicName (no inline hashtags).
+      MANDATORY STRUCTURE (A complete post must look exactly like this):
+      1. HOOK: First line must be a BOLD, curiosity-driven question or statement (max 2 lines).
       
-      TONE & STYLE:
-      - Confident, strategic, and leadership-focused.
-      - NO hype words, NO "marketing" speak.
-      - NO emojis except for the numbered sections.
-      - Sound like a senior professional or founder.
+      2. NARRATIVE: 
+         - Problem: Explain the current struggle or status quo.
+         - Insight: Provide a unique perspective or "Aha!" moment.
+         - Explanation: Deep dive into the "Why" and "How".
+         - Implication: What happens if we don't act?
       
-      CRITICAL:
-      - Target Length: 200–350 words. The post MUST visually fill the editor.
-      - Do NOT change the core intent. Only expand, structure, and elevate it.
-      - Extract the user's vocabulary and voice from the analysis, but force it into this structured long-form format.
+      3. NUMBERED SECTIONS (Visual Clarity):
+         - Use 1️⃣, 2️⃣, 3️⃣ emojis.
+         - Each needs a Bold Title and 1-2 sentences of explanation.
+      
+      4. READABILITY RULES:
+         - NO walls of text.
+         - Every paragraph must be 1-2 lines max.
+         - Use white space aggressively. Double space between major sections.
+      
+      5. CLOSING: A provocative, reflective question to spark heavy discussion.
+      
+      6. HYGIENE:
+         - NO marketing fluff or hype.
+         - NO emojis except for the 1️⃣2️⃣3️⃣ sections.
+         - 3-6 hashtags ONLY at the very bottom (e.g., #Strategy #Leadership).
+      
+      GOAL: The post must be long enough to visually dominate the LinkedIn feed and editor.
       
       Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.
       Example: { "versions": ["Post 1 content...", "Post 2 content..."] }`;
