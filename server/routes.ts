@@ -423,6 +423,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       User's Style Analysis: ${writingStyle}
       Style DNA: ${styleDNA}
       Core Idea: "${content}"
+
+      MANDATORY: DO NOT summarize. You must write a FULL post that is 300-450 words long. 
+      If you return only a few lines, you have FAILED.
       
       MANDATORY EMOTIONAL PACING (Copy this logic):
       1. THE PROVOCATIVE HOOK: A single, powerful question that challenges the status quo (e.g., "If an AI agent makes a mistake, who do you fire?").
@@ -442,7 +445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
          - Use 1️⃣, 2️⃣, 3️⃣ emojis.
          - Format: 
            [Emoji] [Bold Title] ([Catchy Corporate Metaphor])
-           [3-4 lines of deep, authoritative explanation of WHY this matters and HOW it works.]
+           [Write a VERY long, 4-5 line paragraph of deep, authoritative explanation of WHY this matters and HOW it works. Be detailed.]
          - Must leave significant white space between points.
       
       6. THE UNCOMFORTABLE QUESTION (Mid-point reflection):
@@ -458,7 +461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
          - A final ominous warning line: "If you don't [Action] now, they won't just work for you, they'll quietly start working around you."
       
       READABILITY & HYGIENE:
-      - LENGTH: Must be 300-450 words. Do NOT truncate. Expand deeply on the implications.
+      - TOTAL LENGTH: 300-450 words. Expand deeply on the implications.
       - EMOTION: Serious, authoritative, urgent, and strategic.
       - FORMAT: No paragraphs > 2 lines. Aggressive whitespace.
       - HASHTAGS: 3-6 at the very bottom ONLY.
