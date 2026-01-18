@@ -418,30 +418,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateContent } = await import("./lib/gemini");
-      const prompt = `Based on the user's writing style and current post content/keywords, generate 4-5 distinct FULL LinkedIn post versions.
+      const prompt = `Expand the following idea into a high-impact, long-form LinkedIn post (200-350 words) that sounds like a senior founder or thought leader.
       
       User's Style Analysis: ${writingStyle}
       Style DNA: ${styleDNA}
-      Current Content/Keywords: "${content}"
+      Core Idea: "${content}"
       
-      CRITICAL INSTRUCTIONS:
-      1. IGNORE any non-LinkedIn formats (like emails, formal documents, or applications) found in the style samples.
-      2. EXTRACT only the user's vocabulary, tone, and unique "voice" (e.g., specific words they use, their level of casualness vs. professionality).
-      3. ADAPT this voice to a LinkedIn Post format:
-         - Start with a strong hook (first line).
-         - Use frequent line breaks for readability (avoid long paragraphs).
-         - Use professional LinkedIn formatting (emojis sparingly, bullet points for lists).
-         - Include a clear call-to-action or closing thought.
-      4. VARIETY:
-         - Version 1: Narrative style (storytelling).
-         - Version 2: Educational (how-to or tips).
-         - Version 3: Opinionated/Bold (strong perspective).
-         - Version 4: Short & Punchy (minimalist).
-         - Version 5: Question-driven (engaging the audience).
-      5. Keep each post under 1300 characters.
+      STRUCTURE & FORMATTING (MANDATORY):
+      1. HOOK: Start with a bold, curiosity-driven question or statement (1-2 lines).
+      2. NARRATIVE FLOW: Problem → Insight → Explanation → Implication.
+      3. READABILITY: Use frequent line breaks. No paragraph longer than 2 lines. Avoid walls of text.
+      4. NUMBERED SECTIONS: Use emoji numbers (1️⃣, 2️⃣, 3️⃣) for key points. Each section needs a short title and concise explanation.
+      5. CLOSING: End with a provocative or reflective question to spark discussion.
+      6. HASHTAGS: ONLY at the end. Use 3-6 relevant hashtags like #TopicName.
       
-      Return ONLY a JSON object with a "versions" array of strings. 
-      Example: { "versions": ["LinkedIn post version 1...", "LinkedIn post version 2..."] }`;
+      TONE & STYLE:
+      - Confident, strategic, and authoritative (Thought Leader tone).
+      - NO hype words, NO "marketing" speak.
+      - NO emojis except for the numbered sections.
+      - Sound senior and experienced.
+      
+      CRITICAL:
+      - Do NOT change the core intent.
+      - Expand the 1-3 lines into a full, editor-filling post.
+      - Extract the user's vocabulary and voice from the analysis provided, but adapt it to this professional LinkedIn format.
+      
+      Return ONLY a JSON object with a "versions" array of 4 distinct high-quality posts.
+      Example: { "versions": ["Post 1 content...", "Post 2 content..."] }`;
 
       const response = await generateContent(prompt);
       // Try to parse JSON from the response
