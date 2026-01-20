@@ -1,0 +1,74 @@
+You are working on a Firebase (Firestore) + frontend Carousel Maker app.
+
+OBJECTIVE
+- Remove ALL non-Basic templates from both Firestore and UI.
+- Keep ONLY 20 templates under the "Basic" category.
+- Ensure data consistency and do NOT break existing UI logic.
+
+STRICT REQUIREMENTS
+1. Completely remove these categories everywhere:
+   - Professional
+   - Creative
+   - Elite
+2. The app must only support:
+   - category: "Basic"
+3. Total templates in Firestore must be exactly 20.
+
+FIRESTORE CHANGES
+- Collection: carouselTemplates
+
+Steps:
+1. Delete all documents where:
+   category != "Basic"
+
+2. Ensure remaining documents:
+   - category is exactly "Basic"
+   - each has a unique templateId
+   - total count is capped at 20
+   - if more than 20 Basic templates exist:
+     - keep the first 20 (by createdAt)
+     - delete the rest
+
+Each remaining template document MUST include:
+{
+  templateId: string (unique, stable),
+  title: string,
+  category: "Basic",
+  slidesCount: number,
+  previewImages: string[],
+  isNew: boolean,
+  createdAt: timestamp
+}
+
+Do NOT:
+- Rename the collection
+- Change templateId values once assigned
+- Touch user-generated content
+
+FRONTEND UI CHANGES
+1. Remove all category filters, tabs, or labels related to:
+   - Professional
+   - Creative
+   - Elite
+
+2. UI should:
+   - Always display only "Basic"
+   - Fetch only category == "Basic" from Firestore
+   - Render a maximum of 20 templates
+
+3. Remove any hardcoded category references or badges except:
+   - "Basic"
+
+4. Ensure:
+   - Template cards still show preview image, title, slides count
+   - Hover slideshow still works (if implemented)
+   - templateId is used internally only (not displayed)
+
+FINAL STATE CHECK
+- Firestore has exactly 20 templates
+- All templates belong to "Basic"
+- UI shows only Basic section
+- No references to Professional / Creative / Elite exist in code or UI
+- App behavior and layout remain unchanged
+
+Apply changes carefully and safely.
