@@ -1,47 +1,54 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import type { CarouselTemplate } from "@shared/schema";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const TemplateCard = ({ template }: { template: CarouselTemplate }) => {
+const TemplateCard = ({ template }: { template: any }) => {
   const [, setLocation] = useLocation();
-  const config = template.designSchema ? JSON.parse(template.designSchema) : {};
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Use previewImages from Firestore or fallback to thumbnail
+  const previewImages = template.previewImages || [];
+  const hasSlideshow = previewImages.length > 0;
+
+  useEffect(() => {
+    if (isHovered && hasSlideshow) {
+      intervalRef.current = setInterval(() => {
+        setCurrentSlideIndex((prev) => (prev + 1) % previewImages.length);
+      }, 1500);
+    } else {
+      setCurrentSlideIndex(0);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isHovered, hasSlideshow, previewImages.length]);
 
   return (
     <div 
       className="group cursor-pointer flex flex-col gap-3"
-      onClick={() => setLocation(`/carousel-editor?template=${template.id}`)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={() => setLocation(`/carousel-editor?template=${template.templateId}`)}
     >
       <div className="aspect-[4/5] relative rounded-xl overflow-hidden shadow-sm border border-slate-200 group-hover:shadow-md transition-all duration-300 bg-white">
-        {template.thumbnailUrl ? (
-          <img 
-            src={template.thumbnailUrl} 
-            alt={template.name} 
-            className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div 
-            className="w-full h-full flex items-center justify-center p-4"
-            style={{ 
-              background: config.backgroundGradient || config.backgroundColor,
-              backgroundColor: config.backgroundColor 
-            }}
-          >
-            <h3 
-              className="text-xs font-bold text-center leading-tight drop-shadow-sm"
-              style={{ color: config.textColor }}
-            >
-              {template.name}
-            </h3>
-          </div>
-        )}
+        <img 
+          src={hasSlideshow && isHovered ? previewImages[currentSlideIndex] : (template.thumbnailUrl || previewImages[0])} 
+          alt={template.title} 
+          className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
+        />
         
-        <Badge className="absolute top-2 right-2 bg-[#00a0dc] hover:bg-[#008dbf] text-white border-none text-[10px] px-2 py-0.5 rounded-md font-bold shadow-sm">
-          New
-        </Badge>
+        {template.isNew && (
+          <Badge className="absolute top-2 right-2 bg-[#00a0dc] hover:bg-[#008dbf] text-white border-none text-[10px] px-2 py-0.5 rounded-md font-bold shadow-sm">
+            New
+          </Badge>
+        )}
 
         <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
           <Button size="sm" className="h-8 text-xs font-bold rounded-full px-4 shadow-lg bg-white text-slate-900 hover:bg-slate-50 border-none transition-transform transform translate-y-2 group-hover:translate-y-0">
@@ -51,14 +58,14 @@ const TemplateCard = ({ template }: { template: CarouselTemplate }) => {
         
         <div className="absolute top-2 left-2 z-10">
           <Badge className="bg-white/90 backdrop-blur-sm text-slate-900 border-none shadow-sm font-bold px-2 py-0.5 text-[9px] rounded-full">
-            {template.slideCount || 7} slides
+            {template.slidesCount || 0} slides
           </Badge>
         </div>
       </div>
       
       <div className="px-1 space-y-0.5">
         <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#00a0dc] transition-colors truncate">
-          {template.name}
+          {template.title}
         </h3>
         <p className="text-[11px] text-slate-400 font-medium">
           {template.category}

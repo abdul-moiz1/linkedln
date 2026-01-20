@@ -131,16 +131,18 @@ export async function seedTemplates(force = false) {
       console.log("[Firebase] Seeding templates into 'carouselTemplates' collection...");
       const initial = [
         { 
-          name: "Modern Professional", 
+          templateId: "tmpl_modern_professional_001",
+          title: "Modern Professional", 
           category: "Basic", 
           thumbnailUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400",
-          previewSlides: JSON.stringify([
+          previewImages: [
             "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400",
             "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400",
             "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400"
-          ]),
-          slideCount: 5,
+          ],
+          slidesCount: 5,
           isPublic: true,
+          isNew: true,
           designSchema: JSON.stringify({
             slides: Array(5).fill({
               backgroundColor: "#ffffff",
@@ -156,16 +158,18 @@ export async function seedTemplates(force = false) {
           })
         },
         { 
-          name: "Dark Authority", 
+          templateId: "tmpl_dark_authority_001",
+          title: "Dark Authority", 
           category: "Professional", 
           thumbnailUrl: "https://images.unsplash.com/photo-1557683316-973673baf926?w=400",
-          previewSlides: JSON.stringify([
+          previewImages: [
             "https://images.unsplash.com/photo-1557683316-973673baf926?w=400",
             "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400",
             "https://images.unsplash.com/photo-1558655146-d09347e92766?w=400"
-          ]),
-          slideCount: 7,
+          ],
+          slidesCount: 7,
           isPublic: true,
+          isNew: false,
           designSchema: JSON.stringify({
             slides: Array(7).fill({
               backgroundColor: "#111827",
@@ -183,12 +187,39 @@ export async function seedTemplates(force = false) {
       ];
 
       for (const t of initial) {
+        // Use set with templateId as document ID if unique, or let add generate one
         await db.collection("carouselTemplates").add({ 
           ...t, 
           createdAt: admin.firestore.FieldValue.serverTimestamp() 
         });
       }
       console.log(`[Firebase] Seeding complete. Added ${initial.length} new templates.`);
+    } else {
+      // Backfill logic for existing templates
+      const templates = await db.collection("carouselTemplates").get();
+      const batch = db.batch();
+      let updatedCount = 0;
+
+      templates.forEach(doc => {
+        const data = doc.data();
+        if (!data.templateId) {
+          const generatedId = `tmpl_${data.title?.toLowerCase().replace(/\s+/g, '_') || doc.id}_${Math.random().toString(36).substr(2, 5)}`;
+          batch.update(doc.ref, { 
+            templateId: generatedId,
+            // Mapping old fields to new ones if missing
+            title: data.title || data.name || "Untitled Template",
+            slidesCount: data.slidesCount || data.slideCount || 5,
+            previewImages: data.previewImages || (data.previewSlides ? JSON.parse(data.previewSlides) : []),
+            isNew: data.isNew !== undefined ? data.isNew : false
+          });
+          updatedCount++;
+        }
+      });
+
+      if (updatedCount > 0) {
+        await batch.commit();
+        console.log(`[Firebase] Backfilled templateId for ${updatedCount} templates.`);
+      }
     }
   } catch (e) { 
     console.error("[Firebase] Seeding failed:", e); 
