@@ -4,7 +4,7 @@ import type { CarouselTemplate } from "@shared/schema";
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+
 
 const TemplateCard = ({ template }: { template: any }) => {
   const [, setLocation] = useLocation();
@@ -79,9 +79,7 @@ export default function TemplateGallery() {
   const { data: templates, isLoading } = useQuery<CarouselTemplate[]>({
     queryKey: ["/api/carousel-templates"],
   });
-  const [activeTab, setActiveTab] = useState("Templates");
-
-  const categories = ["Basic", "Professional", "Creative", "Elite"];
+  
 
   if (isLoading) {
     return (
@@ -103,75 +101,11 @@ export default function TemplateGallery() {
         <p className="text-slate-500 text-sm">Design high-performing LinkedIn carousel posts in minutes.</p>
       </div>
 
-      <div className="flex items-center gap-8 border-b border-slate-200">
-        <button 
-          className={cn(
-            "pb-4 text-sm font-bold transition-all relative",
-            activeTab === "Templates" ? "text-[#00a0dc]" : "text-slate-500 hover:text-slate-700"
-          )}
-          onClick={() => setActiveTab("Templates")}
-        >
-          Templates
-          {activeTab === "Templates" && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00a0dc]" />}
-        </button>
-        <button 
-          className={cn(
-            "pb-4 text-sm font-bold transition-all relative flex items-center gap-2",
-            activeTab === "Saved" ? "text-[#00a0dc]" : "text-slate-500 hover:text-slate-700"
-          )}
-          onClick={() => setActiveTab("Saved")}
-        >
-          Saved
-          <span className="bg-[#00a0dc] text-white px-1.5 py-0.5 rounded-full text-[10px]">7</span>
-          {activeTab === "Saved" && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00a0dc]" />}
-        </button>
-        <button 
-          className={cn(
-            "pb-4 text-sm font-bold transition-all relative",
-            activeTab === "Text to Carousel" ? "text-[#00a0dc]" : "text-slate-500 hover:text-slate-700"
-          )}
-          onClick={() => setActiveTab("Text to Carousel")}
-        >
-          Text to Carousel
-          {activeTab === "Text to Carousel" && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00a0dc]" />}
-        </button>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-20">
+        {templates?.map((template) => (
+          <TemplateCard key={template.id} template={template} />
+        ))}
       </div>
-
-      {activeTab === "Templates" && (
-        <div className="space-y-12 pb-20">
-          {categories.map((cat) => (
-            <div key={cat} className="space-y-6">
-              <div className="space-y-1">
-                <h2 className="text-xl font-bold text-slate-900">{cat}</h2>
-                <p className="text-sm text-slate-500">
-                  {cat === "Basic" ? "For those who want to get started quickly." : 
-                   cat === "Professional" ? "Sleek, corporate designs for B2B authority." : 
-                   cat === "Creative" ? "Bold, unique layouts to stand out in the feed." :
-                   "High-end designs for maximum impact."}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                {templates?.filter(t => t.category === cat).map((template) => (
-                  <TemplateCard key={template.id} template={template} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === "Saved" && (
-        <div className="text-center py-40 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-          <p className="text-slate-500 font-medium">No saved templates found.</p>
-        </div>
-      )}
-
-      {activeTab === "Text to Carousel" && (
-        <div className="text-center py-40 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-          <p className="text-slate-500 font-medium">AI Text to Carousel is coming soon!</p>
-        </div>
-      )}
     </div>
   );
 }
