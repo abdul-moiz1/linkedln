@@ -152,21 +152,43 @@ export async function seedTemplates(force = false) {
         
         const slides = Array.from({ length: slidesCount }, (_, index) => {
           let layoutType: "title" | "text" | "image" | "mixed" = "text";
-          if (index === 0) layoutType = "title";
-          else if (index === slidesCount - 1) layoutType = "mixed";
-          else if (index === 1 && slidesCount === 5) layoutType = "image";
+          let textAlign: "left" | "center" | "right" = "center";
+          
+          // Unique styling based on index and template number
+          if (index === 0) {
+            layoutType = "title";
+            textAlign = i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right";
+          } else if (index === slidesCount - 1) {
+            layoutType = "mixed"; // CTA slide
+            textAlign = "center";
+          } else {
+            // Variety for middle slides
+            const variety = (i + index) % 4;
+            if (variety === 0) layoutType = "text";
+            else if (variety === 1) layoutType = "image";
+            else if (variety === 2) layoutType = "mixed";
+            else layoutType = "text";
+            
+            textAlign = (i + index) % 2 === 0 ? "left" : "center";
+          }
+
+          const placeholder: any = {
+            title: index === 0 ? `The Power of Data-Driven Marketing in B2B` : 
+                   index === slidesCount - 1 ? "What are your thoughts?" : 
+                   `Key Insight #${index}`,
+            subtitle: index === 0 ? "The Power of Data-Driven Marketing in B2B" : "",
+            body: layoutType === "text" || layoutType === "mixed" ? 
+                  (index === slidesCount - 1 ? "Ready to transform your B2B marketing with data?\n\nFollow for more!" : 
+                  "Personalize content using data insights to build stronger B2B relationships and trust.") : "",
+            image: layoutType === "image" || layoutType === "mixed" ? `https://images.unsplash.com/photo-${1600000000000 + i * 1000000 + index}?w=800` : ""
+          };
 
           return {
             slideIndex: index,
             layoutType,
-            backgroundColor: colorSet.bg,
-            textAlign: "center",
-            placeholder: {
-              title: index === 0 ? `Template ${i}: Master Hook` : `Point ${index}`,
-              subtitle: index === 0 ? "The sub-headline that keeps them sliding" : "",
-              body: layoutType === "text" || layoutType === "mixed" ? "Provide high-value insight here. Keep it punchy and readable." : "",
-              image: layoutType === "image" || layoutType === "mixed" ? `https://images.unsplash.com/photo-${1600000000000 + i * 1000000}?w=800` : ""
-            },
+            backgroundColor: (i + index) % 5 === 0 ? colorSet.secondary : colorSet.bg,
+            textAlign,
+            placeholder,
             fontFamily: font,
             accentColor: colorSet.accent
           };
