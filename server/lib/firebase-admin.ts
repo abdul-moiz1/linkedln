@@ -125,101 +125,96 @@ export async function seedTemplates(force = false) {
     const db = getDb();
     if (!db) return;
     
-    const snapshot = await db.collection("carouselTemplates").limit(1).get();
+    // Check if we already have our 20 basic templates
+    const snapshot = await db.collection("carouselTemplates")
+      .where("category", "==", "Basic")
+      .get();
     
-    if (snapshot.empty || force) {
-      console.log("[Firebase] Seeding templates into 'carouselTemplates' collection...");
-      const initial = [
-        { 
-          templateId: "tmpl_modern_professional_001",
-          title: "Modern Professional", 
-          category: "Basic", 
-          thumbnailUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400",
-          previewImages: [
-            "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400",
-            "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400",
-            "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400"
-          ],
-          slidesCount: 5,
-          isPublic: true,
-          isNew: true,
-          designSchema: JSON.stringify({
-            slides: Array(5).fill({
-              backgroundColor: "#ffffff",
-              titleText: "Slide Title",
-              bodyText: "Build your authority with this clean template.",
-              fontFamily: "Inter",
-              fontSize: "24px",
-              textAlignment: "center",
-              imagePlaceholder: false,
-              padding: "40px",
-              accentColor: "#00a0dc"
-            })
-          })
-        },
-        { 
-          templateId: "tmpl_dark_authority_001",
-          title: "Dark Authority", 
-          category: "Professional", 
-          thumbnailUrl: "https://images.unsplash.com/photo-1557683316-973673baf926?w=400",
-          previewImages: [
-            "https://images.unsplash.com/photo-1557683316-973673baf926?w=400",
-            "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400",
-            "https://images.unsplash.com/photo-1558655146-d09347e92766?w=400"
-          ],
-          slidesCount: 7,
-          isPublic: true,
-          isNew: false,
-          designSchema: JSON.stringify({
-            slides: Array(7).fill({
-              backgroundColor: "#111827",
-              titleText: "Executive Summary",
-              bodyText: "High-impact dark theme for B2B creators.",
-              fontFamily: "Roboto",
-              fontSize: "22px",
-              textAlignment: "left",
-              imagePlaceholder: true,
-              padding: "32px",
-              accentColor: "#3b82f6"
-            })
-          })
-        }
+    if (snapshot.size < 20 || force) {
+      console.log("[Firebase] Seeding 20 Basic templates into 'carouselTemplates' collection...");
+      
+      const templates = [];
+      const colors = [
+        { primary: "#00a0dc", secondary: "#f3f6f8", bg: "#ffffff", text: "#1d2226", accent: "#0073b1" }, // LinkedIn Blue
+        { primary: "#e84e1b", secondary: "#fff5f2", bg: "#ffffff", text: "#1a1a1a", accent: "#ff6b35" }, // Energetic Orange
+        { primary: "#057642", secondary: "#e6f4ea", bg: "#ffffff", text: "#1a1a1a", accent: "#0a8d48" }, // Professional Green
+        { primary: "#7127a8", secondary: "#f3e8ff", bg: "#ffffff", text: "#1a1a1a", accent: "#9333ea" }, // Creative Purple
+        { primary: "#111827", secondary: "#374151", bg: "#111827", text: "#ffffff", accent: "#3b82f6" }, // Dark Mode
       ];
 
-      for (const t of initial) {
-        // Use set with templateId as document ID if unique, or let add generate one
-        await db.collection("carouselTemplates").add({ 
-          ...t, 
-          createdAt: admin.firestore.FieldValue.serverTimestamp() 
-        });
-      }
-      console.log(`[Firebase] Seeding complete. Added ${initial.length} new templates.`);
-    } else {
-      // Backfill logic for existing templates
-      const templates = await db.collection("carouselTemplates").get();
-      const batch = db.batch();
-      let updatedCount = 0;
+      const fonts = ["Inter", "Roboto", "Montserrat", "Playfair Display", "Open Sans"];
+      
+      for (let i = 1; i <= 20; i++) {
+        const id = `basic_${i.toString().padStart(3, '0')}`;
+        const colorSet = colors[i % colors.length];
+        const font = fonts[i % fonts.length];
+        const slidesCount = (i % 2 === 0) ? 4 : 5;
+        
+        const slides = Array.from({ length: slidesCount }, (_, index) => {
+          let layoutType: "title" | "text" | "image" | "mixed" = "text";
+          if (index === 0) layoutType = "title";
+          else if (index === slidesCount - 1) layoutType = "mixed";
+          else if (index === 1 && slidesCount === 5) layoutType = "image";
 
-      templates.forEach(doc => {
-        const data = doc.data();
-        if (!data.templateId) {
-          const generatedId = `tmpl_${data.title?.toLowerCase().replace(/\s+/g, '_') || doc.id}_${Math.random().toString(36).substr(2, 5)}`;
-          batch.update(doc.ref, { 
-            templateId: generatedId,
-            // Mapping old fields to new ones if missing
-            title: data.title || data.name || "Untitled Template",
-            slidesCount: data.slidesCount || data.slideCount || 5,
-            previewImages: data.previewImages || (data.previewSlides ? JSON.parse(data.previewSlides) : []),
-            isNew: data.isNew !== undefined ? data.isNew : false
-          });
-          updatedCount++;
-        }
+          return {
+            slideIndex: index,
+            layoutType,
+            backgroundColor: colorSet.bg,
+            textAlign: "center",
+            placeholder: {
+              title: index === 0 ? `Template ${i}: Master Hook` : `Point ${index}`,
+              subtitle: index === 0 ? "The sub-headline that keeps them sliding" : "",
+              body: layoutType === "text" || layoutType === "mixed" ? "Provide high-value insight here. Keep it punchy and readable." : "",
+              image: layoutType === "image" || layoutType === "mixed" ? `https://images.unsplash.com/photo-${1600000000000 + i * 1000000}?w=800` : ""
+            },
+            fontFamily: font,
+            accentColor: colorSet.accent
+          };
+        });
+
+        const template = {
+          templateId: id,
+          category: "Basic",
+          title: `Professional Guide ${i}`,
+          description: `A high-converting basic template for LinkedIn creators, version ${i}.`,
+          slidesCount,
+          isNew: i > 15,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          theme: {
+            primaryColor: colorSet.primary,
+            secondaryColor: colorSet.secondary,
+            backgroundColor: colorSet.bg,
+            textColor: colorSet.text,
+            accentColor: colorSet.accent
+          },
+          preview: {
+            coverImage: `https://images.unsplash.com/photo-${1611162617213 + i}?w=400`,
+            hoverSlides: slides.map((_, idx) => `https://images.unsplash.com/photo-${1611162617213 + i + idx}?w=400`)
+          },
+          slides,
+          customization: {
+            allowTextEdit: true,
+            allowColorChange: true,
+            allowImageUpload: true,
+            allowReorderSlides: true
+          }
+        };
+        templates.push(template);
+      }
+
+      const batch = db.batch();
+      // Clear existing Basic templates if forcing
+      if (force) {
+        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+      }
+
+      templates.forEach(t => {
+        const ref = db.collection("carouselTemplates").doc(t.templateId);
+        batch.set(ref, t);
       });
 
-      if (updatedCount > 0) {
-        await batch.commit();
-        console.log(`[Firebase] Backfilled templateId for ${updatedCount} templates.`);
-      }
+      await batch.commit();
+      console.log(`[Firebase] Seeding complete. Added ${templates.length} Basic templates.`);
     }
   } catch (e) { 
     console.error("[Firebase] Seeding failed:", e); 

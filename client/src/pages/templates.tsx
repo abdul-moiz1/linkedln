@@ -12,15 +12,16 @@ const TemplateCard = ({ template }: { template: any }) => {
   const [isHovered, setIsHovered] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Use previewImages from Firestore or fallback to thumbnail
-  const previewImages = template.previewImages || [];
-  const hasSlideshow = previewImages.length > 0;
+  // Use preview.hoverSlides from Firestore or fallback to previewImages/thumbnail
+  const hoverSlides = template.preview?.hoverSlides || template.previewImages || [];
+  const coverImage = template.preview?.coverImage || template.thumbnailUrl || hoverSlides[0];
+  const hasSlideshow = hoverSlides.length > 0;
 
   useEffect(() => {
     if (isHovered && hasSlideshow) {
       intervalRef.current = setInterval(() => {
-        setCurrentSlideIndex((prev) => (prev + 1) % previewImages.length);
-      }, 1500);
+        setCurrentSlideIndex((prev) => (prev + 1) % hoverSlides.length);
+      }, 600); // 600ms as per requirements
     } else {
       setCurrentSlideIndex(0);
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -28,7 +29,7 @@ const TemplateCard = ({ template }: { template: any }) => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isHovered, hasSlideshow, previewImages.length]);
+  }, [isHovered, hasSlideshow, hoverSlides.length]);
 
   return (
     <div 
@@ -39,7 +40,7 @@ const TemplateCard = ({ template }: { template: any }) => {
     >
       <div className="aspect-[4/5] relative rounded-xl overflow-hidden shadow-sm border border-slate-200 group-hover:shadow-md transition-all duration-300 bg-white">
         <img 
-          src={hasSlideshow && isHovered ? previewImages[currentSlideIndex] : (template.thumbnailUrl || previewImages[0])} 
+          src={hasSlideshow && isHovered ? hoverSlides[currentSlideIndex] : coverImage} 
           alt={template.title} 
           className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
         />
@@ -76,9 +77,12 @@ const TemplateCard = ({ template }: { template: any }) => {
 };
 
 export default function TemplateGallery() {
-  const { data: templates, isLoading } = useQuery<CarouselTemplate[]>({
+  const { data: allTemplates, isLoading } = useQuery<CarouselTemplate[]>({
     queryKey: ["/api/carousel-templates"],
   });
+  
+  // Filter for Basic category only as per requirements
+  const templates = allTemplates?.filter(t => t.category === "Basic");
   
 
   if (isLoading) {
