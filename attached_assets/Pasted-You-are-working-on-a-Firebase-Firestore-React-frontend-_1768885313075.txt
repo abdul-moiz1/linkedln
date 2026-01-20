@@ -1,0 +1,141 @@
+You are working on a Firebase (Firestore) + React frontend Carousel Maker app.
+
+GOAL
+Seed exactly 20 high-quality "Basic" carousel templates in Firestore that visually and functionally match modern LinkedIn carousel tools (like the provided reference).
+
+These templates must support:
+- Different color themes
+- Placeholder images
+- Multiple slide styles
+- Hover-based slideshow preview
+- Full customization when opened
+
+DO NOT break existing UI or logic.
+
+────────────────────────
+FIRESTORE STRUCTURE
+────────────────────────
+
+Collection: carouselTemplates
+
+Seed EXACTLY 20 documents.
+
+Each template document MUST include:
+
+{
+  templateId: string,              // unique, stable (e.g. "basic_001")
+  category: "Basic",
+  title: string,
+  description: string,
+  slidesCount: number,             // 4 or 5 only
+  isNew: boolean,
+  createdAt: timestamp,
+
+  theme: {
+    primaryColor: string,
+    secondaryColor: string,
+    backgroundColor: string,
+    textColor: string,
+    accentColor: string
+  },
+
+  preview: {
+    coverImage: string,            // used in template grid
+    hoverSlides: string[]          // 4–5 images for hover slideshow
+  },
+
+  slides: [
+    {
+      slideIndex: number,
+      layoutType: "title" | "text" | "image" | "mixed",
+      backgroundColor: string,
+      textAlign: "left" | "center" | "right",
+      placeholder: {
+        title?: string,
+        subtitle?: string,
+        body?: string,
+        image?: string
+      }
+    }
+  ],
+
+  customization: {
+    allowTextEdit: true,
+    allowColorChange: true,
+    allowImageUpload: true,
+    allowReorderSlides: true
+  }
+}
+
+────────────────────────
+SEEDING RULES
+────────────────────────
+
+1. Category
+- ALL templates must be category = "Basic"
+- No Professional / Creative / Elite
+
+2. Identity
+- Each template must have a unique templateId
+  Example:
+  - basic_001
+  - basic_002
+  ...
+  - basic_020
+
+3. Slides
+- Each template must contain 4 or 5 slides
+- Slides must vary in layout:
+  - Title-only slides
+  - Text slides
+  - Image + text slides
+- Each slide should look visually different
+
+4. Visual Variety
+Across the 20 templates:
+- Use different color palettes
+- Use different typography styles (simulated via layout + spacing)
+- Use different placeholder image URLs
+- Some minimal, some bold, some dark, some light
+
+5. Preview & Hover
+- preview.coverImage is shown in grid
+- preview.hoverSlides is an ordered list of slide previews
+- UI must cycle hoverSlides automatically on mouse hover (slideshow effect)
+
+────────────────────────
+FRONTEND UI REQUIREMENTS
+────────────────────────
+
+Update the template grid so that:
+
+1. It fetches ONLY category == "Basic"
+2. Shows:
+   - coverImage
+   - title
+   - slidesCount badge
+3. On hover:
+   - Automatically cycles through hoverSlides every ~600ms
+4. Clicking a template:
+   - Opens editor with slides preloaded
+   - All placeholders are editable
+   - Images are replaceable
+
+DO NOT:
+- Show templateId in UI
+- Change existing routing
+- Hardcode template data in frontend
+
+────────────────────────
+FINAL CHECKLIST
+────────────────────────
+
+✔ Firestore has exactly 20 templates  
+✔ All templates are "Basic"  
+✔ Each template has unique identity  
+✔ 4–5 slides per template  
+✔ Hover slideshow works  
+✔ Templates are fully customizable  
+✔ UI visually resembles modern carousel tools  
+
+Proceed carefully and implement cleanly.
