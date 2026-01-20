@@ -5,49 +5,87 @@ import SlideEditor from "@/components/SlideEditor";
 import CarouselPreview from "@/components/CarouselPreview";
 import SlideNavigation from "@/components/SlideNavigation";
 import { useToast } from "@/hooks/use-toast";
-
-const INITIAL_STATE = {
-  meta: {
-    title: "Basic #22",
-    lastSaved: "Jan 15, 2026, 10:14 AM",
-  },
-  profile: {
-    name: "Jon Snow",
-    handle: "@jon-snow",
-    avatar: "",
-  },
-  theme: {
-    backgroundMode: "solid",
-    backgroundColor: "#27115F",
-    primaryColor: "#D9D6FE",
-    secondaryColor: "#FFFFFF",
-    primaryFont: "Onest",
-    secondaryFont: "Inter",
-  },
-  slides: [
-    { title: "The Title of Your Visual Post Here", description: "Lorem ipsum: Lorem ipsum dolor sit amet, consetetur sadipscing." },
-    { title: "Slide 2 Title", description: "This is slide 2 description." },
-    { title: "Slide 3 Title", description: "This is slide 3 description." },
-    { title: "Slide 4 Title", description: "This is slide 4 description." },
-    { title: "Slide 5 Title", description: "This is slide 5 description." },
-  ],
-};
+import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import type { CarouselTemplate } from "@shared/schema";
 
 export default function CarouselEditor() {
   const { toast } = useToast();
-  const [carousel, setCarousel] = useState(INITIAL_STATE);
+  const [location] = useLocation();
+  const searchParams = new URLSearchParams(location.split('?')[1]);
+  const templateId = searchParams.get('template');
+
+  const { data: templates } = useQuery<CarouselTemplate[]>({
+    queryKey: ["/api/carousel-templates"],
+  });
+
+  const selectedTemplate = templates?.find(t => t.templateId === templateId);
+
+  const [carousel, setCarousel] = useState({
+    meta: {
+      title: "New Carousel",
+      lastSaved: new Date().toLocaleString(),
+    },
+    profile: {
+      name: "Jon Snow",
+      handle: "@jon-snow",
+      avatar: "",
+    },
+    theme: {
+      backgroundMode: "solid",
+      backgroundColor: "#27115F",
+      primaryColor: "#D9D6FE",
+      secondaryColor: "#FFFFFF",
+      primaryFont: "Onest",
+      secondaryFont: "Inter",
+    },
+    slides: [
+      { title: "The Title of Your Visual Post Here", description: "Lorem ipsum: Lorem ipsum dolor sit amet, consetetur sadipscing." },
+    ],
+  });
+
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   useEffect(() => {
+    if (selectedTemplate) {
+      setCarousel({
+        meta: {
+          title: selectedTemplate.templateId, // Show exact Firestore ID
+          lastSaved: new Date().toLocaleString(),
+        },
+        profile: {
+          name: "Jon Snow",
+          handle: "@jon-snow",
+          avatar: "",
+        },
+        theme: {
+          backgroundMode: "solid",
+          backgroundColor: (selectedTemplate as any).theme?.backgroundColor || "#27115F",
+          primaryColor: (selectedTemplate as any).theme?.primaryColor || "#D9D6FE",
+          secondaryColor: (selectedTemplate as any).theme?.secondaryColor || "#FFFFFF",
+          primaryFont: "Onest",
+          secondaryFont: "Inter",
+        },
+        slides: (selectedTemplate as any).slides?.map((s: any) => ({
+          title: s.placeholder?.title || "",
+          description: s.placeholder?.body || "",
+        })) || [
+          { title: "The Title of Your Visual Post Here", description: "Lorem ipsum: Lorem ipsum dolor sit amet, consetetur sadipscing." },
+        ],
+      });
+    }
+  }, [selectedTemplate]);
+
+  useEffect(() => {
     const saved = localStorage.getItem("carousel_editor_data");
-    if (saved) {
+    if (saved && !templateId) {
       try {
         setCarousel(JSON.parse(saved));
       } catch (e) {
         console.error("Failed to load carousel data", e);
       }
     }
-  }, []);
+  }, [templateId]);
 
   const handleSave = () => {
     const now = new Date().toLocaleString("en-US", {

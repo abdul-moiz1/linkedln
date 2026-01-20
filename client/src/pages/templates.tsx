@@ -68,9 +68,6 @@ const TemplateCard = ({ template }: { template: any }) => {
         <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#00a0dc] transition-colors truncate">
           {template.title}
         </h3>
-        <p className="text-[11px] text-slate-400 font-medium">
-          {template.category}
-        </p>
       </div>
     </div>
   );
