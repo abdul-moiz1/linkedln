@@ -6,7 +6,6 @@ const isFirebaseConfigured = Boolean(
   process.env.FIREBASE_PRIVATE_KEY
 );
 
-// Storage bucket from env var (VITE_ prefix for frontend, but we also use it on backend)
 const storageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET;
 
 let adminDb: admin.firestore.Firestore | null = null;
@@ -38,30 +37,15 @@ if (isFirebaseConfigured) {
       adminAuth = admin.auth();
       adminStorage = admin.storage();
       
-      // Test Firestore connection and seed immediately if needed
       adminDb.listCollections()
         .then(async (collections) => {
           console.log("Firestore connection verified. Collections:", collections.map(c => c.id));
-          // Log explicitly to help user find the collection
-          console.log("[Firebase] Seeding templates into collection 'templates'...");
+          console.log("[Firebase] Seeding templates into collection 'carouselTemplates'...");
           await seedTemplates(true);
-          
-          // Debug check after seed
-          if (adminDb) {
-            const snap = await adminDb.collection("templates").get();
-            console.log(`[Firebase] POST-SEED CHECK: 'templates' collection has ${snap.size} documents.`);
-            snap.docs.forEach(doc => console.log(`  - ${doc.data().name} (${doc.data().category})`));
-          }
         })
         .catch((connError: any) => console.error("Firestore connection test failed:", connError.message));
     } catch (instanceError) {
       console.error("Failed to get Firebase service instances:", instanceError);
-    }
-    
-    if (storageBucket) {
-      console.log(`Firebase Storage configured with bucket: ${storageBucket}`);
-    } else {
-      console.warn("Firebase Storage bucket not configured. Set VITE_FIREBASE_STORAGE_BUCKET or FIREBASE_STORAGE_BUCKET");
     }
   } catch (error) {
     console.warn("Firebase initialization failed:", error);
@@ -72,7 +56,6 @@ function getDb() {
   if (isFirebaseConfigured && !adminDb) {
     try {
       adminDb = admin.firestore();
-      console.log("[Firebase] Firestore initialized");
     } catch (error) {
       console.error("[Firebase] Firestore init failed:", error);
     }
@@ -83,14 +66,9 @@ function getDb() {
 export async function getTemplates(): Promise<any[]> {
   try {
     const db = getDb();
-    if (!db) {
-      console.warn("[Firebase] No DB instance during getTemplates");
-      return [];
-    }
-    const snapshot = await db.collection("templates").get();
-    const templates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log(`[Firebase] Fetched ${templates.length} templates from 'templates' collection`);
-    return templates;
+    if (!db) return [];
+    const snapshot = await db.collection("carouselTemplates").get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
     console.error("[Firebase] getTemplates error:", error);
     return [];
@@ -101,14 +79,13 @@ export async function saveTemplate(templateData: any): Promise<any> {
   try {
     const db = getDb();
     if (!db) throw new Error("Firebase not configured");
-    const templateRef = db.collection("templates").doc();
+    const templateRef = db.collection("carouselTemplates").doc();
     const data = { 
       ...templateData, 
       createdAt: admin.firestore.FieldValue.serverTimestamp(), 
       updatedAt: admin.firestore.FieldValue.serverTimestamp() 
     };
     await templateRef.set(data);
-    console.log(`[Firebase] Saved template ${templateRef.id} to 'templates' collection`);
     return { id: templateRef.id, ...templateData };
   } catch (error) {
     console.error("[Firebase] saveTemplate error:", error);
@@ -117,35 +94,34 @@ export async function saveTemplate(templateData: any): Promise<any> {
 }
 
 export async function seedTemplates(force = false) {
-  if (!isFirebaseConfigured) {
-    console.warn("[Firebase] Skipping seed: not configured");
-    return;
-  }
+  if (!isFirebaseConfigured) return;
   try {
     const db = getDb();
     if (!db) return;
     
-    // Check if we already have our 20 basic templates
-    const snapshot = await db.collection("carouselTemplates")
-      .where("category", "==", "Basic")
-      .get();
+    const snapshot = await db.collection("carouselTemplates").where("category", "==", "Basic").get();
     
     if (snapshot.size < 20 || force) {
-      console.log("[Firebase] Seeding 20 Basic templates into 'carouselTemplates' collection...");
+      console.log("[Firebase] Seeding 20 Basic templates...");
       
-      const templates = [];
       const colors = [
-        { primary: "#00a0dc", secondary: "#f3f6f8", bg: "#ffffff", text: "#1d2226", accent: "#0073b1" }, // LinkedIn Blue
-        { primary: "#e84e1b", secondary: "#fff5f2", bg: "#ffffff", text: "#1a1a1a", accent: "#ff6b35" }, // Energetic Orange
-        { primary: "#057642", secondary: "#e6f4ea", bg: "#ffffff", text: "#1a1a1a", accent: "#0a8d48" }, // Professional Green
-        { primary: "#7127a8", secondary: "#f3e8ff", bg: "#ffffff", text: "#1a1a1a", accent: "#9333ea" }, // Creative Purple
-        { primary: "#111827", secondary: "#374151", bg: "#111827", text: "#ffffff", accent: "#3b82f6" }, // Dark Mode
+        { primary: "#00a0dc", secondary: "#f3f6f8", bg: "#ffffff", text: "#1d2226", accent: "#0073b1" },
+        { primary: "#e84e1b", secondary: "#fff5f2", bg: "#ffffff", text: "#1a1a1a", accent: "#ff6b35" },
+        { primary: "#057642", secondary: "#e6f4ea", bg: "#ffffff", text: "#1a1a1a", accent: "#0a8d48" },
+        { primary: "#7127a8", secondary: "#f3e8ff", bg: "#ffffff", text: "#1a1a1a", accent: "#9333ea" },
+        { primary: "#111827", secondary: "#374151", bg: "#111827", text: "#ffffff", accent: "#3b82f6" },
       ];
 
       const fonts = ["Inter", "Roboto", "Montserrat", "Playfair Display", "Open Sans"];
+      const slideImageIds = [
+        "1460925895917-afdab827c52f", "1551288049-bebda4e38f71", "1557683316-973673baf926",
+        "1516321318423-f06f85e504b3", "1558655146-d09347e92766", "1542744094-24638eff58bb",
+        "1551434678-e076c223a692", "1522202176988-66273c2fd55f", "1504384308090-c894fdcc538d",
+        "1517245318773-b7b8b42d3933"
+      ];
       
+      const templates = [];
       for (let i = 1; i <= 20; i++) {
-        const id = `basic_${i.toString().padStart(3, '0')}`;
         const colorSet = colors[i % colors.length];
         const font = fonts[i % fonts.length];
         const slidesCount = (i % 2 === 0) ? 4 : 5;
@@ -154,33 +130,34 @@ export async function seedTemplates(force = false) {
           let layoutType: "title" | "text" | "image" | "mixed" = "text";
           let textAlign: "left" | "center" | "right" = "center";
           
-          // Unique styling based on index and template number
           if (index === 0) {
             layoutType = "title";
             textAlign = i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right";
           } else if (index === slidesCount - 1) {
-            layoutType = "mixed"; // CTA slide
+            layoutType = "mixed";
             textAlign = "center";
           } else {
-            // Variety for middle slides
             const variety = (i + index) % 4;
             if (variety === 0) layoutType = "text";
             else if (variety === 1) layoutType = "image";
             else if (variety === 2) layoutType = "mixed";
             else layoutType = "text";
-            
             textAlign = (i + index) % 2 === 0 ? "left" : "center";
           }
 
-          const placeholder: any = {
-            title: index === 0 ? `The Power of Data-Driven Marketing in B2B` : 
+          const imgIndex = (i * 3 + index) % slideImageIds.length;
+          const imageId = slideImageIds[imgIndex];
+          const imageUrl = `https://images.unsplash.com/photo-${imageId}?auto=format&fit=crop&w=800&q=80`;
+
+          const placeholder = {
+            title: index === 0 ? `The Essence of Leadership` : 
                    index === slidesCount - 1 ? "What are your thoughts?" : 
-                   `Key Insight #${index}`,
-            subtitle: index === 0 ? "The Power of Data-Driven Marketing in B2B" : "",
+                   `Strategic Insight #${index}`,
+            subtitle: index === 0 ? "Building High-Performance Teams in 2026" : "",
             body: layoutType === "text" || layoutType === "mixed" ? 
-                  (index === slidesCount - 1 ? "Ready to transform your B2B marketing with data?\n\nFollow for more!" : 
-                  "Personalize content using data insights to build stronger B2B relationships and trust.") : "",
-            image: layoutType === "image" || layoutType === "mixed" ? `https://images.unsplash.com/photo-${1600000000000 + i * 1000000 + index}?w=800` : ""
+                  (index === slidesCount - 1 ? "Ready to transform your leadership style?\n\nFollow for more!" : 
+                  "True leadership isn't about being in charge. It's about taking care of those in your charge.") : "",
+            image: layoutType === "image" || layoutType === "mixed" ? imageUrl : ""
           };
 
           return {
@@ -194,11 +171,14 @@ export async function seedTemplates(force = false) {
           };
         });
 
-        const template = {
-          templateId: id,
+        const coverImgIndex = (i * 7) % slideImageIds.length;
+        const coverImageId = slideImageIds[coverImgIndex];
+        
+        templates.push({
+          templateId: `basic_${i.toString().padStart(3, '0')}`,
           category: "Basic",
           title: `Professional Guide ${i}`,
-          description: `A high-converting basic template for LinkedIn creators, version ${i}.`,
+          description: `A high-converting basic template for LinkedIn creators.`,
           slidesCount,
           isNew: i > 15,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -210,8 +190,11 @@ export async function seedTemplates(force = false) {
             accentColor: colorSet.accent
           },
           preview: {
-            coverImage: `https://images.unsplash.com/photo-${1611162617213 + i}?w=400`,
-            hoverSlides: slides.map((_, idx) => `https://images.unsplash.com/photo-${1611162617213 + i + idx}?w=400`)
+            coverImage: `https://images.unsplash.com/photo-${coverImageId}?auto=format&fit=crop&w=600&q=80`,
+            hoverSlides: slides.map((_, idx) => {
+              const slideImgIndex = (i * 3 + idx) % slideImageIds.length;
+              return `https://images.unsplash.com/photo-${slideImageIds[slideImgIndex]}?auto=format&fit=crop&w=600&q=80`;
+            })
           },
           slides,
           customization: {
@@ -220,969 +203,110 @@ export async function seedTemplates(force = false) {
             allowImageUpload: true,
             allowReorderSlides: true
           }
-        };
-        templates.push(template);
+        });
       }
 
       const batch = db.batch();
-      // Clear existing Basic templates if forcing
-      if (force) {
-        snapshot.docs.forEach(doc => batch.delete(doc.ref));
-      }
-
-      templates.forEach(t => {
-        const ref = db.collection("carouselTemplates").doc(t.templateId);
-        batch.set(ref, t);
-      });
-
+      if (force) snapshot.docs.forEach(doc => batch.delete(doc.ref));
+      templates.forEach(t => batch.set(db.collection("carouselTemplates").doc(t.templateId), t));
       await batch.commit();
-      console.log(`[Firebase] Seeding complete. Added ${templates.length} Basic templates.`);
+      console.log(`[Firebase] Seeded ${templates.length} templates.`);
     }
-  } catch (e) { 
-    console.error("[Firebase] Seeding failed:", e); 
+  } catch (e) {
+    console.error("[Firebase] Seeding failed:", e);
   }
 }
 
 export { adminDb, adminAuth, adminStorage, isFirebaseConfigured, adminDb as adminFirestore };
 
-// ============================================
-// FIREBASE STORAGE OPERATIONS
-// ============================================
-
-/**
- * Check if Firebase Storage is properly configured
- */
 export function isStorageConfigured(): boolean {
-  const configured = !!(adminStorage && storageBucket);
-  console.log(`[Storage Debug] isStorageConfigured: ${configured}, adminStorage: ${!!adminStorage}, storageBucket: "${storageBucket}"`);
-  return configured;
+  return !!(adminStorage && storageBucket);
 }
 
-/**
- * Get the Storage bucket instance
- */
 function getStorageBucket() {
-  if (!adminStorage) {
-    throw new Error("Firebase Storage not configured");
-  }
-  // Explicitly pass the bucket name to ensure correct bucket is used
-  const bucketName = storageBucket || undefined;
-  console.log(`[Storage Debug] Getting bucket with name: ${bucketName}`);
-  return adminStorage.bucket(bucketName);
+  if (!adminStorage) throw new Error("Firebase Storage not configured");
+  return adminStorage.bucket(storageBucket);
 }
 
-/**
- * Upload a base64 image to Firebase Storage and return the public URL
- * @param base64Data - Base64 encoded image data (with or without data URI prefix)
- * @param carouselId - The carousel ID for organizing files
- * @param slideNumber - The slide number
- * @param contentType - MIME type of the image (default: image/png)
- * @returns Public download URL for the uploaded image
- */
-export async function uploadImageToStorage(
-  base64Data: string,
-  carouselId: string,
-  slideNumber: number,
-  contentType: string = "image/png"
-): Promise<string> {
-  if (!adminStorage || !storageBucket) {
-    throw new Error("Firebase Storage not configured. Please set VITE_FIREBASE_STORAGE_BUCKET");
-  }
-
-  console.log(`[uploadImageToStorage] Starting upload for carousel: ${carouselId}, slide: ${slideNumber}`);
-
+export async function uploadImageToStorage(base64Data: string, carouselId: string, slideNumber: number, contentType: string = "image/png"): Promise<string> {
+  if (!adminStorage || !storageBucket) throw new Error("Firebase Storage not configured");
   const bucket = getStorageBucket();
-  
-  // Remove data URI prefix if present (e.g., "data:image/png;base64,")
   let imageData = base64Data;
   if (base64Data.startsWith("data:")) {
     const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
-    if (matches) {
-      contentType = matches[1];
-      imageData = matches[2];
-    }
+    if (matches) { contentType = matches[1]; imageData = matches[2]; }
   }
-
-  // Convert base64 to buffer
   const buffer = Buffer.from(imageData, "base64");
-  console.log(`[uploadImageToStorage] Image buffer size: ${buffer.length} bytes`);
-  
-  // Generate unique file path: carousels/{carouselId}/slide_{slideNumber}_{timestamp}.png
-  const timestamp = Date.now();
-  const extension = contentType.split("/")[1] || "png";
-  const filePath = `carousels/${carouselId}/slide_${slideNumber}_${timestamp}.${extension}`;
-  
+  const filePath = `carousels/${carouselId}/slide_${slideNumber}_${Date.now()}.${contentType.split("/")[1] || "png"}`;
   const file = bucket.file(filePath);
-  
-  try {
-    // Upload the file with public read access
-    await file.save(buffer, {
-      metadata: {
-        contentType,
-        cacheControl: "public, max-age=31536000",
-      },
-      public: true, // Make file public during upload
-    });
-    console.log(`[uploadImageToStorage] File saved successfully`);
-
-    // Return the public URL using Firebase Storage URL format
-    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(filePath)}?alt=media`;
-    console.log(`[uploadImageToStorage] Public URL: ${publicUrl}`);
-    
-    return publicUrl;
-  } catch (uploadError: any) {
-    console.error(`[uploadImageToStorage] Upload failed:`, uploadError.message || uploadError);
-    throw uploadError;
-  }
+  await file.save(buffer, { metadata: { contentType, cacheControl: "public, max-age=31536000" }, public: true });
+  return `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(filePath)}?alt=media`;
 }
 
-/**
- * Upload a PDF to Firebase Storage and return the public URL
- * @param base64Data - Base64 encoded PDF data (with or without data URI prefix)
- * @param carouselId - The carousel ID for organizing files
- * @returns Public download URL for the uploaded PDF
- */
-export async function uploadPdfToStorage(
-  base64Data: string,
-  carouselId: string
-): Promise<string> {
-  if (!adminStorage || !storageBucket) {
-    throw new Error("Firebase Storage not configured. Please set VITE_FIREBASE_STORAGE_BUCKET");
-  }
-
-  console.log(`[uploadPdfToStorage] Starting upload for carousel: ${carouselId}`);
-  console.log(`[uploadPdfToStorage] Bucket name: ${storageBucket}`);
-
+export async function uploadPdfToStorage(base64Data: string, carouselId: string): Promise<string> {
+  if (!adminStorage || !storageBucket) throw new Error("Firebase Storage not configured");
   const bucket = getStorageBucket();
-  
-  // Remove data URI prefix if present
   let pdfData = base64Data;
   if (base64Data.startsWith("data:")) {
     const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
-    if (matches) {
-      pdfData = matches[2];
-    }
+    if (matches) { pdfData = matches[2]; }
   }
-
-  // Convert base64 to buffer
   const buffer = Buffer.from(pdfData, "base64");
-  console.log(`[uploadPdfToStorage] PDF buffer size: ${buffer.length} bytes`);
-  
-  // Generate unique file path: carousels/{carouselId}/carousel_{timestamp}.pdf
-  const timestamp = Date.now();
-  const filePath = `carousels/${carouselId}/carousel_${timestamp}.pdf`;
-  console.log(`[uploadPdfToStorage] File path: ${filePath}`);
-  
+  const filePath = `carousels/${carouselId}/carousel_${Date.now()}.pdf`;
   const file = bucket.file(filePath);
-  
-  try {
-    // Upload the file with public read access
-    await file.save(buffer, {
-      metadata: {
-        contentType: "application/pdf",
-        cacheControl: "public, max-age=31536000",
-      },
-      public: true, // Make file public during upload
-    });
-    console.log(`[uploadPdfToStorage] File saved successfully`);
-
-    // Return the public URL using Firebase Storage URL format
-    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(filePath)}?alt=media`;
-    console.log(`[uploadPdfToStorage] Public URL: ${publicUrl}`);
-    
-    return publicUrl;
-  } catch (uploadError: any) {
-    console.error(`[uploadPdfToStorage] Upload failed:`, uploadError.message || uploadError);
-    throw uploadError;
-  }
+  await file.save(buffer, { metadata: { contentType: "application/pdf", cacheControl: "public, max-age=31536000" }, public: true });
+  return `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(filePath)}?alt=media`;
 }
 
-/**
- * Delete all files for a carousel from Firebase Storage
- * @param carouselId - The carousel ID
- */
 export async function deleteCarouselFiles(carouselId: string): Promise<void> {
-  if (!adminStorage || !storageBucket) {
-    console.warn("Firebase Storage not configured, skipping file deletion");
-    return;
-  }
-
+  if (!adminStorage || !storageBucket) return;
   const bucket = getStorageBucket();
-  const prefix = `carousels/${carouselId}/`;
-  
   try {
-    const [files] = await bucket.getFiles({ prefix });
-    
-    if (files.length > 0) {
-      await Promise.all(files.map(file => file.delete()));
-      console.log(`Deleted ${files.length} files for carousel ${carouselId}`);
-    }
-  } catch (error) {
-    console.error(`Error deleting files for carousel ${carouselId}:`, error);
-  }
+    const [files] = await bucket.getFiles({ prefix: `carousels/${carouselId}/` });
+    if (files.length > 0) await Promise.all(files.map(file => file.delete()));
+  } catch (error) { console.error(`Error deleting files for carousel ${carouselId}:`, error); }
 }
 
-/**
- * Storage listing result 
- */
-export interface StorageListResult {
-  success: boolean;
-  images: { slideNumber: number; imageUrl: string }[];
-  error?: string;
-}
+export interface StorageListResult { success: boolean; images: { slideNumber: number; imageUrl: string }[]; error?: string; }
 
-/**
- * List all image files for a carousel from Firebase Storage
- * Returns image URLs sorted by slide number with explicit success/error status
- * @param carouselId - The carousel ID
- * @returns StorageListResult with success status and images
- */
 export async function listCarouselImages(carouselId: string): Promise<StorageListResult> {
-  if (!adminStorage || !storageBucket) {
-    console.warn("Firebase Storage not configured");
-    return { success: false, images: [], error: "Firebase Storage not configured" };
-  }
-
+  if (!adminStorage || !storageBucket) return { success: false, images: [], error: "Firebase Storage not configured" };
   const bucket = getStorageBucket();
-  const prefix = `carousels/${carouselId}/`;
-  
   try {
-    const [files] = await bucket.getFiles({ prefix });
-    
+    const [files] = await bucket.getFiles({ prefix: `carousels/${carouselId}/` });
     const imageFiles = files
-      .filter(file => {
-        const name = file.name;
-        return name.includes("slide_") && (name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".webp"));
-      })
+      .filter(file => file.name.includes("slide_") && /\.(png|jpg|jpeg|webp)$/i.test(file.name))
       .map(file => {
-        const name = file.name;
-        const slideMatch = name.match(/slide_(\d+)_/);
-        const slideNumber = slideMatch ? parseInt(slideMatch[1], 10) : 0;
-        const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(file.name)}?alt=media`;
-        return { slideNumber, imageUrl };
+        const slideMatch = file.name.match(/slide_(\d+)_/);
+        return { slideNumber: slideMatch ? parseInt(slideMatch[1], 10) : 0, imageUrl: `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(file.name)}?alt=media` };
       })
       .sort((a, b) => a.slideNumber - b.slideNumber);
-    
-    console.log(`[listCarouselImages] Found ${imageFiles.length} images for carousel ${carouselId}`);
     return { success: true, images: imageFiles };
-  } catch (error: any) {
-    console.error(`Error listing images for carousel ${carouselId}:`, error);
-    return { success: false, images: [], error: error.message || "Unknown storage error" };
-  }
+  } catch (error: any) { return { success: false, images: [], error: error.message }; }
 }
 
-/**
- * Recovery result status types
- */
-export type RecoveryStatus = 
-  | "recovered"           // Successfully recovered images from storage
-  | "already_has_images"  // All slides already have images
-  | "no_storage_images"   // No images found in storage to recover
-  | "storage_error"       // Error listing/accessing storage
-  | "not_found";          // Carousel not found
-
-/**
- * Recovery result with explicit status
- */
-export interface RecoveryResult {
-  status: RecoveryStatus;
-  carousel: Carousel | null;
-  recoveredCount: number;
-  storageImageCount: number;
-  errorMessage?: string;
-}
-
-/**
- * Recover slide images from Firebase Storage for a carousel with empty slides
- * This is useful for carousels that have PDFs but lost their slide image references
- * @param carouselId - The carousel ID
- * @returns Recovery result with explicit status
- */
-export async function recoverCarouselImages(carouselId: string): Promise<RecoveryResult> {
-  const db = getDb();
-  const carouselRef = db.collection("carousels").doc(carouselId);
-  const doc = await carouselRef.get();
-  
-  if (!doc.exists) {
-    return { status: "not_found", carousel: null, recoveredCount: 0, storageImageCount: 0 };
-  }
-  
-  const carousel = { id: doc.id, ...doc.data() } as Carousel;
-  
-  // Get images from storage
-  const storageResult = await listCarouselImages(carouselId);
-  
-  // Handle storage errors
-  if (!storageResult.success) {
-    console.error(`[recoverCarouselImages] Storage error for carousel ${carouselId}: ${storageResult.error}`);
-    return { 
-      status: "storage_error", 
-      carousel, 
-      recoveredCount: 0, 
-      storageImageCount: 0,
-      errorMessage: storageResult.error
-    };
-  }
-  
-  const storageImages = storageResult.images;
-  
-  // Check if slides already have images
-  // Only skip recovery if ALL slides have images, not just some
-  const totalSlides = carousel.slides?.length || 0;
-  const slidesWithImages = carousel.slides?.filter(s => s.imageUrl || s.base64Image) || [];
-  const allSlidesHaveImages = totalSlides > 0 && slidesWithImages.length === totalSlides;
-  
-  if (allSlidesHaveImages) {
-    console.log(`[recoverCarouselImages] All ${slidesWithImages.length} slides already have images for carousel ${carouselId}`);
-    return { 
-      status: "already_has_images", 
-      carousel, 
-      recoveredCount: 0, 
-      storageImageCount: storageImages.length 
-    };
-  }
-  
-  // Log when partial images exist but we'll still proceed with recovery
-  if (slidesWithImages.length > 0) {
-    console.log(`[recoverCarouselImages] Only ${slidesWithImages.length}/${totalSlides} slides have images - proceeding with full recovery for carousel ${carouselId}`);
-  }
-  
-  if (storageImages.length === 0) {
-    console.log(`[recoverCarouselImages] No images found in storage for carousel ${carouselId}`);
-    return { 
-      status: "no_storage_images", 
-      carousel, 
-      recoveredCount: 0, 
-      storageImageCount: 0 
-    };
-  }
-  
-  console.log(`[recoverCarouselImages] Recovering ${storageImages.length} images for carousel ${carouselId}`);
-  
-  // Merge storage images with existing slides to preserve text content
-  // Create a map of storage images by slide number for easy lookup
-  const storageImageMap = new Map<number, string>();
-  storageImages.forEach(img => {
-    storageImageMap.set(img.slideNumber, img.imageUrl);
-  });
-  
-  let recoveredSlides: CarouselSlide[];
-  let imagesAddedCount = 0;
-  
-  if (carousel.slides && carousel.slides.length > 0) {
-    // Merge images into existing slides, preserving text content
-    recoveredSlides = carousel.slides.map((slide, idx) => {
-      const slideNum = slide.number || idx + 1;
-      const storageImageUrl = storageImageMap.get(slideNum);
-      
-      if (storageImageUrl && !slide.imageUrl && !slide.base64Image) {
-        imagesAddedCount++;
-        return {
-          ...slide,
-          number: slideNum,
-          imageUrl: storageImageUrl,
-        };
-      }
-      return { ...slide, number: slideNum };
-    });
-    
-    // Add any storage images that don't have matching slides
-    storageImages.forEach((img, idx) => {
-      const existingSlide = recoveredSlides.find(s => s.number === img.slideNumber);
-      if (!existingSlide) {
-        recoveredSlides.push({
-          number: img.slideNumber || idx + 1,
-          rawText: "",
-          finalText: "",
-          imagePrompt: "",
-          layout: "big_text_center" as const,
-          imageUrl: img.imageUrl,
-        });
-        imagesAddedCount++;
-      }
-    });
-    
-    // Sort by slide number
-    recoveredSlides.sort((a, b) => (a.number || 0) - (b.number || 0));
-  } else {
-    // No existing slides, create new ones from storage images
-    recoveredSlides = storageImages.map((img, idx) => ({
-      number: img.slideNumber || idx + 1,
-      rawText: "",
-      finalText: "",
-      imagePrompt: "",
-      layout: "big_text_center" as const,
-      imageUrl: img.imageUrl,
-    }));
-    imagesAddedCount = recoveredSlides.length;
-  }
-  
-  // Update the carousel with recovered slides
-  await carouselRef.update({
-    slides: recoveredSlides,
-    status: "images_generated",
-    updatedAt: new Date(),
-  });
-  
-  console.log(`[recoverCarouselImages] Recovered ${imagesAddedCount} images (${recoveredSlides.length} total slides) for carousel ${carouselId}`);
-  
-  const updatedCarousel = {
-    ...carousel,
-    slides: recoveredSlides,
-    status: "images_generated" as const,
-  };
-  
-  return { 
-    status: "recovered", 
-    carousel: updatedCarousel, 
-    recoveredCount: imagesAddedCount, 
-    storageImageCount: storageImages.length 
-  };
-}
-
-/**
- * Get a signed URL for a file (useful for temporary access to private files)
- * @param filePath - The path to the file in Storage
- * @param expiresInMinutes - How long the URL should be valid (default: 60 minutes)
- * @returns Signed URL that expires after the specified time
- */
-export async function getSignedUrl(
-  filePath: string,
-  expiresInMinutes: number = 60
-): Promise<string> {
-  if (!adminStorage || !storageBucket) {
-    throw new Error("Firebase Storage not configured");
-  }
-
+export async function getSignedUrl(filePath: string, expiresInMinutes: number = 60): Promise<string> {
+  if (!adminStorage || !storageBucket) throw new Error("Firebase Storage not configured");
   const bucket = getStorageBucket();
   const file = bucket.file(filePath);
-  
-  const [url] = await file.getSignedUrl({
-    action: "read",
-    expires: Date.now() + expiresInMinutes * 60 * 1000,
-  });
-  
+  const [url] = await file.getSignedUrl({ action: "read", expires: Date.now() + expiresInMinutes * 60 * 1000 });
   return url;
 }
 
-export interface User {
-  id: string;
-  linkedinId: string;
-  email: string;
-  name: string;
-  profilePicture?: string | null;
-  accessToken: string;
-  refreshToken?: string | null;
-  tokenExpiresAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Project {
-  id: string;
-  userId: string;
-  title: string;
-  messages: string[];
-  imageUrls: string[];
-  pdfUrl?: string;
-  status: "draft" | "images_generated" | "pdf_created" | "published";
-  linkedinPostId?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Carousel Types for LinkedIn-style carousels
-export type CarouselType = 
-  | "custom"
-  | "story-flow"
-  | "educational"
-  | "before-after"
-  | "checklist"
-  | "quote"
-  | "stats-data"
-  | "portfolio"
-  | "comparison"
-  | "achievement"
-  | "framework"
-  | "tips-howto"
-  | "quote-inspiration";
-
-export interface CarouselTypeInfo {
-  id: CarouselType;
-  name: string;
-  description: string;
-  slideCount: { min: number; max: number };
-}
-
-export const CAROUSEL_TYPES: CarouselTypeInfo[] = [
-  { id: "custom", name: "Custom", description: "Any length you need (min 2 slides)", slideCount: { min: 2, max: 20 } },
-  { id: "story-flow", name: "Story-Flow", description: "Tell a narrative across slides", slideCount: { min: 3, max: 5 } },
-  { id: "educational", name: "Educational", description: "Teach concepts step by step", slideCount: { min: 3, max: 5 } },
-  { id: "before-after", name: "Before/After", description: "Show transformation or comparison", slideCount: { min: 2, max: 4 } },
-  { id: "checklist", name: "Checklist", description: "Present actionable items", slideCount: { min: 3, max: 5 } },
-  { id: "quote", name: "Quote", description: "Feature impactful quotes", slideCount: { min: 2, max: 4 } },
-  { id: "stats-data", name: "Stats/Data", description: "Present key statistics", slideCount: { min: 3, max: 5 } },
-  { id: "portfolio", name: "Portfolio", description: "Showcase work examples", slideCount: { min: 3, max: 5 } },
-  { id: "comparison", name: "Comparison", description: "Compare options or choices", slideCount: { min: 2, max: 4 } },
-  { id: "achievement", name: "Achievement", description: "Highlight accomplishments", slideCount: { min: 2, max: 5 } },
-  { id: "framework", name: "Framework", description: "Present a methodology or process", slideCount: { min: 3, max: 5 } },
-  { id: "tips-howto", name: "Tips & How-To", description: "Share actionable advice", slideCount: { min: 3, max: 5 } },
-  { id: "quote-inspiration", name: "Quote", description: "Feature powerful quotes", slideCount: { min: 2, max: 4 } },
-];
-
-// Layout types for slides
-export type SlideLayout = "title_top" | "big_text_center" | "points_center" | "footer_cta" | "split_image_text";
-
-// Individual slide in a carousel
-export interface CarouselSlide {
+export type CarouselSlide = {
   number: number;
   rawText: string;
   finalText: string;
   imagePrompt: string;
-  layout: SlideLayout;
-  base64Image?: string; // data:image/png;base64,... (legacy, for backward compatibility)
-  imageUrl?: string; // Firebase Storage URL (preferred)
-}
+  layout: "big_text_center" | "split_left" | "split_right" | "image_full";
+  imageUrl?: string;
+  base64Image?: string;
+};
 
-// Carousel document structure for Firestore
 export interface Carousel {
   id: string;
   userId: string;
   title: string;
-  carouselType: CarouselType;
   slides: CarouselSlide[];
-  pdfBase64?: string; // data:application/pdf;base64,... (legacy, for backward compatibility)
-  pdfUrl?: string; // Firebase Storage URL (preferred)
-  status: "draft" | "processing" | "images_generated" | "pdf_created" | "published";
-  linkedinPostId?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Session {
-  id: string;
-  userId: string;
-  accessToken: string;
-  expiresAt: Date;
-  createdAt: Date;
-}
-
-export async function saveUser(userData: Omit<User, "id" | "createdAt" | "updatedAt">) {
-  const db = getDb();
-  const now = new Date();
-  const userRef = db.collection("users").doc(userData.linkedinId);
-  
-  // Sanitize user data to convert undefined to null for Firestore
-  const sanitizedData: Record<string, any> = {};
-  for (const [key, value] of Object.entries(userData)) {
-    sanitizedData[key] = value === undefined ? null : value;
-  }
-  
-  await userRef.set({
-    ...sanitizedData,
-    updatedAt: now,
-  }, { merge: true });
-
-  const doc = await userRef.get();
-  if (!doc.exists) {
-    await userRef.set({
-      ...sanitizedData,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
-
-  return { id: userRef.id, ...userData };
-}
-
-export async function getUser(linkedinId: string): Promise<User | null> {
-  const db = getDb();
-  const doc = await db.collection("users").doc(linkedinId).get();
-  if (!doc.exists) return null;
-  return { id: doc.id, ...doc.data() } as User;
-}
-
-export async function saveProject(projectData: Omit<Project, "id" | "createdAt" | "updatedAt">) {
-  const db = getDb();
-  const now = new Date();
-  const projectRef = db.collection("projects").doc();
-  
-  await projectRef.set({
-    ...projectData,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  return { id: projectRef.id, ...projectData, createdAt: now, updatedAt: now };
-}
-
-export async function updateProject(projectId: string, updates: Partial<Project>) {
-  const db = getDb();
-  const projectRef = db.collection("projects").doc(projectId);
-  await projectRef.update({
-    ...updates,
-    updatedAt: new Date(),
-  });
-}
-
-export async function getUserProjects(userId: string): Promise<Project[]> {
-  const db = getDb();
-  const snapshot = await db.collection("projects")
-    .where("userId", "==", userId)
-    .orderBy("updatedAt", "desc")
-    .get();
-  
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
-}
-
-export async function getProject(projectId: string): Promise<Project | null> {
-  const db = getDb();
-  const doc = await db.collection("projects").doc(projectId).get();
-  if (!doc.exists) return null;
-  return { id: doc.id, ...doc.data() } as Project;
-}
-
-export async function updateUserProfileUrl(userId: string, profileUrl: string): Promise<void> {
-  const db = getDb();
-  const userRef = db.collection("users").doc(userId);
-  await userRef.set({
-    profileUrl,
-    updatedAt: new Date(),
-  }, { merge: true });
-}
-
-// Cache TTL in milliseconds (24 hours)
-const POSTS_CACHE_TTL = 24 * 60 * 60 * 1000;
-
-export interface CachedPosts {
-  userId: string;
-  posts: any[];
-  cachedAt: Date;
-  expiresAt: Date;
-}
-
-/**
- * Get cached LinkedIn posts for a user
- * Returns null if cache is expired or doesn't exist
- */
-export async function getCachedPosts(userId: string): Promise<any[] | null> {
-  const db = getDb();
-  const cacheRef = db.collection("posts_cache").doc(userId);
-  const doc = await cacheRef.get();
-  
-  if (!doc.exists) {
-    return null;
-  }
-  
-  const data = doc.data() as CachedPosts;
-  const expiresAt = data.expiresAt instanceof Date ? data.expiresAt : new Date((data.expiresAt as any).toDate());
-  
-  // Check if cache is expired
-  if (expiresAt < new Date()) {
-    console.log(`Posts cache expired for user ${userId}`);
-    return null;
-  }
-  
-  console.log(`Found ${data.posts?.length || 0} cached posts for user ${userId}`);
-  return data.posts;
-}
-
-/**
- * Save LinkedIn posts to cache for a user
- */
-export async function saveCachedPosts(userId: string, posts: any[]): Promise<void> {
-  const db = getDb();
-  const cacheRef = db.collection("posts_cache").doc(userId);
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + POSTS_CACHE_TTL);
-  
-  await cacheRef.set({
-    userId,
-    posts,
-    cachedAt: now,
-    expiresAt,
-  });
-  
-  console.log(`Cached ${posts.length} posts for user ${userId}, expires at ${expiresAt.toISOString()}`);
-}
-
-/**
- * Clear cached posts for a user (useful when they want to force refresh)
- */
-export async function clearCachedPosts(userId: string): Promise<void> {
-  const db = getDb();
-  const cacheRef = db.collection("posts_cache").doc(userId);
-  await cacheRef.delete();
-  console.log(`Cleared posts cache for user ${userId}`);
-}
-
-// ============================================
-// CAROUSEL CRUD OPERATIONS
-// ============================================
-
-/**
- * Recursively sanitize an object for Firestore - removes undefined/null values
- */
-function sanitizeForFirestore(obj: any): any {
-  if (obj === null || obj === undefined) {
-    return null;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeForFirestore(item)).filter(item => item !== null);
-  }
-  if (typeof obj === 'object' && !(obj instanceof Date)) {
-    const cleaned: Record<string, any> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if (value !== undefined && value !== null) {
-        cleaned[key] = sanitizeForFirestore(value);
-      }
-    }
-    return cleaned;
-  }
-  return obj;
-}
-
-/**
- * Create a new carousel
- */
-export async function createCarousel(carouselData: Omit<Carousel, "id" | "createdAt" | "updatedAt">): Promise<Carousel> {
-  const db = getDb();
-  const now = new Date();
-  const carouselRef = db.collection("carousels").doc();
-  
-  // Sanitize the carousel data before saving
-  const sanitizedData = sanitizeForFirestore(carouselData);
-  
-  const carousel: Omit<Carousel, "id"> = {
-    ...sanitizedData,
-    createdAt: now,
-    updatedAt: now,
-  };
-  
-  await carouselRef.set(carousel);
-  
-  return { id: carouselRef.id, ...carousel };
-}
-
-/**
- * Get a carousel by ID
- */
-export async function getCarousel(carouselId: string): Promise<Carousel | null> {
-  const db = getDb();
-  const doc = await db.collection("carousels").doc(carouselId).get();
-  if (!doc.exists) return null;
-  return { id: doc.id, ...doc.data() } as Carousel;
-}
-
-/**
- * Get all carousels for a user
- */
-export async function getUserCarousels(userId: string): Promise<Carousel[]> {
-  const db = getDb();
-  // Note: We avoid using orderBy with where to prevent needing a composite index
-  const snapshot = await db.collection("carousels")
-    .where("userId", "==", userId)
-    .get();
-  
-  const carousels = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Carousel));
-  
-  // Sort by updatedAt descending (most recent first)
-  carousels.sort((a, b) => {
-    const dateA = a.updatedAt instanceof Date ? a.updatedAt : 
-                  (a.updatedAt as any)?._seconds ? new Date((a.updatedAt as any)._seconds * 1000) : 
-                  new Date(a.updatedAt || 0);
-    const dateB = b.updatedAt instanceof Date ? b.updatedAt : 
-                  (b.updatedAt as any)?._seconds ? new Date((b.updatedAt as any)._seconds * 1000) : 
-                  new Date(b.updatedAt || 0);
-    return dateB.getTime() - dateA.getTime();
-  });
-  
-  return carousels;
-}
-
-/**
- * Update a carousel
- */
-export async function updateCarousel(carouselId: string, updates: Partial<Carousel>): Promise<void> {
-  const db = getDb();
-  const carouselRef = db.collection("carousels").doc(carouselId);
-  
-  // Sanitize the updates to remove any undefined/null values that Firestore can't handle
-  const sanitizedUpdates = sanitizeForFirestore(updates);
-  
-  await carouselRef.update({
-    ...sanitizedUpdates,
-    updatedAt: new Date(),
-  });
-}
-
-/**
- * Update a specific slide in a carousel (used for storing Base64 images)
- */
-export async function updateCarouselSlide(
-  carouselId: string, 
-  slideNumber: number, 
-  slideData: Partial<CarouselSlide>
-): Promise<void> {
-  const db = getDb();
-  const carouselRef = db.collection("carousels").doc(carouselId);
-  const doc = await carouselRef.get();
-  
-  if (!doc.exists) {
-    throw new Error("Carousel not found");
-  }
-  
-  const carousel = doc.data() as Carousel;
-  
-  // Sanitize the slideData before merging
-  const sanitizedSlideData = sanitizeForFirestore(slideData);
-  
-  const updatedSlides = carousel.slides.map(slide => 
-    slide.number === slideNumber ? { ...slide, ...sanitizedSlideData } : slide
-  );
-  
-  // Sanitize the entire slides array before saving
-  const sanitizedSlides = sanitizeForFirestore(updatedSlides);
-  
-  await carouselRef.update({
-    slides: sanitizedSlides,
-    updatedAt: new Date(),
-  });
-}
-
-/**
- * Save Base64 PDF to carousel
- */
-export async function saveCarouselPdf(carouselId: string, pdfBase64: string): Promise<void> {
-  const db = getDb();
-  const carouselRef = db.collection("carousels").doc(carouselId);
-  
-  // Only save if pdfBase64 is a valid string
-  if (!pdfBase64 || typeof pdfBase64 !== 'string') {
-    throw new Error("Invalid PDF data");
-  }
-  
-  await carouselRef.update({
-    pdfBase64,
-    status: "pdf_created",
-    updatedAt: new Date(),
-  });
-}
-
-/**
- * Delete a carousel
- */
-export async function deleteCarousel(carouselId: string): Promise<void> {
-  const db = getDb();
-  await db.collection("carousels").doc(carouselId).delete();
-}
-
-/**
- * Migrate guest carousels to a user account
- * Called when a guest logs in to claim their carousels
- */
-export async function migrateGuestCarousels(guestId: string, newUserId: string): Promise<number> {
-  const db = getDb();
-  const guestUserId = `guest-${guestId}`;
-  
-  const snapshot = await db.collection("carousels")
-    .where("userId", "==", guestUserId)
-    .get();
-  
-  let migratedCount = 0;
-  const batch = db.batch();
-  
-  snapshot.docs.forEach(doc => {
-    batch.update(doc.ref, {
-      userId: newUserId,
-      updatedAt: new Date(),
-    });
-    migratedCount++;
-  });
-  
-  if (migratedCount > 0) {
-    await batch.commit();
-    console.log(`Migrated ${migratedCount} carousels from ${guestUserId} to ${newUserId}`);
-  }
-  
-  return migratedCount;
-}
-
-// ============================================
-// LINKED LINKEDIN INTEGRATION
-// ============================================
-
-interface LinkedLinkedInData {
-  linkedinId: string;
-  name: string;
-  email: string;
-  picture?: string;
-  accessToken: string;
-  expiresAt: Date;
-}
-
-/**
- * Save linked LinkedIn credentials for a Firebase user
- * This allows Firebase users to connect their LinkedIn for publishing without switching accounts
- */
-export async function saveLinkedLinkedIn(firebaseUserId: string, linkedinData: LinkedLinkedInData): Promise<void> {
-  const db = getDb();
-  const userRef = db.collection("users").doc(firebaseUserId);
-  
-  await userRef.set({
-    linkedLinkedIn: {
-      linkedinId: linkedinData.linkedinId,
-      name: linkedinData.name,
-      email: linkedinData.email,
-      picture: linkedinData.picture,
-      accessToken: linkedinData.accessToken,
-      expiresAt: linkedinData.expiresAt,
-      linkedAt: new Date(),
-    },
-    updatedAt: new Date(),
-  }, { merge: true }); // Use merge to not overwrite existing user data
-  
-  console.log(`[saveLinkedLinkedIn] Saved LinkedIn connection for user: ${firebaseUserId}`);
-}
-
-/**
- * Get linked LinkedIn credentials for a Firebase user
- */
-export async function getLinkedLinkedIn(firebaseUserId: string): Promise<LinkedLinkedInData | null> {
-  const db = getDb();
-  const userRef = db.collection("users").doc(firebaseUserId);
-  const doc = await userRef.get();
-  
-  if (!doc.exists) {
-    return null;
-  }
-  
-  const data = doc.data();
-  if (!data?.linkedLinkedIn) {
-    return null;
-  }
-  
-  return {
-    linkedinId: data.linkedLinkedIn.linkedinId,
-    name: data.linkedLinkedIn.name,
-    email: data.linkedLinkedIn.email,
-    picture: data.linkedLinkedIn.picture,
-    accessToken: data.linkedLinkedIn.accessToken,
-    expiresAt: data.linkedLinkedIn.expiresAt?.toDate?.() || data.linkedLinkedIn.expiresAt,
-  };
-}
-
-/**
- * Remove linked LinkedIn from a Firebase user
- */
-export async function unlinkLinkedIn(firebaseUserId: string): Promise<void> {
-  const db = getDb();
-  const userRef = db.collection("users").doc(firebaseUserId);
-  
-  await userRef.update({
-    linkedLinkedIn: admin.firestore.FieldValue.delete(),
-    updatedAt: new Date(),
-  });
-  
-  console.log(`[unlinkLinkedIn] Removed LinkedIn connection for user: ${firebaseUserId}`);
+  status: string;
 }
