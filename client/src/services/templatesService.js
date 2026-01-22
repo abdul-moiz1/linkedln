@@ -28,7 +28,7 @@ export async function getCarouselTemplates() {
     }));
 
     // Sort in memory to avoid index requirement for new collections
-    return docs.sort((a: any, b: any) => {
+    return docs.sort((a, b) => {
       const dateA = a.createdAt?.seconds || 0;
       const dateB = b.createdAt?.seconds || 0;
       return dateB - dateA;
@@ -45,7 +45,7 @@ export async function getCarouselTemplates() {
  */
 export async function getTemplateById(templateId) {
   try {
-    const docRef = doc(db, "carouselTemplates", templateId);
+    const docRef = doc(db, "templates", templateId);
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
