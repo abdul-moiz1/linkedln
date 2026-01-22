@@ -1,0 +1,104 @@
+My templates are now loading from Firestore and showing in a grid, but the template cards look too basic (solid blocks with text). I want the Templates page to look exactly like Supergrow’s template gallery (professional LinkedIn carousel template covers).
+
+✅ I want high quality template thumbnails that visually look like real LinkedIn carousel templates, not plain boxes.
+
+✅ What I want (Supergrow Style)
+1) Template cards must look premium
+
+Each template card should include:
+✅ a real thumbnail preview (not a simple gradient box)
+✅ top-left “slides count” pill (example: 5 slides)
+✅ top-right optional “New” pill
+✅ rounded corners + shadow + hover animation
+✅ title below thumbnail (like Supergrow)
+
+2) Improve template thumbnails (important)
+
+Right now I store thumbnail in Firestore as simple SVG gradient.
+That’s why it looks weak.
+
+I want you to generate realistic LinkedIn carousel cover designs using SVG (no random photos).
+
+Each thumbnail must include:
+
+✅ big bold title text
+✅ subtitle / small description line
+✅ author name + handle at bottom left
+✅ a “Swipe →” footer area for some templates
+✅ small UI decorations (dots, shapes, lines)
+✅ different layout patterns for different templates
+
+No random photo images
+
+❌ no dogs, buildings, nature pictures
+✅ Only clean LinkedIn business style (typography + shapes + gradients)
+
+3) Template “layout types”
+
+Use multiple layout styles like Supergrow:
+
+cover_bold
+
+cover_minimal
+
+cover_split
+
+cover_quote
+
+cover_stats
+
+cover_story
+
+Each Firestore template already has a layout field.
+Use that to generate different thumbnail designs.
+
+Example:
+
+layout = "framework_grid" → thumbnail should show a “Framework” look
+
+layout = "howto_steps" → thumbnail should show step blocks
+
+layout = "stats_clean" → thumbnail should show chart bars icon style
+
+layout = "mistakes_warning" → thumbnail should show warning feel
+
+4) Update the seeding system
+
+Update the Firestore seeding script so that it seeds templates with:
+✅ premium SVG thumbnails (Supergrow style)
+✅ professional titles (LinkedIn)
+✅ slide counts
+✅ optional “New” flag
+
+Also add a “Reset & Reseed” button:
+✅ delete existing templates in collection
+✅ re-seed with better ones
+
+5) UI layout must match Supergrow grid
+
+5 cards per row on desktop (responsive)
+
+equal spacing
+
+cards same size
+
+no weird padding
+
+✅ Final result expected
+
+After this update:
+
+✅ My Templates page should visually look like Supergrow template gallery
+✅ Cards should feel like real LinkedIn carousel templates
+✅ Clicking any template still opens the editor correctly
+✅ Thumbnails must be business-style and consistent
+
+✅ Deliverables
+
+Implement:
+✅ better SVG thumbnail generator that looks like real templates
+✅ update seeding so templates look premium
+✅ update template card UI layout + hover effects
+✅ add “Reset & Reseed” button
+
+Do not use random images. Everything must be clean LinkedIn style.
