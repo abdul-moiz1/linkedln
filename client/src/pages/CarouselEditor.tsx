@@ -18,11 +18,11 @@ export default function CarouselEditor() {
 
   const [template, setTemplate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [formData, setFormData] = useState<any>({
     authorName: "Jon Snow",
     authorHandle: "@jon-snow",
-    title: "",
-    description: "",
+    slides: [],
   });
 
   useEffect(() => {
@@ -34,21 +34,39 @@ export default function CarouselEditor() {
         if (data) {
           setTemplate(data);
           
+          const slidesCount = data.slidesCount || 5;
+          const defaultSlides = Array.from({ length: slidesCount }, () => ({
+            title: "",
+            description: ""
+          }));
+
           // Preload from localStorage if exists
           const saved = localStorage.getItem(`draft_${templateId}`);
           if (saved) {
             try {
               const draft = JSON.parse(saved);
-              setFormData(draft.data || draft);
+              const loadedData = draft.data || draft;
+              
+              // Ensure slides array exists and has correct length
+              const slides = loadedData.slides || [];
+              while (slides.length < slidesCount) {
+                slides.push({ title: "", description: "" });
+              }
+              
+              setFormData({
+                ...loadedData,
+                slides: slides.slice(0, slidesCount)
+              });
             } catch (e) {
               console.error("Failed to load draft", e);
             }
-          } else if (data.defaults) {
-            // Use template defaults if no draft
-            setFormData((prev: any) => ({
-              ...prev,
-              ...data.defaults
-            }));
+          } else {
+            // Initial state with empty slides
+            setFormData({
+              authorName: data.defaults?.authorName || "Your Name",
+              authorHandle: data.defaults?.authorHandle || "@handle",
+              slides: defaultSlides
+            });
           }
         }
       } catch (err) {
@@ -59,6 +77,17 @@ export default function CarouselEditor() {
     }
     loadTemplate();
   }, [templateId]);
+
+  const updateCurrentSlide = (field: string, value: string) => {
+    setFormData((prev: any) => {
+      const newSlides = [...prev.slides];
+      newSlides[currentSlideIndex] = {
+        ...newSlides[currentSlideIndex],
+        [field]: value
+      };
+      return { ...prev, slides: newSlides };
+    });
+  };
 
   const handleSave = () => {
     const saveData = {
@@ -101,6 +130,8 @@ export default function CarouselEditor() {
     );
   }
 
+  const currentSlide = formData.slides[currentSlideIndex] || { title: "", description: "" };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col overflow-hidden text-[#1a1a1a]">
       <CarouselHeader 
@@ -112,82 +143,120 @@ export default function CarouselEditor() {
       
       <main className="flex-1 overflow-hidden">
         <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 max-w-[1600px] mx-auto">
-          {/* Left Panel: Brand/Profile */}
-          <div className="lg:col-span-3 space-y-6 overflow-y-auto">
-            <Card className="p-4 space-y-4">
-              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Brand / Profile</h2>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Your Name</Label>
-                  <Input 
-                    value={formData.authorName} 
-                    onChange={e => setFormData({...formData, authorName: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Handle</Label>
-                  <Input 
-                    value={formData.authorHandle} 
-                    onChange={e => setFormData({...formData, authorHandle: e.target.value})}
-                  />
-                </div>
-              </div>
-            </Card>
+          {/* Left Panel: Slide List */}
+          <div className="lg:col-span-2 space-y-4 overflow-y-auto pr-2">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Slides</h2>
+            <div className="space-y-2">
+              {formData.slides.map((slide: any, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentSlideIndex(idx)}
+                  className={`w-full text-left p-3 rounded-lg border transition-all ${
+                    currentSlideIndex === idx 
+                    ? "bg-sky-50 border-sky-200 shadow-sm" 
+                    : "bg-white border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-[10px] font-bold ${currentSlideIndex === idx ? "text-sky-600" : "text-slate-400"}`}>
+                      SLIDE {idx + 1}
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium text-slate-700 truncate">
+                    {slide.title || "Empty Slide"}
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Middle Panel: Content Editor */}
-          <div className="lg:col-span-5 space-y-6 overflow-y-auto">
-            <Card className="p-6 space-y-6">
-              <h2 className="text-lg font-bold">Content Editor</h2>
+          <div className="lg:col-span-6 space-y-6 overflow-y-auto">
+            <Card className="p-6 space-y-6 shadow-sm border-slate-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <span className="bg-slate-900 text-white w-6 h-6 rounded flex items-center justify-center text-xs">
+                    {currentSlideIndex + 1}
+                  </span>
+                  Slide Editor
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={currentSlideIndex === 0}
+                    onClick={() => setCurrentSlideIndex(prev => prev - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-xs font-bold text-slate-500 mx-2">
+                    {currentSlideIndex + 1} / {formData.slides.length}
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={currentSlideIndex === formData.slides.length - 1}
+                    onClick={() => setCurrentSlideIndex(prev => prev + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+
               <div className="space-y-6">
-                {(template.fields || []).map((field: string) => {
-                  if (field === "title") {
-                    return (
-                      <div key={field} className="space-y-2">
-                        <Label>Title</Label>
-                        <Input 
-                          value={formData.title} 
-                          onChange={e => setFormData({...formData, title: e.target.value})}
-                          placeholder="Enter catch hook..."
-                        />
-                      </div>
-                    );
-                  }
-                  if (field === "description") {
-                    return (
-                      <div key={field} className="space-y-2">
-                        <Label>Description</Label>
-                        <Textarea 
-                          value={formData.description} 
-                          onChange={e => setFormData({...formData, description: e.target.value})}
-                          placeholder="Write your main content here..."
-                          className="min-h-[150px]"
-                        />
-                      </div>
-                    );
-                  }
-                  // Fallback for other potential fields like authorName/authorHandle if they appear in fields array
-                  if (field !== "authorName" && field !== "authorHandle") {
-                    return (
-                      <div key={field} className="space-y-2">
-                        <Label className="capitalize">{field}</Label>
-                        <Input 
-                          value={formData[field] || ""} 
-                          onChange={e => setFormData({...formData, [field]: e.target.value})}
-                        />
-                      </div>
-                    );
-                  }
-                  return null;
-                })}
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">Slide Title</Label>
+                  <Input 
+                    value={currentSlide.title} 
+                    onChange={e => updateCurrentSlide("title", e.target.value)}
+                    placeholder="Enter slide title or hook..."
+                    className="text-lg font-bold py-6"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">Slide Description</Label>
+                  <Textarea 
+                    value={currentSlide.description} 
+                    onChange={e => updateCurrentSlide("description", e.target.value)}
+                    placeholder="Write your slide content here..."
+                    className="min-h-[250px] text-base leading-relaxed"
+                  />
+                </div>
+
+                <div className="pt-6 border-t border-slate-100 space-y-4">
+                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Brand Information</h3>
+                   <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold text-slate-400">Your Name</Label>
+                      <Input 
+                        value={formData.authorName} 
+                        onChange={e => setFormData({...formData, authorName: e.target.value})}
+                        size="sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold text-slate-400">Handle</Label>
+                      <Input 
+                        value={formData.authorHandle} 
+                        onChange={e => setFormData({...formData, authorHandle: e.target.value})}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </Card>
           </div>
 
           {/* Right Panel: Live Preview */}
           <div className="lg:col-span-4 overflow-y-auto flex flex-col items-center">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Live Preview</h2>
-            <CarouselPreview template={template} data={formData} />
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Live Preview</h2>
+            <CarouselPreview 
+              template={template} 
+              data={formData} 
+              currentSlideIndex={currentSlideIndex} 
+            />
           </div>
         </div>
       </main>
