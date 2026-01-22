@@ -29,7 +29,8 @@ export async function getCarouselTemplates() {
     }));
   } catch (error) {
     console.error("Error fetching carousel templates:", error);
-    throw error;
+    // Return empty array instead of throwing to prevent app crash
+    return [];
   }
 }
 
@@ -50,6 +51,6 @@ export async function getTemplateById(templateId) {
     return null;
   } catch (error) {
     console.error("Error fetching template by ID:", error);
-    throw error;
+    return null;
   }
 }

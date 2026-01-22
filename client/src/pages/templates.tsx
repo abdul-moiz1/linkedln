@@ -50,9 +50,9 @@ const TemplateCard = ({ template }: { template: any }) => {
 };
 
 export default function TemplateGallery() {
-  const [templates, setTemplates] = useState([]);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchTemplates() {

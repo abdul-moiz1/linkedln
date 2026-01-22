@@ -45,7 +45,7 @@ export default function CarouselEditor() {
             }
           } else if (data.defaults) {
             // Use template defaults if no draft
-            setFormData(prev => ({
+            setFormData((prev: any) => ({
               ...prev,
               ...data.defaults
             }));
@@ -140,7 +140,7 @@ export default function CarouselEditor() {
             <Card className="p-6 space-y-6">
               <h2 className="text-lg font-bold">Content Editor</h2>
               <div className="space-y-6">
-                {(template.fields || []).map(field => {
+                {(template.fields || []).map((field: string) => {
                   if (field === "title") {
                     return (
                       <div key={field} className="space-y-2">
