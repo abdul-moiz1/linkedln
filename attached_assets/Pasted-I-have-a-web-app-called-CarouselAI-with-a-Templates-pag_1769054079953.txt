@@ -1,0 +1,186 @@
+I have a web app called CarouselAI with a Templates page and a Carousel Editor page.
+
+Right now the issue is:
+
+When I click any template, it always opens the same fixed editor layout
+
+The editor does not load the selected template design
+
+✅ I want to change the flow exactly like Supergrow:
+
+✅ New Expected Flow
+Templates Page
+
+A grid of template cards
+
+Each template card must include:
+
+template thumbnail
+
+template name
+
+slides count
+
+When I click a template card → it must open that template in editor
+
+Editor Page
+
+Editor URL must become:
+/carousel-editor/:templateId
+
+Example:
+
+clicking template basic_001 → opens /carousel-editor/basic_001
+
+clicking template basic_002 → opens /carousel-editor/basic_002
+
+✅ Step 1: Add Template Data System
+
+Create a new folder:
+
+📌 /src/templates/
+
+Add:
+
+📌 /src/templates/carouselTemplates.js
+
+It should export a list like:
+
+export const carouselTemplates = [
+  {
+    id: "basic_001",
+    name: "Basic #1",
+    slidesCount: 1,
+    thumbnail: "/thumbnails/basic_001.png",
+    layout: "basic_cover",
+    fields: ["title", "description", "authorName", "authorHandle"]
+  },
+  {
+    id: "basic_002",
+    name: "Basic #2",
+    slidesCount: 5,
+    thumbnail: "/thumbnails/basic_002.png",
+    layout: "basic_modern",
+    fields: ["title", "description", "authorName", "authorHandle"]
+  }
+];
+
+
+Make sure the app does not crash even if thumbnail images don’t exist yet.
+Use fallback placeholder.
+
+✅ Step 2: Update Templates Grid Page
+
+Update Templates page to load template cards from carouselTemplates.
+
+Map through templates array
+
+On click navigate to:
+/carousel-editor/${template.id}
+
+Use react-router useNavigate().
+
+✅ Step 3: Update Carousel Editor Route
+
+Update routing so editor supports templateId:
+
+✅ Old:
+/carousel-editor?template=basic_001
+
+✅ New:
+/carousel-editor/:templateId
+
+Use useParams() to get templateId.
+
+✅ Step 4: Load Selected Template in Editor
+
+In Carousel Editor page:
+
+Read templateId from URL params
+
+Find the template object from carouselTemplates
+
+If templateId is invalid, show:
+“Template not found” + a back button to templates page
+
+✅ Step 5: Dynamic Editor UI (Fields + Preview)
+
+The editor must be dynamic based on the template:
+
+Left Panel (Brand/Profile)
+
+Your name input
+
+profile picture upload placeholder
+
+brand kit (optional section)
+
+Middle Panel (Content Editor)
+
+Generate the form fields dynamically based on:
+template.fields
+
+If title exists → show Title input
+If description exists → show Description textarea
+etc.
+
+Right Panel (Live Preview)
+
+Create a reusable component:
+
+📌 /src/components/CarouselPreview.jsx
+
+Props:
+
+<CarouselPreview template={template} data={formData} />
+
+
+Preview must change based on:
+template.layout
+
+Example:
+If layout = basic_cover render a cover style preview
+If layout = basic_modern render another style preview
+
+Even if preview is basic at first, it must be different per template.
+
+✅ Step 6: Keep Existing Buttons Working
+
+Editor page must keep:
+✅ Save button
+✅ Continue button
+
+Save should store:
+
+templateId
+
+formData
+In localStorage for now.
+
+Example localStorage key:
+draft_${templateId}
+
+✅ Step 7: Update Design (Supergrow-like)
+
+UI should look clean and modern:
+
+3-column layout
+
+cards with rounded corners
+
+nice spacing and typography
+
+not cluttered
+
+✅ Deliver Output
+
+I want you to implement all changes in code:
+
+✅ Updated templates page
+✅ Updated routing
+✅ Updated editor page
+✅ carouselTemplates.js created
+✅ CarouselPreview.jsx created
+✅ localStorage save working
+
+Do not add LinkedIn text templates yet. Only update carousel template + editor flow first.

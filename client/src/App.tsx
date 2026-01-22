@@ -53,7 +53,7 @@ function Router() {
             <Route path="/calendar" component={CalendarPage} />
             <Route path="/analytics" component={Analytics} />
             <Route path="/templates" component={Templates} />
-            <Route path="/carousel-editor">
+            <Route path="/carousel-editor/:templateId">
               <div className="fixed inset-0 z-50 bg-white">
                 <CarouselEditor />
               </div>

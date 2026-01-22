@@ -1,106 +1,55 @@
 import { useState, useEffect } from "react";
 import CarouselHeader from "@/components/CarouselHeader";
-import CarouselSidebar from "@/components/CarouselSidebar";
-import SlideEditor from "@/components/SlideEditor";
-import CarouselPreview from "@/components/CarouselPreview";
-import SlideNavigation from "@/components/SlideNavigation";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import type { CarouselTemplate } from "@shared/schema";
+import { useLocation, useParams, Link } from "wouter";
+import { carouselTemplates } from "@/templates/carouselTemplates";
+import CarouselPreview from "@/components/CarouselPreview";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ChevronLeft } from "lucide-react";
 
 export default function CarouselEditor() {
   const { toast } = useToast();
-  const [location] = useLocation();
-  const searchParams = new URLSearchParams(location.split('?')[1]);
-  const templateId = searchParams.get('template');
+  const { templateId } = useParams();
+  const [, setLocation] = useLocation();
 
-  const { data: templates } = useQuery<CarouselTemplate[]>({
-    queryKey: ["/api/carousel-templates"],
+  const template = carouselTemplates.find(t => t.id === templateId);
+
+  const [formData, setFormData] = useState({
+    authorName: "Jon Snow",
+    authorHandle: "@jon-snow",
+    title: "",
+    description: "",
   });
 
-  const selectedTemplate = templates?.find(t => t.templateId === templateId);
-
-  const [carousel, setCarousel] = useState({
-    meta: {
-      title: "New Carousel",
-      lastSaved: new Date().toLocaleString(),
-    },
-    profile: {
-      name: "Jon Snow",
-      handle: "@jon-snow",
-      avatar: "",
-    },
-    theme: {
-      backgroundMode: "solid",
-      backgroundColor: "#27115F",
-      primaryColor: "#D9D6FE",
-      secondaryColor: "#FFFFFF",
-      primaryFont: "Onest",
-      secondaryFont: "Inter",
-    },
-    slides: [
-      { title: "The Title of Your Visual Post Here", description: "Lorem ipsum: Lorem ipsum dolor sit amet, consetetur sadipscing." },
-    ],
-  });
-
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-
   useEffect(() => {
-    if (selectedTemplate) {
-      setCarousel({
-        meta: {
-          title: selectedTemplate.templateId, // Show exact Firestore ID
-          lastSaved: new Date().toLocaleString(),
-        },
-        profile: {
-          name: "Jon Snow",
-          handle: "@jon-snow",
-          avatar: "",
-        },
-        theme: {
-          backgroundMode: "solid",
-          backgroundColor: (selectedTemplate as any).theme?.backgroundColor || "#27115F",
-          primaryColor: (selectedTemplate as any).theme?.primaryColor || "#D9D6FE",
-          secondaryColor: (selectedTemplate as any).theme?.secondaryColor || "#FFFFFF",
-          primaryFont: "Onest",
-          secondaryFont: "Inter",
-        },
-        slides: (selectedTemplate as any).slides?.map((s: any) => ({
-          title: s.placeholder?.title || "",
-          description: s.placeholder?.body || "",
-        })) || [
-          { title: "The Title of Your Visual Post Here", description: "Lorem ipsum: Lorem ipsum dolor sit amet, consetetur sadipscing." },
-        ],
-      });
-    }
-  }, [selectedTemplate]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("carousel_editor_data");
-    if (saved && !templateId) {
+    const saved = localStorage.getItem(`draft_${templateId}`);
+    if (saved) {
       try {
-        setCarousel(JSON.parse(saved));
+        setFormData(JSON.parse(saved));
       } catch (e) {
-        console.error("Failed to load carousel data", e);
+        console.error("Failed to load draft", e);
       }
     }
   }, [templateId]);
 
+  if (!template) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center p-8 text-center bg-slate-50">
+        <h1 className="text-2xl font-bold mb-4">Template not found</h1>
+        <Button onClick={() => setLocation("/templates")}>
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Back to Templates
+        </Button>
+      </div>
+    );
+  }
+
   const handleSave = () => {
-    const now = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-    });
-    const updatedCarousel = {
-      ...carousel,
-      meta: { ...carousel.meta, lastSaved: now }
-    };
-    setCarousel(updatedCarousel);
-    localStorage.setItem("carousel_editor_data", JSON.stringify(updatedCarousel));
+    localStorage.setItem(`draft_${templateId}`, JSON.stringify(formData));
     toast({
       title: "Saved!",
       description: "Draft saved to local storage."
@@ -110,64 +59,86 @@ export default function CarouselEditor() {
   const handleContinue = () => {
     toast({
       title: "Success",
-      description: "Carousel saved. Ready to publish!"
+      description: "Ready to proceed!"
     });
   };
 
-  const updateSlideContent = (field, value) => {
-    const newSlides = [...carousel.slides];
-    newSlides[currentSlideIndex] = {
-      ...newSlides[currentSlideIndex],
-      [field]: value
-    };
-    setCarousel({ ...carousel, slides: newSlides });
-  };
-
   return (
-    <div className="min-h-screen bg-white flex flex-col overflow-hidden text-[#1a1a1a]">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col overflow-hidden text-[#1a1a1a]">
       <CarouselHeader 
-        title={carousel.meta.title}
-        lastSaved={carousel.meta.lastSaved}
+        title={template.name}
+        lastSaved={new Date().toLocaleTimeString()}
         onSave={handleSave}
         onContinue={handleContinue}
       />
       
-      <main className="flex flex-1 relative h-[calc(100vh-65px-64px)] bg-[#f8fafc]">
-        <div className="w-[320px] border-r bg-white overflow-y-auto scrollbar-none">
-          <CarouselSidebar 
-            carousel={carousel} 
-            setCarousel={setCarousel} 
-          />
-        </div>
-        
-        <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-8 flex justify-center scrollbar-none">
-            <div className="w-full max-w-2xl">
-              <SlideEditor 
-                slide={carousel.slides[currentSlideIndex]}
-                index={currentSlideIndex}
-                onUpdate={updateSlideContent}
-              />
-            </div>
+      <main className="flex-1 overflow-hidden">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 max-w-[1600px] mx-auto">
+          {/* Left Panel: Brand/Profile */}
+          <div className="lg:col-span-3 space-y-6 overflow-y-auto">
+            <Card className="p-4 space-y-4">
+              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Brand / Profile</h2>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Your Name</Label>
+                  <Input 
+                    value={formData.authorName} 
+                    onChange={e => setFormData({...formData, authorName: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Handle</Label>
+                  <Input 
+                    value={formData.authorHandle} 
+                    onChange={e => setFormData({...formData, authorHandle: e.target.value})}
+                  />
+                </div>
+                <div className="pt-2">
+                  <div className="aspect-square rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-xs">
+                    Profile Picture
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
-          
-          <div className="flex-1 bg-[#f1f5f9] border-l overflow-y-auto hidden lg:flex items-center justify-center p-8 scrollbar-none">
-            <CarouselPreview 
-              carousel={carousel}
-              currentSlideIndex={currentSlideIndex}
-            />
+
+          {/* Middle Panel: Content Editor */}
+          <div className="lg:col-span-5 space-y-6 overflow-y-auto">
+            <Card className="p-6 space-y-6">
+              <h2 className="text-lg font-bold">Content Editor</h2>
+              <div className="space-y-6">
+                {template.fields.includes("title") && (
+                  <div className="space-y-2">
+                    <Label>Title</Label>
+                    <Input 
+                      value={formData.title} 
+                      onChange={e => setFormData({...formData, title: e.target.value})}
+                      placeholder="Enter catch hook..."
+                    />
+                  </div>
+                )}
+                {template.fields.includes("description") && (
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea 
+                      value={formData.description} 
+                      onChange={e => setFormData({...formData, description: e.target.value})}
+                      placeholder="Write your main content here..."
+                      className="min-h-[150px]"
+                    />
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Right Panel: Live Preview */}
+          <div className="lg:col-span-4 overflow-y-auto flex flex-col items-center">
+            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Live Preview</h2>
+            <CarouselPreview template={template} data={formData} />
           </div>
         </div>
       </main>
-
-      <div className="h-16 border-t bg-white flex items-center justify-center">
-        <SlideNavigation 
-          currentIndex={currentSlideIndex}
-          totalSlides={carousel.slides.length}
-          onPrev={() => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))}
-          onNext={() => setCurrentSlideIndex(Math.min(carousel.slides.length - 1, currentSlideIndex + 1))}
-        />
-      </div>
     </div>
   );
 }

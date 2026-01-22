@@ -1,60 +1,55 @@
-import { User } from "lucide-react";
+import React from 'react';
 
-export default function CarouselPreview({ carousel, currentSlideIndex }) {
-  const slide = carousel.slides[currentSlideIndex];
-  const { theme, profile } = carousel;
+const CarouselPreview = ({ template, data }) => {
+  if (!template) return null;
+
+  const renderLayout = () => {
+    switch (template.layout) {
+      case 'basic_cover':
+        return (
+          <div className="w-full h-full bg-slate-900 text-white p-8 flex flex-col justify-center items-center text-center">
+            <h2 className="text-3xl font-bold mb-4">{data.title || 'Your Title Here'}</h2>
+            <p className="text-xl text-slate-300">{data.description || 'Your description here'}</p>
+            <div className="mt-8 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden">
+                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${data.authorName}`} alt="avatar" />
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-bold leading-none">{data.authorName || 'Jon Snow'}</p>
+                <p className="text-[10px] text-slate-400 leading-none">{data.authorHandle || '@jon-snow'}</p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'basic_modern':
+        return (
+          <div className="w-full h-full bg-white text-slate-900 p-8 flex flex-col justify-between">
+            <div className="flex justify-between items-start">
+              <div className="w-12 h-12 rounded-lg bg-sky-500 flex items-center justify-center text-white font-bold text-xl">
+                {data.authorName?.[0] || 'J'}
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold leading-none">{data.authorName || 'Jon Snow'}</p>
+                <p className="text-[10px] text-slate-400 leading-none">{data.authorHandle || '@jon-snow'}</p>
+              </div>
+            </div>
+            <div className="flex-1 flex flex-col justify-center py-8">
+              <h2 className="text-2xl font-black uppercase mb-4 tracking-tighter">{data.title || 'Your Title Here'}</h2>
+              <p className="text-slate-600 line-clamp-4">{data.description || 'Your description here'}</p>
+            </div>
+            <div className="h-1 bg-sky-500 w-1/4 rounded-full" />
+          </div>
+        );
+      default:
+        return <div className="p-8">Unsupported layout: {template.layout}</div>;
+    }
+  };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center bg-gray-50/50 p-12">
-      <div className="w-full max-w-[500px] aspect-square relative rounded-[32px] shadow-2xl overflow-hidden flex flex-col" style={{ backgroundColor: theme.backgroundColor }}>
-        {/* Background elements (dots/patterns) */}
-        <div className="absolute top-8 right-8 flex gap-1.5 opacity-20">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.primaryColor }} />
-          ))}
-        </div>
-        
-        {/* Header (Handle) */}
-        <div className="px-10 pt-10 pb-6 flex items-start">
-          <span className="text-sm font-semibold opacity-60" style={{ color: theme.secondaryColor, fontFamily: theme.secondaryFont }}>
-            {profile.handle || "@handle"}
-          </span>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 px-10 flex flex-col justify-center space-y-6">
-          <h2 className="text-[32px] font-extrabold leading-[1.2] tracking-tight" style={{ color: theme.primaryColor, fontFamily: theme.primaryFont }}>
-            {slide.title || "Your Title Here"}
-          </h2>
-          <p className="text-xl leading-relaxed opacity-90" style={{ color: theme.secondaryColor, fontFamily: theme.secondaryFont }}>
-            {slide.description || "Your slide content goes here..."}
-          </p>
-        </div>
-
-        {/* Footer */}
-        <div className="px-10 py-10 flex items-center justify-between border-t border-white/5 bg-black/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full border border-white/10 bg-white/5 overflow-hidden flex items-center justify-center shrink-0">
-              {profile.avatar ? (
-                <img src={profile.avatar} className="w-full h-full object-cover" alt="Profile" />
-              ) : (
-                <User className="w-6 h-6 text-white/40" />
-              )}
-            </div>
-            <span className="font-bold text-sm" style={{ color: theme.secondaryColor, fontFamily: theme.secondaryFont }}>
-              {profile.name || "Your Name"}
-            </span>
-          </div>
-          
-          <div className="flex gap-1 opacity-20">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.primaryColor }} />
-            ))}
-          </div>
-        </div>
-      </div>
-      
-      <p className="mt-8 text-xs font-bold text-slate-400 uppercase tracking-widest">Slide Preview</p>
+    <div className="aspect-[4/5] w-full max-w-sm rounded-xl overflow-hidden shadow-2xl border border-slate-200 mx-auto sticky top-8">
+      {renderLayout()}
     </div>
   );
-}
+};
+
+export default CarouselPreview;
