@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase";
+import { db } from "../lib/firebase";
 import { 
   collection, 
   getDocs, 
@@ -21,7 +21,9 @@ function generateThumbnailSvg(templateName, layout) {
     stats_clean: ["#8b5cf6", "#7c3aed"],
     mistakes_warning: ["#ef4444", "#dc2626"],
     framework_grid: ["#06b6d4", "#0891b2"],
-    case_study: ["#ec4899", "#db2777"]
+    case_study: ["#ec4899", "#db2777"],
+    minimal_001: ["#1e293b", "#334155"],
+    pro_001: ["#111827", "#1f2937"]
   };
 
   const colors = gradients[layout] || ["#64748b", "#475569"];
@@ -61,16 +63,18 @@ export async function seedCarouselTemplates() {
     { id: "stats_001", name: "Stats & Proof", slidesCount: 5, layout: "stats_clean" },
     { id: "mistakes_001", name: "Mistakes to Avoid", slidesCount: 6, layout: "mistakes_warning" },
     { id: "framework_001", name: "Framework", slidesCount: 5, layout: "framework_grid" },
-    { id: "case_001", name: "Mini Case Study", slidesCount: 6, layout: "case_study" }
+    { id: "case_001", name: "Mini Case Study", slidesCount: 6, layout: "case_study" },
+    { id: "minimal_001", name: "Minimalist", slidesCount: 5, layout: "minimal_001" },
+    { id: "pro_001", name: "Professional", slidesCount: 6, layout: "pro_001" }
   ];
 
   const commonFields = ["title", "description", "authorName", "authorHandle"];
-  const templatesRef = collection(db, "carouselTemplates");
+  const templatesRef = collection(db, "templates");
 
   try {
     const existingDocs = await getDocs(templatesRef);
     if (existingDocs.size > 0) {
-      console.log("Templates collection already has data. Skipping seed.");
+      console.log("Templates already exist. Skipping seed.");
       return { success: true, count: 0, message: "Templates already exist." };
     }
 
@@ -97,7 +101,7 @@ export async function seedCarouselTemplates() {
         updatedAt: serverTimestamp()
       };
 
-      await setDoc(doc(db, "carouselTemplates", t.id), templateData);
+      await setDoc(doc(db, "templates", t.id), templateData);
       count++;
     }
 

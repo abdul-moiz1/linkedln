@@ -14,19 +14,25 @@ import {
  */
 export async function getCarouselTemplates() {
   try {
-    const templatesRef = collection(db, "carouselTemplates");
+    const templatesRef = collection(db, "templates");
     const q = query(
       templatesRef,
       where("type", "==", "carousel"),
-      where("status", "==", "active"),
-      orderBy("createdAt", "desc")
+      where("status", "==", "active")
     );
     
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const docs = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+
+    // Sort in memory to avoid index requirement for new collections
+    return docs.sort((a: any, b: any) => {
+      const dateA = a.createdAt?.seconds || 0;
+      const dateB = b.createdAt?.seconds || 0;
+      return dateB - dateA;
+    });
   } catch (error) {
     console.error("Error fetching carousel templates:", error);
     // Return empty array instead of throwing to prevent app crash

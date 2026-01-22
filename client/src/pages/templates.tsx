@@ -65,7 +65,8 @@ export default function TemplateGallery() {
     try {
       setLoading(true);
       const data = await getCarouselTemplates();
-      setTemplates(data);
+      setTemplates(data || []);
+      setError(null);
     } catch (err) {
       setError("Failed to load templates");
     } finally {
