@@ -82,27 +82,34 @@ export async function seedCarouselTemplates() {
     let count = 0;
 
     for (const t of templates) {
-      const templateData = {
-        name: t.name,
-        type: "carousel",
-        slidesCount: t.slidesCount,
-        layout: t.layout,
-        thumbnail: generateThumbnailSvg(t.name, t.layout),
-        fields: commonFields,
-        defaults: {
-          title: "The Power of Data-Driven Marketing",
-          description: "A simple guide you can apply today.",
-          authorName: "Your Name",
-          authorHandle: "@your-handle"
-        },
-        status: "active",
-        isPublic: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
+      try {
+        const templateData = {
+          name: t.name,
+          type: "carousel",
+          slidesCount: t.slidesCount,
+          layout: t.layout,
+          thumbnail: generateThumbnailSvg(t.name, t.layout),
+          fields: commonFields,
+          defaults: {
+            title: "The Power of Data-Driven Marketing",
+            description: "A simple guide you can apply today.",
+            authorName: "Your Name",
+            authorHandle: "@your-handle"
+          },
+          status: "active",
+          isPublic: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
 
-      await setDoc(doc(db, "templates", t.id), templateData);
-      count++;
+        const docRef = doc(db, "templates", t.id);
+        console.log(`Attempting to seed template: ${t.id}`);
+        await setDoc(docRef, templateData);
+        count++;
+        console.log(`Successfully seeded template: ${t.id}`);
+      } catch (templateError) {
+        console.error(`Failed to seed template ${t.id}:`, templateError);
+      }
     }
 
     console.log(`Successfully seeded ${count} templates.`);
