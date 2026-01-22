@@ -176,12 +176,23 @@ export async function seedTemplates(force = false) {
         
         templates.push({
           templateId: `basic_${i.toString().padStart(3, '0')}`,
+          type: "carousel",
+          status: "active",
           category: "Basic",
           title: `Professional Guide ${i}`,
+          name: `Basic #${i}`,
           description: `A high-converting basic template for LinkedIn creators.`,
           slidesCount,
+          isPublic: true,
           isNew: i > 15,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          fields: ["title", "description", "authorName", "authorHandle"],
+          defaults: {
+            title: `The Essence of Leadership #${i}`,
+            description: "True leadership isn't about being in charge. It's about taking care of those in your charge."
+          },
+          layout: i % 2 === 0 ? "basic_cover" : "basic_modern",
           theme: {
             primaryColor: colorSet.primary,
             secondaryColor: colorSet.secondary,

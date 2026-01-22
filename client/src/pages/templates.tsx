@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getCarouselTemplates } from "@/services/templatesService";
 
-const TemplateCard = ({ template }) => {
+const TemplateCard = ({ template }: { template: any }) => {
   const [, setLocation] = useLocation();
-  const thumbnail = template.thumbnail || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=400&q=80";
+  const thumbnail = template.thumbnail || (template.preview?.coverImage) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=400&q=80";
 
   return (
     <div 
@@ -42,7 +42,7 @@ const TemplateCard = ({ template }) => {
       
       <div className="px-1 space-y-0.5">
         <h3 className="text-sm font-bold text-slate-900 group-hover:text-sky-600 transition-colors truncate">
-          {template.name}
+          {template.name || template.title}
         </h3>
       </div>
     </div>

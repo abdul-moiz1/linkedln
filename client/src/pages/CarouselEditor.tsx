@@ -13,12 +13,12 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 
 export default function CarouselEditor() {
   const { toast } = useToast();
-  const { templateId } = useParams();
+  const { templateId } = useParams<{ templateId: string }>();
   const [, setLocation] = useLocation();
 
-  const [template, setTemplate] = useState(null);
+  const [template, setTemplate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     authorName: "Jon Snow",
     authorHandle: "@jon-snow",
     title: "",
