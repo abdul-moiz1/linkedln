@@ -110,8 +110,8 @@ export default function TemplateGallery() {
   }
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+    <div className="p-8 w-full mx-auto space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-4">
         <div className="space-y-1.5">
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Template Gallery</h1>
           <p className="text-slate-500 text-sm font-medium">Select a professional LinkedIn template to start creating.</p>
@@ -134,7 +134,7 @@ export default function TemplateGallery() {
       </div>
 
       {templates.length === 0 ? (
-        <div className="py-32 text-center flex flex-col items-center gap-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+        <div className="py-32 mx-4 text-center flex flex-col items-center gap-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
           <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center">
             <Database className="h-8 w-8 text-slate-400" />
           </div>
@@ -150,7 +150,7 @@ export default function TemplateGallery() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 pb-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 px-4 pb-20">
           {templates.map((template) => (
             <TemplateCard key={template.id} template={template} />
           ))}

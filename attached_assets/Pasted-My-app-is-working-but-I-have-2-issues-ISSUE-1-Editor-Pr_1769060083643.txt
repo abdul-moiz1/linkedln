@@ -1,0 +1,93 @@
+My app is working but I have 2 issues:
+
+✅ ISSUE 1: Editor Preview shows “Unsupported layout: howto_steps”
+
+When I open some templates, the editor preview shows this message:
+✅ “Unsupported layout: howto_steps”
+
+This is happening because Firestore templates have multiple layouts like:
+
+howto_steps
+
+framework_grid
+
+stats_clean
+
+mistakes_warning
+
+story_format
+
+split_contrast
+etc.
+
+But my CarouselPreview component only supports a few layouts.
+
+✅ I want you to fix this properly:
+
+Required Fix
+
+Update CarouselPreview so it supports ALL template layouts that we seeded in Firestore.
+
+For each layout, render a different preview design (simple but unique).
+
+If a layout is unknown, DO NOT show “Unsupported layout”.
+Instead fallback to a default preview layout (basic_cover).
+
+✅ Preview should always show:
+
+title
+
+description
+
+authorName + authorHandle
+
+✅ Layout examples:
+
+howto_steps → show 3 step boxes or step lines
+
+framework_grid → show 2x2 grid blocks
+
+stats_clean → show small bar chart blocks
+
+mistakes_warning → show warning style (bold headline)
+
+split_contrast → split layout left/right
+
+✅ ISSUE 2: Too much empty space on Template Gallery page
+
+Templates page layout has a lot of empty whitespace on the right and overall the grid is not filling the page width properly.
+
+✅ I want you to fix the layout so it looks like Supergrow:
+
+Required Fix
+
+The gallery container should stretch to full available width.
+
+Grid should auto-fit templates based on screen size:
+
+Desktop: 4–5 columns
+
+Medium: 3 columns
+
+Mobile: 1–2 columns
+
+Remove unnecessary max-width limits causing empty space.
+
+Ensure grid is centered and has equal spacing.
+
+Make sure sidebar + main content alignment is consistent.
+
+✅ Add a “Gallery Header row”:
+Left: “Template Gallery” + subtitle
+Right: “Reset & Reseed” button
+
+Header should align with grid width.
+
+✅ Final Result Expected
+
+After fixes:
+✅ Editor preview must work for every template layout with no unsupported layout message
+✅ Templates page must fill the screen properly (no empty space issue)
+✅ Grid must look modern like Supergrow
+
+Please implement these fixes now with clean UI styling.
