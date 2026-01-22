@@ -1,12 +1,11 @@
-import { Button } from "@/components/ui/button";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { carouselTemplates } from "@/templates/carouselTemplates";
+import { getCarouselTemplates } from "@/services/templatesService";
 
-const TemplateCard = ({ template }: { template: any }) => {
+const TemplateCard = ({ template }) => {
   const [, setLocation] = useLocation();
-  
   const thumbnail = template.thumbnail || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=400&q=80";
 
   return (
@@ -51,7 +50,45 @@ const TemplateCard = ({ template }: { template: any }) => {
 };
 
 export default function TemplateGallery() {
-  const templates = carouselTemplates;
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function fetchTemplates() {
+      try {
+        setLoading(true);
+        const data = await getCarouselTemplates();
+        setTemplates(data);
+      } catch (err) {
+        setError("Failed to load templates");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTemplates();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-8 max-w-[1600px] mx-auto space-y-8 flex flex-col items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500"></div>
+        <p className="text-slate-500 font-medium">Loading templates...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 max-w-[1600px] mx-auto space-y-8 flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <div className="bg-red-50 text-red-600 p-4 rounded-xl max-w-md">
+          <h2 className="font-bold text-lg mb-1">Error</h2>
+          <p>{error}</p>
+          <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-8">
@@ -60,11 +97,17 @@ export default function TemplateGallery() {
         <p className="text-slate-500 text-sm">Design high-performing LinkedIn carousel posts in minutes.</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-20">
-        {templates.map((template) => (
-          <TemplateCard key={template.id} template={template} />
-        ))}
-      </div>
+      {templates.length === 0 ? (
+        <div className="py-20 text-center">
+          <p className="text-slate-500">No templates found. Please check your Firestore collection.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-20">
+          {templates.map((template) => (
+            <TemplateCard key={template.id} template={template} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,248 @@
+I have a React app called CarouselAI.
+
+✅ Current Status:
+
+Templates page is working
+
+Editor page routing works like:
+/carousel-editor/:templateId
+
+When I click a template card, it opens the editor page correctly
+
+❌ Problem:
+Right now templates are coming from hardcoded JS files.
+I want templates to work like Supergrow using Firestore.
+
+✅ Goal: Store Templates in Firestore and Load Them Dynamically
+
+I want to migrate carousel templates to Firestore so that:
+
+✅ Templates page loads templates from Firestore
+✅ Clicking a template opens that template in editor
+✅ Editor loads template fields + layout config from Firestore
+✅ No hardcoded template list in code
+
+✅ Firestore Structure
+
+Use this collection:
+
+Collection:
+
+templates
+
+Document Structure:
+
+Firestore docs should look like:
+
+{
+  "name": "Basic #1",
+  "type": "carousel",
+  "slidesCount": 1,
+  "layout": "basic_cover",
+  "thumbnail": "",
+  "fields": ["title", "description", "authorName", "authorHandle"],
+  "defaults": {
+    "title": "Your Title Here",
+    "description": "Your description here"
+  },
+  "isPublic": true,
+  "status": "active",
+  "createdAt": "serverTimestamp",
+  "updatedAt": "serverTimestamp"
+}
+
+
+Doc IDs example:
+
+basic_001
+
+basic_002
+
+✅ Tasks to Implement in Code
+✅ Task 1: Create a Templates Service File
+
+Create:
+
+📌 src/services/templatesService.js
+
+This file must contain:
+
+Function 1: getCarouselTemplates()
+
+Fetch all templates from templates
+
+Filter:
+
+type == "carousel"
+
+status == "active"
+
+Order by createdAt desc
+
+Return templates with doc.id included
+
+Function 2: getTemplateById(templateId)
+
+Fetch one template from Firestore using docId
+
+Return template object OR null if not found
+
+Use Firestore functions:
+
+collection
+
+query
+
+where
+
+orderBy
+
+getDocs
+
+doc
+
+getDoc
+
+✅ Task 2: Update Templates Page
+
+Update Templates Gallery page so it:
+
+✅ Loads templates using getCarouselTemplates() inside useEffect
+✅ Displays cards dynamically
+✅ On click → navigates to:
+/carousel-editor/${template.id}
+
+Show these values on UI:
+
+thumbnail (if exists)
+
+slidesCount
+
+name
+
+If thumbnail missing, show a placeholder.
+
+Also add:
+
+loading state (“Loading templates…”)
+
+error state (“Failed to load templates”)
+
+✅ Task 3: Update Carousel Editor Page
+
+Update editor page so it loads template from Firestore:
+
+✅ Read templateId from URL using useParams()
+✅ Fetch template using getTemplateById(templateId)
+✅ If template not found → show:
+“Template not found” + a back button to /templates
+
+✅ If found:
+
+show template name in top left
+
+use template.fields to generate inputs dynamically
+
+use template.defaults to preload values
+
+✅ Task 4: Form Should be Dynamic from Template
+
+Editor middle panel should generate fields based on:
+
+template.fields
+
+Rules:
+
+if field = "title" → show text input
+
+if field = "description" → show textarea
+
+if field = "authorName" → show input
+
+if field = "authorHandle" → show input
+
+No field should be hardcoded in the editor.
+
+✅ Task 5: Preview Must React to Template Layout
+
+In editor preview component:
+
+📌 src/components/CarouselPreview.jsx
+
+Props:
+
+<CarouselPreview template={template} data={formData} />
+
+
+Preview must show:
+
+title
+
+description
+
+author name + handle
+
+And must apply different design based on:
+
+template.layout
+
+Example:
+
+if layout = "basic_cover" → dark background + centered title
+
+if layout = "basic_modern" → light background + left aligned title
+
+Even if preview styles are simple, they must look different per layout.
+
+✅ Task 6: Save Button Should Save Draft to localStorage
+
+When user clicks Save:
+
+Save this object into localStorage:
+
+Key:
+draft_${templateId}
+
+Value:
+
+{
+  "templateId": "basic_001",
+  "data": { ...formData },
+  "savedAt": "ISO_DATE_STRING"
+}
+
+
+Also load draft automatically if exists:
+
+If draft exists for templateId, preload it in editor
+
+✅ Task 7: Make Sure App Does Not Crash
+
+Must handle these cases safely:
+
+Firestore empty templates collection
+
+templateId invalid
+
+missing fields array
+
+missing defaults map
+
+missing layout
+
+missing thumbnail
+
+App should show meaningful message instead of breaking.
+
+✅ Output Required
+
+Implement everything fully with working code.
+
+✅ Templates page must be Firestore powered
+✅ Editor must load template from Firestore
+✅ Dynamic fields must work
+✅ Preview must change by layout
+✅ Save draft to localStorage must work
+
+Do NOT build LinkedIn Post Templates yet.
+Only implement Firestore templates system for carousel maker.
