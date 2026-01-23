@@ -4602,10 +4602,10 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     try {
       const { collection, userId, query, topK = 6 } = req.body;
 
-      if (!collection || !userId || !query) {
+      if (!collection || !query) {
         return res.status(400).json({
           success: false,
-          error: "Missing required fields: collection, userId, query",
+          error: "Missing required fields: collection, query",
         });
       }
 
