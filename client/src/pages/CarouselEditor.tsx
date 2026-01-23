@@ -48,20 +48,34 @@ export default function CarouselEditor() {
             description: ""
           }));
 
-          // TEMPORARILY DISABLED: LocalStorage draft loading to isolate loading bug
-          /*
+          // Preload from localStorage if exists
           const saved = localStorage.getItem(`draft_${templateId}`);
           if (saved) {
-            // ... loading logic
+            try {
+              const draft = JSON.parse(saved);
+              const loadedData = draft.data || draft;
+              
+              // Ensure slides array exists and has correct length
+              const slides = loadedData.slides || [];
+              while (slides.length < slidesCount) {
+                slides.push({ title: "", description: "" });
+              }
+              
+              setFormData({
+                ...loadedData,
+                slides: slides.slice(0, slidesCount)
+              });
+            } catch (e) {
+              console.error("Failed to load draft", e);
+            }
+          } else {
+            // Initial state with empty slides
+            setFormData({
+              authorName: data.defaults?.authorName || "Your Name",
+              authorHandle: data.defaults?.authorHandle || "@handle",
+              slides: defaultSlides
+            });
           }
-          */
-
-          console.log("CarouselEditor: Initializing fresh state for template");
-          setFormData({
-            authorName: data.defaults?.authorName || "Your Name",
-            authorHandle: data.defaults?.authorHandle || "@handle",
-            slides: defaultSlides
-          });
         } else {
           console.error("CarouselEditor: Template document not found in Firestore for ID:", templateId);
           toast({
