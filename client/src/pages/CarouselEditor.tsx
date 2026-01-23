@@ -29,16 +29,17 @@ export default function CarouselEditor() {
     async function loadTemplate() {
       if (!templateId) return;
       try {
-        console.log("Loading templateId from URL:", templateId);
+        console.log("CarouselEditor: Detected templateId change. New ID:", templateId);
         setLoading(true);
-        // Reset state for new template
+        
+        // CRITICAL: Reset state immediately to prevent stale data display
         setTemplate(null);
         setFormData(null);
         setCurrentSlideIndex(0);
 
         const data = await getTemplateById(templateId);
         if (data) {
-          console.log("Successfully loaded template:", data.name);
+          console.log("CarouselEditor: Successfully fetched template from Firestore:", data.name, "(ID:", data.id, ")");
           setTemplate(data);
           
           const slidesCount = data.slidesCount || 5;
@@ -47,36 +48,22 @@ export default function CarouselEditor() {
             description: ""
           }));
 
-          // Preload from localStorage if exists
+          // TEMPORARILY DISABLED: LocalStorage draft loading to isolate loading bug
+          /*
           const saved = localStorage.getItem(`draft_${templateId}`);
           if (saved) {
-            try {
-              const draft = JSON.parse(saved);
-              const loadedData = draft.data || draft;
-              
-              // Ensure slides array exists and has correct length
-              const slides = loadedData.slides || [];
-              while (slides.length < slidesCount) {
-                slides.push({ title: "", description: "" });
-              }
-              
-              setFormData({
-                ...loadedData,
-                slides: slides.slice(0, slidesCount)
-              });
-            } catch (e) {
-              console.error("Failed to load draft", e);
-            }
-          } else {
-            // Initial state with empty slides
-            setFormData({
-              authorName: data.defaults?.authorName || "Your Name",
-              authorHandle: data.defaults?.authorHandle || "@handle",
-              slides: defaultSlides
-            });
+            // ... loading logic
           }
+          */
+
+          console.log("CarouselEditor: Initializing fresh state for template");
+          setFormData({
+            authorName: data.defaults?.authorName || "Your Name",
+            authorHandle: data.defaults?.authorHandle || "@handle",
+            slides: defaultSlides
+          });
         } else {
-          console.error("Template not found for ID:", templateId);
+          console.error("CarouselEditor: Template document not found in Firestore for ID:", templateId);
           toast({
             variant: "destructive",
             title: "Error",
@@ -85,7 +72,7 @@ export default function CarouselEditor() {
           setLocation("/templates");
         }
       } catch (err) {
-        console.error("Error loading template:", err);
+        console.error("CarouselEditor: Exception during template load:", err);
       } finally {
         setLoading(false);
       }

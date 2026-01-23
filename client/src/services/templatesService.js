@@ -22,10 +22,13 @@ export async function getCarouselTemplates() {
     );
     
     const querySnapshot = await getDocs(q);
-    const docs = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const docs = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id // Force the ID to be the Firestore document ID
+      };
+    });
 
     // Sort in memory to avoid index requirement for new collections
     return docs.sort((a, b) => {
