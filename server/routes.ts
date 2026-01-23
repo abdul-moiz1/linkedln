@@ -4556,6 +4556,118 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     }
   });
 
+  // =============================================
+  // VECTOR SEARCH ENDPOINTS (Pinecone + OpenAI)
+  // =============================================
+
+  const { upsertVector, searchVectors, indexUserDocuments } = await import("./lib/vector-operations");
+  const { isPineconeConfigured } = await import("./lib/pinecone-client");
+
+  /**
+   * POST /api/vector/upsert
+   * Index a single document into Pinecone
+   */
+  app.post("/api/vector/upsert", async (req: Request, res: Response) => {
+    try {
+      const { collection, docId, userId } = req.body;
+
+      if (!collection || !docId || !userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: collection, docId, userId",
+        });
+      }
+
+      const validCollections = ["carousels", "templates", "carouselTemplates"];
+      if (!validCollections.includes(collection)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid collection. Must be one of: ${validCollections.join(", ")}`,
+        });
+      }
+
+      const result = await upsertVector(collection, docId, userId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("[Vector Upsert] Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/vector/search
+   * Search for similar documents using semantic search
+   */
+  app.post("/api/vector/search", async (req: Request, res: Response) => {
+    try {
+      const { collection, userId, query, topK = 6 } = req.body;
+
+      if (!collection || !userId || !query) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: collection, userId, query",
+        });
+      }
+
+      const validCollections = ["carousels", "templates", "carouselTemplates"];
+      if (!validCollections.includes(collection)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid collection. Must be one of: ${validCollections.join(", ")}`,
+        });
+      }
+
+      const result = await searchVectors(collection, userId, query, topK);
+      res.json(result);
+    } catch (error: any) {
+      console.error("[Vector Search] Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/vector/index-user
+   * Bulk index all documents for a user in a collection
+   */
+  app.post("/api/vector/index-user", async (req: Request, res: Response) => {
+    try {
+      const { userId, collection, limit = 50 } = req.body;
+
+      if (!userId || !collection) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: userId, collection",
+        });
+      }
+
+      const validCollections = ["carousels", "templates", "carouselTemplates"];
+      if (!validCollections.includes(collection)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid collection. Must be one of: ${validCollections.join(", ")}`,
+        });
+      }
+
+      const result = await indexUserDocuments(userId, collection, limit);
+      res.json(result);
+    } catch (error: any) {
+      console.error("[Vector Index User] Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/vector/status
+   * Check if vector search is configured
+   */
+  app.get("/api/vector/status", async (req: Request, res: Response) => {
+    res.json({
+      pineconeConfigured: isPineconeConfigured,
+      openaiConfigured: !!process.env.OPENAI_API_KEY,
+      firebaseConfigured: isFirebaseConfigured,
+    });
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
