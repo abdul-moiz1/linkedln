@@ -29,9 +29,16 @@ export default function CarouselEditor() {
     async function loadTemplate() {
       if (!templateId) return;
       try {
+        console.log("Loading templateId from URL:", templateId);
         setLoading(true);
+        // Reset state for new template
+        setTemplate(null);
+        setFormData(null);
+        setCurrentSlideIndex(0);
+
         const data = await getTemplateById(templateId);
         if (data) {
+          console.log("Successfully loaded template:", data.name);
           setTemplate(data);
           
           const slidesCount = data.slidesCount || 5;
@@ -68,6 +75,14 @@ export default function CarouselEditor() {
               slides: defaultSlides
             });
           }
+        } else {
+          console.error("Template not found for ID:", templateId);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Template not found",
+          });
+          setLocation("/templates");
         }
       } catch (err) {
         console.error("Error loading template:", err);
@@ -76,7 +91,7 @@ export default function CarouselEditor() {
       }
     }
     loadTemplate();
-  }, [templateId]);
+  }, [templateId, setLocation, toast]);
 
   const updateCurrentSlide = (field: string, value: string) => {
     setFormData((prev: any) => {

@@ -12,11 +12,14 @@ const TemplateCard = ({ template }: { template: any }) => {
   const thumbnail = template.thumbnail;
 
   return (
-    <div 
-      className="group cursor-pointer flex flex-col gap-3"
-      onClick={() => setLocation(`/carousel-editor/${template.id}`)}
-    >
-      <div className="aspect-[4/5] relative rounded-xl overflow-hidden shadow-sm border border-slate-200 group-hover:shadow-xl group-hover:-translate-y-1.5 transition-all duration-300 bg-white">
+      <div 
+        className="group cursor-pointer flex flex-col gap-3"
+        onClick={() => {
+          console.log("Navigating to template:", template.id);
+          setLocation(`/carousel-editor/${template.id}`);
+        }}
+      >
+        <div className="aspect-[4/5] relative rounded-xl overflow-hidden shadow-sm border border-slate-200 group-hover:shadow-xl group-hover:-translate-y-1.5 transition-all duration-300 bg-white">
         <div className="absolute inset-0 bg-slate-50 flex items-center justify-center overflow-hidden">
           <img 
             src={thumbnail} 
