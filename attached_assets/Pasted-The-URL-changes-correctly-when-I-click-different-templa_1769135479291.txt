@@ -1,0 +1,79 @@
+The URL changes correctly when I click different templates (example: /carousel-editor/framework_001 then /carousel-editor/mistakes_001), but the editor still shows the same template content.
+
+✅ This means the editor is not reloading template data when templateId changes OR localStorage draft is overriding the loaded template.
+
+Fix this completely.
+
+✅ Required Fix
+1) Ensure the editor reloads on templateId change
+
+In CarouselEditor:
+
+useParams() must correctly read templateId
+
+the Firestore fetch must run again every time templateId changes
+
+✅ The useEffect MUST depend on templateId:
+
+when templateId changes:
+
+reset editor state
+
+fetch new template from Firestore
+
+rebuild slides array using new slidesCount
+
+set current slide back to 0
+
+2) Hard reset state before loading
+
+When templateId changes, clear everything FIRST:
+
+template = null
+
+slidesData = []
+
+currentSlideIndex = 0
+
+Only after reset, load new template.
+
+3) Stop draft from overriding template load (main bug)
+
+Right now draft loading probably runs automatically and is overriding the new template.
+Fix draft logic:
+
+✅ Only load draft if draft.templateId matches the current templateId
+✅ Never reuse draft from previous template
+✅ If draft exists but slide count differs, rebuild slides correctly
+
+Also add a “Load Draft” button instead of auto-loading (optional, for safety).
+
+4) Fix preview using template theme/layout (not stale values)
+
+Ensure CarouselPreview always uses current template object.
+If template is changed, preview must update.
+
+5) Add Debug Logs (must)
+
+Add these logs temporarily:
+
+When editor loads:
+
+log templateId from URL
+
+log template fetched from Firestore (id + name + layout + slidesCount)
+
+log draft key being loaded
+
+log final template state after setTemplate
+
+This will confirm what is overriding.
+
+✅ Final Result Expected
+
+After fix:
+
+✅ Clicking different templates shows different editor title
+✅ Preview theme/layout changes according to the clicked template
+✅ Slides count changes correctly based on template
+✅ Draft does not force editor to show the wrong template
