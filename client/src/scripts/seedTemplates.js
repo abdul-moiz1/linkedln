@@ -1,4 +1,4 @@
-import { db } from "../lib/firebase";
+import { db } from "../lib/firebase.ts";
 import { 
   collection, 
   getDocs, 
@@ -104,18 +104,44 @@ export async function resetAndReseedTemplates() {
 
 export async function seedCarouselTemplates() {
   const templates = [
-    { id: "cover_bold_001", name: "Bold Authority", slidesCount: 5, layout: "cover_bold", isNew: true },
-    { id: "minimal_001", name: "Minimalist Guide", slidesCount: 7, layout: "cover_minimal" },
-    { id: "split_001", name: "The Split Contrast", slidesCount: 5, layout: "cover_split", isNew: true },
-    { id: "quote_001", name: "Viral Quotes", slidesCount: 3, layout: "cover_quote" },
-    { id: "stats_001", name: "Data Insights", slidesCount: 6, layout: "cover_stats" },
-    { id: "story_001", name: "Personal Story", slidesCount: 8, layout: "cover_story" },
-    { id: "framework_001", name: "Framework Grid", slidesCount: 5, layout: "framework_grid", isNew: true },
-    { id: "howto_001", name: "Step-by-Step", slidesCount: 6, layout: "howto_steps" },
-    { id: "mistakes_001", name: "Mistakes Alert", slidesCount: 5, layout: "mistakes_warning" },
-    { id: "stats_clean_001", name: "Growth Charts", slidesCount: 5, layout: "stats_clean" },
-    { id: "pro_master_001", name: "The Masterclass", slidesCount: 10, layout: "cover_bold", isNew: true },
-    { id: "simple_pro_001", name: "Simple Professional", slidesCount: 5, layout: "cover_minimal" }
+    { id: "cover_bold_001", name: "Bold Authority", slidesCount: 5, layout: "cover_bold", isNew: true,
+      slideLayouts: ["cover", "bullets", "steps", "proof", "cta"],
+      theme: { primaryColor: "#38bdf8", backgroundColor: "#0f172a", textColor: "#ffffff", secondaryTextColor: "rgba(255,255,255,0.7)", cardBg: "rgba(255,255,255,0.05)", accentColor: "#10b981", isDark: true }
+    },
+    { id: "minimal_001", name: "Minimalist Guide", slidesCount: 7, layout: "cover_minimal",
+      slideLayouts: ["cover", "bullets", "bullets", "steps", "steps", "proof", "cta"],
+      theme: { primaryColor: "#0f172a", backgroundColor: "#ffffff", textColor: "#0f172a", secondaryTextColor: "#64748b", cardBg: "#f8fafc", accentColor: "#0ea5e9", isDark: false }
+    },
+    { id: "split_001", name: "The Split Contrast", slidesCount: 5, layout: "cover_split", isNew: true,
+      slideLayouts: ["cover", "bullets", "quote", "bullets", "cta"]
+    },
+    { id: "quote_001", name: "Viral Quotes", slidesCount: 3, layout: "cover_quote",
+      slideLayouts: ["cover", "quote", "cta"]
+    },
+    { id: "stats_001", name: "Data Insights", slidesCount: 6, layout: "cover_stats",
+      slideLayouts: ["cover", "proof", "proof", "bullets", "bullets", "cta"]
+    },
+    { id: "story_001", name: "Personal Story", slidesCount: 8, layout: "cover_story",
+      slideLayouts: ["cover", "bullets", "bullets", "quote", "bullets", "bullets", "proof", "cta"]
+    },
+    { id: "framework_001", name: "Framework Grid", slidesCount: 5, layout: "framework_grid", isNew: true,
+      slideLayouts: ["cover", "bullets", "bullets", "proof", "cta"]
+    },
+    { id: "howto_001", name: "Step-by-Step", slidesCount: 6, layout: "howto_steps",
+      slideLayouts: ["cover", "steps", "steps", "steps", "proof", "cta"]
+    },
+    { id: "mistakes_001", name: "Mistakes Alert", slidesCount: 5, layout: "mistakes_warning",
+      slideLayouts: ["cover", "bullets", "bullets", "proof", "cta"]
+    },
+    { id: "stats_clean_001", name: "Growth Charts", slidesCount: 5, layout: "stats_clean",
+      slideLayouts: ["cover", "proof", "proof", "bullets", "cta"]
+    },
+    { id: "pro_master_001", name: "The Masterclass", slidesCount: 10, layout: "cover_bold", isNew: true,
+      slideLayouts: ["cover", "bullets", "bullets", "steps", "steps", "quote", "bullets", "proof", "proof", "cta"]
+    },
+    { id: "simple_pro_001", name: "Simple Professional", slidesCount: 5, layout: "cover_minimal",
+      slideLayouts: ["cover", "bullets", "bullets", "proof", "cta"]
+    }
   ];
 
   const commonFields = ["title", "description", "authorName", "authorHandle"];
@@ -138,6 +164,8 @@ export async function seedCarouselTemplates() {
           type: "carousel",
           slidesCount: t.slidesCount,
           layout: t.layout,
+          slideLayouts: t.slideLayouts || [],
+          theme: t.theme || null,
           thumbnail: generateThumbnailSvg(t.name, t.layout, t.slidesCount),
           fields: commonFields,
           defaults: {

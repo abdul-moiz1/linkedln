@@ -1,0 +1,108 @@
+My multi-slide editor is working perfectly (Prev/Next + left slide list + preview updates).
+
+Now I want the templates to behave like real LinkedIn carousel templates:
+
+✅ Same theme (colors + fonts)
+✅ But each slide should have a different layout/style.
+
+Currently, every slide looks identical because my CarouselPreview uses the same layout for all slides.
+
+✅ Required Upgrade
+1) Add slideLayouts to templates in Firestore
+
+Update template documents to include a new field:
+
+slideLayouts (array)
+
+Example for a 5-slide template:
+
+"slideLayouts": ["cover", "bullets", "steps", "quote", "cta"]
+
+
+Example for a 6-slide template:
+
+"slideLayouts": ["cover", "bullets", "bullets", "steps", "proof", "cta"]
+
+
+✅ slideLayouts length must match slidesCount
+✅ If slideLayouts missing, generate defaults automatically:
+
+slide 1 = cover
+
+last slide = cta
+
+middle slides = bullets
+
+2) Update CarouselPreview to support slideLayouts
+
+Modify preview logic so it renders the current slide using:
+
+currentSlideLayout = template.slideLayouts[currentSlideIndex]
+
+And NOT the global template.layout.
+
+3) Create slide layout components
+
+Create reusable slide UI blocks like:
+
+CoverSlide (big title, subtitle)
+
+BulletsSlide (title + bullet points from description)
+
+StepsSlide (3 step boxes)
+
+QuoteSlide (large quote style)
+
+ProofSlide (stats blocks)
+
+CTASlide (call to action + handle)
+
+Each slide layout must share the same theme colors + fonts so they look consistent.
+
+Theme comes from template data like:
+
+template.theme.primaryColor
+
+template.theme.backgroundColor
+
+template.theme.accentColor
+(if not available, use default theme)
+
+4) Improve seed templates to include slideLayouts
+
+Update Reset & Reseed so seeded templates include slideLayouts arrays.
+
+Example:
+
+How-To Steps template (6 slides):
+["cover","steps","steps","bullets","proof","cta"]
+
+Framework Grid template (5 slides):
+["cover","framework","framework","quote","cta"]
+
+5) Editor should show slide type label (optional)
+
+In Slide list on left, show:
+
+Slide 1 (Cover)
+
+Slide 2 (Steps)
+
+Slide 3 (Bullets)
+etc.
+
+So user understands why slide design changes.
+
+✅ Final Expected Result
+
+After this:
+
+✅ Slide 1 looks like a real “Cover”
+✅ Slide 2 is bullet/steps layout
+✅ Slide 3 is different style
+✅ Slide 4 is quote or framework style
+✅ Slide 5 is CTA
+
+But everything still looks like one template family (same theme).
+
+✅ Implement all these changes now.

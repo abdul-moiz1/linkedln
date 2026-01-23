@@ -147,26 +147,34 @@ export default function CarouselEditor() {
           <div className="lg:col-span-2 flex flex-col min-h-0">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex-none">Slides</h2>
             <div className="flex-1 overflow-y-auto pr-2 space-y-2 pb-4 custom-scrollbar">
-              {formData.slides.map((slide: any, idx: number) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentSlideIndex(idx)}
-                  className={`w-full text-left p-3 rounded-lg border transition-all ${
-                    currentSlideIndex === idx 
-                    ? "bg-sky-50 border-sky-200 shadow-sm" 
-                    : "bg-white border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[10px] font-bold ${currentSlideIndex === idx ? "text-sky-600" : "text-slate-400"}`}>
-                      SLIDE {idx + 1}
-                    </span>
-                  </div>
-                  <p className="text-xs font-medium text-slate-700 truncate">
-                    {slide.title || "Empty Slide"}
-                  </p>
-                </button>
-              ))}
+              {formData.slides.map((slide: any, idx: number) => {
+                const slideLayouts = template.slideLayouts || [];
+                const layoutType = slideLayouts[idx] || (
+                  idx === 0 ? 'cover' : 
+                  idx === (template.slidesCount - 1) ? 'cta' : 'bullets'
+                );
+                
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentSlideIndex(idx)}
+                    className={`w-full text-left p-3 rounded-lg border transition-all ${
+                      currentSlideIndex === idx 
+                      ? "bg-sky-50 border-sky-200 shadow-sm" 
+                      : "bg-white border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-[10px] font-bold ${currentSlideIndex === idx ? "text-sky-600" : "text-slate-400"}`}>
+                        SLIDE {idx + 1} ({layoutType.toUpperCase()})
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-700 truncate">
+                      {slide.title || "Empty Slide"}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
