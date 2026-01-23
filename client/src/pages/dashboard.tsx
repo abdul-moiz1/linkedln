@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { 
   Sparkles,
   ChevronDown,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { SemanticSearch } from "@/components/semantic-search";
 
 const templates = [
   { 
@@ -111,9 +115,19 @@ const templates = [
 
 export default function Dashboard() {
   const { data: user } = useQuery<any>({ queryKey: ["/api/user"] });
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const userId = user?.firebaseUid || user?.linkedinId || user?.id || "";
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
+      {/* Semantic Search Dialog */}
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent className="max-w-2xl p-0 border-none bg-transparent shadow-none">
+          <SemanticSearch userId={userId} onClose={() => setSearchOpen(false)} />
+        </DialogContent>
+      </Dialog>
+
       {/* Top Navbar */}
       <header className="h-14 border-b bg-white flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-4">
@@ -126,6 +140,16 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full h-9 px-4 flex items-center gap-2"
+            onClick={() => setSearchOpen(true)}
+            data-testid="button-open-search"
+          >
+            <Search className="w-4 h-4" />
+            <span className="font-medium">Search</span>
+          </Button>
           <Button variant="outline" size="sm" className="rounded-full border-[#6c5ce7] text-[#6c5ce7] hover:bg-[#6c5ce7]/5 h-9 px-4 flex items-center gap-2">
             <Sparkles className="w-4 h-4 fill-current" />
             <span className="font-bold">AI Assistant</span>
