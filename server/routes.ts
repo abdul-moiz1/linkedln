@@ -475,7 +475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Try to parse JSON from the response
       // Look for a JSON array or object
-      let data = { versions: [] };
+      let data = { versions: [] as any[] };
       try {
         const jsonMatch = response.match(/\[\s*\{.*\}\s*\]|\{\s*"versions".*\}/s);
         if (jsonMatch) {
@@ -493,18 +493,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If it's not valid JSON, maybe it's just a list of versions
         const sections = response.split(/Post \d+:|Version \d+:/i).filter(s => s.trim().length > 50);
         if (sections.length > 0) {
-          data.versions = sections.slice(0, 4).map(content => ({
+          (data.versions as any[]) = sections.slice(0, 4).map(content => ({
             post: content.trim(),
             type: "Strategic"
           }));
         }
       }
 
-      console.log(`[Gemini] Extracted ${data.versions?.length || 0} versions`);
       res.json({ success: true, versions: data.versions || [] });
     } catch (error) {
       console.error("Failed to get suggestions:", error);
-      res.json({ success: true, suggestions: [] }); // Fail silently for UI
+      res.json({ success: true, versions: [] }); // Fail gracefully for UI
     }
   });
 

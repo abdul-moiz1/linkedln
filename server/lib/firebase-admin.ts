@@ -221,26 +221,191 @@ export async function seedTemplates(force = false) {
       if (force) snapshot.docs.forEach(doc => batch.delete(doc.ref));
       templates.forEach(t => batch.set(db.collection("carouselTemplates").doc(t.templateId), t));
       await batch.commit();
-      console.log(`[Firebase] Seeded ${templates.length} templates.`);
-      
-      // Index templates in Pinecone for semantic search
-      try {
-        const { upsertVector } = await import("./vector-operations");
-        console.log(`[Firebase] Indexing ${templates.length} templates in Pinecone...`);
-        let indexedCount = 0;
-        for (const t of templates) {
+    console.log(`[Firebase] Seeded ${templates.length} templates.`);
+    
+    // Index templates in Pinecone for semantic search
+    try {
+      const { upsertVector } = await import("./vector-operations");
+      console.log(`[Firebase] Indexing ${templates.length} templates in Pinecone...`);
+      let indexedCount = 0;
+      for (const t of templates) {
+        // Wrap in try-catch to allow seeding to continue if Pinecone fails
+        try {
+          // Check for OpenAI quota before attempting
+          if (!process.env.OPENAI_API_KEY) {
+            console.warn("[Firebase] Skipping Pinecone index - OpenAI API key missing");
+            break;
+          }
           const result = await upsertVector("carouselTemplates", t.templateId, "");
           if (result.indexed) indexedCount++;
+        } catch (e: any) {
+          if (e.message?.includes("insufficient_quota")) {
+            console.warn("[Firebase] OpenAI quota exceeded, stopping index process");
+            break;
+          }
+          console.warn(`[Firebase] Failed to index template ${t.templateId}:`, e);
         }
-        console.log(`[Firebase] Indexed ${indexedCount}/${templates.length} templates in Pinecone.`);
-      } catch (indexError: any) {
-        console.warn(`[Firebase] Template indexing skipped:`, indexError.message);
       }
+      console.log(`[Firebase] Indexed ${indexedCount}/${templates.length} templates in Pinecone.`);
+    } catch (indexError: any) {
+      console.warn(`[Firebase] Template indexing skipped:`, indexError.message);
     }
-  } catch (e) {
-    console.error("[Firebase] Seeding failed:", e);
   }
+} catch (e) {
+  console.error("[Firebase] Seeding failed:", e);
 }
+}
+
+export async function getUser(userId: string) {
+if (!isFirebaseConfigured || !adminDb) return null;
+const doc = await adminDb.collection("users").doc(userId).get();
+return doc.exists ? doc.data() : null;
+}
+
+export async function saveUser(userData: any) {
+if (!isFirebaseConfigured || !adminDb) return;
+const { linkedinId, ...data } = userData;
+await adminDb.collection("users").doc(linkedinId).set({
+  ...data,
+  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+}, { merge: true });
+}
+
+export async function saveLinkedLinkedIn(userId: string, data: any) {
+if (!isFirebaseConfigured || !adminDb) return;
+await adminDb.collection("users").doc(userId).set({
+  linkedLinkedIn: {
+    ...data,
+    linkedAt: admin.firestore.FieldValue.serverTimestamp()
+  }
+}, { merge: true });
+}
+
+export async function getLinkedLinkedIn(userId: string) {
+const user = await getUser(userId);
+return user?.linkedLinkedIn || null;
+}
+
+export async function migrateGuestCarousels(guestId: string, userId: string) {
+if (!isFirebaseConfigured || !adminDb) return;
+const carousels = await adminDb.collection("carousels").where("guestId", "==", guestId).get();
+const batch = adminDb.batch();
+carousels.forEach(doc => {
+  batch.update(doc.ref, { userId, guestId: admin.firestore.FieldValue.delete() });
+});
+await batch.commit();
+}
+
+export async function getCarousel(id: string) {
+if (!isFirebaseConfigured || !adminDb) return null;
+const doc = await adminDb.collection("carousels").doc(id).get();
+return doc.exists ? { id: doc.id, ...doc.data() } : null;
+}
+
+export async function updateCarousel(id: string, data: any) {
+if (!isFirebaseConfigured || !adminDb) return;
+await adminDb.collection("carousels").doc(id).set({
+  ...data,
+  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+}, { merge: true });
+}
+
+export async function createCarousel(data: any) {
+if (!isFirebaseConfigured || !adminDb) return null;
+const ref = adminDb.collection("carousels").doc();
+await ref.set({
+  ...data,
+  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+});
+return { id: ref.id, ...data };
+}
+
+export async function getUserCarousels(userId: string) {
+if (!isFirebaseConfigured || !adminDb) return [];
+const snap = await adminDb.collection("carousels").where("userId", "==", userId).get();
+return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function deleteCarousel(id: string) {
+if (!isFirebaseConfigured || !adminDb) return;
+await adminDb.collection("carousels").doc(id).delete();
+}
+
+export async function updateCarouselSlide(carouselId: string, slideIndex: number, data: any) {
+const carousel = await getCarousel(carouselId) as any;
+if (!carousel) return;
+const slides = [...(carousel.slides || [])];
+slides[slideIndex] = { ...slides[slideIndex], ...data };
+await updateCarousel(carouselId, { slides });
+}
+
+export async function updateUserProfileUrl(userId: string, profileUrl: string) {
+await adminDb?.collection("users").doc(userId).update({ profileUrl });
+}
+
+export async function getCachedPosts(userId: string) {
+if (!adminDb) return [];
+const snap = await adminDb.collection("posts_cache").where("userId", "==", userId).get();
+return snap.docs.map(doc => doc.data());
+}
+
+export async function saveCachedPosts(userId: string, posts: any[]) {
+if (!adminDb) return;
+const batch = adminDb.batch();
+posts.forEach(post => {
+  const ref = adminDb!.collection("posts_cache").doc();
+  batch.set(ref, { ...post, userId, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+});
+await batch.commit();
+}
+
+export async function clearCachedPosts(userId: string) {
+if (!adminDb) return;
+const snap = await adminDb.collection("posts_cache").where("userId", "==", userId).get();
+const batch = adminDb.batch();
+snap.docs.forEach(doc => batch.delete(doc.ref));
+await batch.commit();
+}
+
+export async function getProject(id: string) {
+if (!adminDb) return null;
+const doc = await adminDb.collection("projects").doc(id).get();
+return doc.exists ? { id: doc.id, ...doc.data() } : null;
+}
+
+export async function saveProject(data: any) {
+if (!adminDb) return null;
+const ref = adminDb.collection("projects").doc();
+await ref.set({ ...data, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+return { id: ref.id, ...data };
+}
+
+export async function updateProject(id: string, data: any) {
+if (!adminDb) return;
+await adminDb.collection("projects").doc(id).update(data);
+}
+
+export async function getUserProjects(userId: string) {
+if (!adminDb) return [];
+const snap = await adminDb.collection("projects").where("userId", "==", userId).get();
+return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function recoverCarouselImages(id: string) {
+// Mock implementation or logic to recover images from storage
+return listCarouselImages(id);
+}
+
+export async function saveCarouselPdf(carouselId: string, pdfUrl: string) {
+await updateCarousel(carouselId, { pdfUrl });
+}
+
+export const CAROUSEL_TYPES = {
+STANDARD: "standard",
+TALL: "tall",
+SQUARE: "square"
+};
 
 export { adminDb, adminAuth, adminStorage, isFirebaseConfigured, adminDb as adminFirestore };
 
