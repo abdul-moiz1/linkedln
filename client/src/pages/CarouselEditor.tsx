@@ -133,7 +133,7 @@ export default function CarouselEditor() {
   const currentSlide = formData.slides[currentSlideIndex] || { title: "", description: "" };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col overflow-hidden text-[#1a1a1a]">
+    <div className="h-screen bg-[#f8fafc] flex flex-col overflow-hidden text-[#1a1a1a]">
       <CarouselHeader 
         title={template.name}
         lastSaved={new Date().toLocaleTimeString()}
@@ -141,12 +141,12 @@ export default function CarouselEditor() {
         onContinue={handleContinue}
       />
       
-      <main className="flex-1 overflow-hidden">
-        <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 max-w-[1600px] mx-auto">
+      <main className="flex-1 overflow-hidden relative">
+        <div className="absolute inset-0 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 max-w-[1600px] mx-auto">
           {/* Left Panel: Slide List */}
-          <div className="lg:col-span-2 space-y-4 overflow-y-auto pr-2">
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Slides</h2>
-            <div className="space-y-2">
+          <div className="lg:col-span-2 flex flex-col min-h-0">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex-none">Slides</h2>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-2 pb-4 custom-scrollbar">
               {formData.slides.map((slide: any, idx: number) => (
                 <button
                   key={idx}
@@ -171,92 +171,98 @@ export default function CarouselEditor() {
           </div>
 
           {/* Middle Panel: Content Editor */}
-          <div className="lg:col-span-6 space-y-6 overflow-y-auto">
-            <Card className="p-6 space-y-6 shadow-sm border-slate-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <span className="bg-slate-900 text-white w-6 h-6 rounded flex items-center justify-center text-xs">
-                    {currentSlideIndex + 1}
-                  </span>
-                  Slide Editor
-                </h2>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={currentSlideIndex === 0}
-                    onClick={() => setCurrentSlideIndex(prev => prev - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-xs font-bold text-slate-500 mx-2">
-                    {currentSlideIndex + 1} / {formData.slides.length}
-                  </span>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={currentSlideIndex === formData.slides.length - 1}
-                    onClick={() => setCurrentSlideIndex(prev => prev + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase">Slide Title</Label>
-                  <Input 
-                    value={currentSlide.title} 
-                    onChange={e => updateCurrentSlide("title", e.target.value)}
-                    placeholder="Enter slide title or hook..."
-                    className="text-lg font-bold py-6"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase">Slide Description</Label>
-                  <Textarea 
-                    value={currentSlide.description} 
-                    onChange={e => updateCurrentSlide("description", e.target.value)}
-                    placeholder="Write your slide content here..."
-                    className="min-h-[250px] text-base leading-relaxed"
-                  />
+          <div className="lg:col-span-6 flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto pr-2 pb-6 custom-scrollbar">
+              <Card className="p-6 space-y-6 shadow-sm border-slate-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <span className="bg-slate-900 text-white w-6 h-6 rounded flex items-center justify-center text-xs">
+                      {currentSlideIndex + 1}
+                    </span>
+                    Slide Editor
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      disabled={currentSlideIndex === 0}
+                      onClick={() => setCurrentSlideIndex(prev => prev - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-xs font-bold text-slate-500 mx-2">
+                      {currentSlideIndex + 1} / {formData.slides.length}
+                    </span>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      disabled={currentSlideIndex === formData.slides.length - 1}
+                      onClick={() => setCurrentSlideIndex(prev => prev + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="pt-6 border-t border-slate-100 space-y-4">
-                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Brand Information</h3>
-                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-bold text-slate-400">Your Name</Label>
-                      <Input 
-                        value={formData.authorName} 
-                        onChange={e => setFormData({...formData, authorName: e.target.value})}
-                        size="sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-bold text-slate-400">Handle</Label>
-                      <Input 
-                        value={formData.authorHandle} 
-                        onChange={e => setFormData({...formData, authorHandle: e.target.value})}
-                        size="sm"
-                      />
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">Slide Title</Label>
+                    <Input 
+                      value={currentSlide.title} 
+                      onChange={e => updateCurrentSlide("title", e.target.value)}
+                      placeholder="Enter slide title or hook..."
+                      className="text-lg font-bold py-6"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">Slide Description</Label>
+                    <Textarea 
+                      value={currentSlide.description} 
+                      onChange={e => updateCurrentSlide("description", e.target.value)}
+                      placeholder="Write your slide content here..."
+                      className="min-h-[300px] text-base leading-relaxed resize-none"
+                    />
+                  </div>
+
+                  <div className="pt-6 border-t border-slate-100 space-y-4">
+                     <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Brand Information</h3>
+                     <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-bold text-slate-400">Your Name</Label>
+                        <Input 
+                          value={formData.authorName} 
+                          onChange={e => setFormData({...formData, authorName: e.target.value})}
+                          size="sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-bold text-slate-400">Handle</Label>
+                        <Input 
+                          value={formData.authorHandle} 
+                          onChange={e => setFormData({...formData, authorHandle: e.target.value})}
+                          size="sm"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
 
           {/* Right Panel: Live Preview */}
-          <div className="lg:col-span-4 overflow-y-auto flex flex-col items-center">
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Live Preview</h2>
-            <CarouselPreview 
-              template={template} 
-              data={formData} 
-              currentSlideIndex={currentSlideIndex} 
-            />
+          <div className="lg:col-span-4 flex flex-col min-h-0 items-center">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex-none">Live Preview</h2>
+            <div className="w-full overflow-y-auto pb-6 custom-scrollbar">
+              <div className="flex justify-center py-2">
+                <CarouselPreview 
+                  template={template} 
+                  data={formData} 
+                  currentSlideIndex={currentSlideIndex} 
+                />
+              </div>
+            </div>
           </div>
         </div>
       </main>
