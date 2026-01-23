@@ -26,12 +26,13 @@ interface SearchResult {
 interface SemanticSearchProps {
   userId: string;
   onClose?: () => void;
+  defaultCollection?: string;
 }
 
-export function SemanticSearch({ userId, onClose }: SemanticSearchProps) {
+export function SemanticSearch({ userId, onClose, defaultCollection }: SemanticSearchProps) {
   const [, navigate] = useLocation();
   const [query, setQuery] = useState("");
-  const [collection, setCollection] = useState<string>("carousels");
+  const [collection, setCollection] = useState<string>(defaultCollection || "carousels");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -182,7 +183,7 @@ export function SemanticSearch({ userId, onClose }: SemanticSearchProps) {
                             {result.category}
                           </Badge>
                         )}
-                        {result.score && (
+                        {result.score !== undefined && (
                           <span className="text-xs text-muted-foreground">
                             {Math.round(result.score * 100)}% match
                           </span>

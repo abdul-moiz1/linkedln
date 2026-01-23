@@ -97,16 +97,16 @@ async function fallbackTextSearch(
 
   try {
     const isGlobalCollection = collection === "carouselTemplates";
-    const queryLower = query.toLowerCase();
-    const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 2);
+    const queryLower = query.toLowerCase().trim();
+    const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 1);
     
     let dbQuery = adminDb.collection(collection) as FirebaseFirestore.Query;
     
-    if (!isGlobalCollection && userId) {
+    if (!isGlobalCollection && userId && userId !== "global") {
       dbQuery = dbQuery.where("userId", "==", userId);
     }
     
-    const snapshot = await dbQuery.limit(50).get();
+    const snapshot = await dbQuery.limit(100).get();
     
     if (snapshot.empty) {
       return { success: true, results: [] };
@@ -118,25 +118,45 @@ async function fallbackTextSearch(
       const data = doc.data();
       const searchableText = buildEmbeddingText(collection, data).toLowerCase();
       
-      // Filter out invalid query terms
-      const validQueryTerms = queryTerms.length > 0 ? queryTerms : [queryLower].filter(t => t.length > 0);
+      const terms = queryTerms.length > 0 ? queryTerms : [queryLower].filter(t => t.length > 0);
       
-      let matchScore = 0;
-      if (validQueryTerms.length === 0) {
-        // If no valid terms, but we have a query, check if searchable text contains the full query
-        if (searchableText.includes(queryLower)) matchScore = 1;
+      let termMatches = 0;
+      let matchedAny = false;
+      
+      if (terms.length === 0) {
+        if (searchableText.includes(queryLower)) {
+          termMatches = 1;
+          matchedAny = true;
+        }
       } else {
-        for (const term of validQueryTerms) {
+        for (const term of terms) {
           if (searchableText.includes(term)) {
-            matchScore += 1;
+            termMatches++;
           }
+        }
+        if (termMatches > 0) {
+          matchedAny = true;
         }
       }
       
-      if (matchScore > 0) {
+      if (matchedAny) {
+        const termCoverage = terms.length > 0 ? termMatches / terms.length : 1;
+        const wordCount = searchableText.split(/\s+/).length;
+        let occurrences = 0;
+        for (const term of terms) {
+          const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+          const matches = searchableText.match(regex);
+          if (matches) occurrences += matches.length;
+        }
+        const freqScore = Math.min(0.4, occurrences / (wordCount + 5));
+        const exactMatchBonus = searchableText.includes(queryLower) ? 0.3 : 0;
+        const lengthPenalty = Math.min(0.15, searchableText.length / 10000);
+        
+        const finalScore = Math.max(0.05, Math.min(1, (termCoverage * 0.4) + freqScore + exactMatchBonus - lengthPenalty));
+
         scoredDocs.push({
           id: doc.id,
-          score: validQueryTerms.length > 0 ? matchScore / validQueryTerms.length : 1,
+          score: finalScore,
           ...data,
         });
       }
@@ -162,7 +182,6 @@ export async function searchVectors(
     return { success: false, results: [], error: "Firebase not configured" };
   }
 
-  // If Pinecone or OpenAI is not configured, use fallback text search
   if (!isPineconeConfigured || !isOpenAIConfigured) {
     console.log("[Vector] Using fallback text search (Pinecone/OpenAI not configured)");
     return fallbackTextSearch(collection, userId, query, topK);
@@ -181,12 +200,11 @@ export async function searchVectors(
       return fallbackTextSearch(collection, userId, query, topK);
     }
 
-    // For global templates (carouselTemplates), don't filter by userId
     const isGlobalCollection = collection === "carouselTemplates";
     const filter: Record<string, any> = {
       collection: { $eq: collection },
     };
-    if (!isGlobalCollection) {
+    if (!isGlobalCollection && userId && userId !== "global") {
       filter.userId = { $eq: userId };
     }
 
@@ -221,7 +239,6 @@ export async function searchVectors(
     return { success: true, results: docs };
   } catch (error: any) {
     console.error("[Vector] Search error:", error);
-    // Fall back to text search on any error
     return fallbackTextSearch(collection, userId, query, topK);
   }
 }
