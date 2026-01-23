@@ -113,34 +113,44 @@ export async function seedCarouselTemplates() {
       theme: { primaryColor: "#0f172a", backgroundColor: "#ffffff", textColor: "#0f172a", secondaryTextColor: "#64748b", cardBg: "#f8fafc", accentColor: "#0ea5e9", isDark: false }
     },
     { id: "split_001", name: "The Split Contrast", slidesCount: 5, layout: "cover_split", isNew: true,
-      slideLayouts: ["cover", "bullets", "quote", "bullets", "cta"]
+      slideLayouts: ["cover", "bullets", "quote", "bullets", "cta"],
+      theme: { primaryColor: "#0ea5e9", backgroundColor: "#ffffff", textColor: "#0f172a", secondaryTextColor: "#64748b", cardBg: "#f8fafc", accentColor: "#0ea5e9", isDark: false }
     },
     { id: "quote_001", name: "Viral Quotes", slidesCount: 3, layout: "cover_quote",
-      slideLayouts: ["cover", "quote", "cta"]
+      slideLayouts: ["cover", "quote", "cta"],
+      theme: { primaryColor: "#0ea5e9", backgroundColor: "#f8fafc", textColor: "#0f172a", secondaryTextColor: "#64748b", cardBg: "#ffffff", accentColor: "#0ea5e9", isDark: false }
     },
     { id: "stats_001", name: "Data Insights", slidesCount: 6, layout: "cover_stats",
-      slideLayouts: ["cover", "proof", "proof", "bullets", "bullets", "cta"]
+      slideLayouts: ["cover", "proof", "proof", "bullets", "bullets", "cta"],
+      theme: { primaryColor: "#10b981", backgroundColor: "#0f172a", textColor: "#ffffff", secondaryTextColor: "rgba(255,255,255,0.7)", cardBg: "rgba(255,255,255,0.05)", accentColor: "#10b981", isDark: true }
     },
     { id: "story_001", name: "Personal Story", slidesCount: 8, layout: "cover_story",
-      slideLayouts: ["cover", "bullets", "bullets", "quote", "bullets", "bullets", "proof", "cta"]
+      slideLayouts: ["cover", "bullets", "bullets", "quote", "bullets", "bullets", "proof", "cta"],
+      theme: { primaryColor: "#fb7185", backgroundColor: "#0f172a", textColor: "#ffffff", secondaryTextColor: "rgba(255,255,255,0.7)", cardBg: "rgba(255,255,255,0.05)", accentColor: "#fb7185", isDark: true }
     },
     { id: "framework_001", name: "Framework Grid", slidesCount: 5, layout: "framework_grid", isNew: true,
-      slideLayouts: ["cover", "bullets", "bullets", "proof", "cta"]
+      slideLayouts: ["cover", "bullets", "bullets", "proof", "cta"],
+      theme: { primaryColor: "#0ea5e9", backgroundColor: "#ffffff", textColor: "#0f172a", secondaryTextColor: "#64748b", cardBg: "#f8fafc", accentColor: "#0ea5e9", isDark: false }
     },
     { id: "howto_001", name: "Step-by-Step", slidesCount: 6, layout: "howto_steps",
-      slideLayouts: ["cover", "steps", "steps", "steps", "proof", "cta"]
+      slideLayouts: ["cover", "steps", "steps", "steps", "proof", "cta"],
+      theme: { primaryColor: "#10b981", backgroundColor: "#f0fdf4", textColor: "#0f172a", secondaryTextColor: "#166534", cardBg: "#ffffff", accentColor: "#10b981", isDark: false }
     },
     { id: "mistakes_001", name: "Mistakes Alert", slidesCount: 5, layout: "mistakes_warning",
-      slideLayouts: ["cover", "bullets", "bullets", "proof", "cta"]
+      slideLayouts: ["cover", "bullets", "bullets", "proof", "cta"],
+      theme: { primaryColor: "#ef4444", backgroundColor: "#fef2f2", textColor: "#991b1b", secondaryTextColor: "#b91c1c", cardBg: "#ffffff", accentColor: "#ef4444", isDark: false }
     },
     { id: "stats_clean_001", name: "Growth Charts", slidesCount: 5, layout: "stats_clean",
-      slideLayouts: ["cover", "proof", "proof", "bullets", "cta"]
+      slideLayouts: ["cover", "proof", "proof", "bullets", "cta"],
+      theme: { primaryColor: "#6366f1", backgroundColor: "#ffffff", textColor: "#0f172a", secondaryTextColor: "#4f46e5", cardBg: "#f8fafc", accentColor: "#6366f1", isDark: false }
     },
     { id: "pro_master_001", name: "The Masterclass", slidesCount: 10, layout: "cover_bold", isNew: true,
-      slideLayouts: ["cover", "bullets", "bullets", "steps", "steps", "quote", "bullets", "proof", "proof", "cta"]
+      slideLayouts: ["cover", "bullets", "bullets", "steps", "steps", "quote", "bullets", "proof", "proof", "cta"],
+      theme: { primaryColor: "#38bdf8", backgroundColor: "#0f172a", textColor: "#ffffff", secondaryTextColor: "rgba(255,255,255,0.7)", cardBg: "rgba(255,255,255,0.05)", accentColor: "#10b981", isDark: true }
     },
     { id: "simple_pro_001", name: "Simple Professional", slidesCount: 5, layout: "cover_minimal",
-      slideLayouts: ["cover", "bullets", "bullets", "proof", "cta"]
+      slideLayouts: ["cover", "bullets", "bullets", "proof", "cta"],
+      theme: { primaryColor: "#0f172a", backgroundColor: "#ffffff", textColor: "#0f172a", secondaryTextColor: "#64748b", cardBg: "#f8fafc", accentColor: "#0ea5e9", isDark: false }
     }
   ];
 

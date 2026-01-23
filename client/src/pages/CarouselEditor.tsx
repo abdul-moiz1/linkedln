@@ -62,36 +62,36 @@ export default function CarouselEditor() {
             slides: defaultSlides
           };
 
-          const savedDraft = localStorage.getItem(`draft_${templateId}`);
-          if (savedDraft) {
-            try {
-              const draft = JSON.parse(savedDraft);
-              // CRITICAL CHECK: Ensure draft belongs to this specific templateId
-              const draftId = draft.templateId || (draft.data?.templateId);
-              
-              if (draftId === templateId) {
-                console.log("CarouselEditor: [3.5/4] VALID DRAFT FOUND. Key:", `draft_${templateId}`);
-                const draftData = draft.data || draft;
-                
-                // Rebuild slides to ensure count matches template definition
-                const draftSlides = draftData.slides || [];
-                const finalSlides = slidesCount > 0 
-                  ? Array.from({ length: slidesCount }, (_, i) => draftSlides[i] || { title: "", description: "" })
-                  : draftSlides;
+    const savedDraft = localStorage.getItem(`draft_${templateId}`);
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        const draftId = draft.templateId || draft.data?.templateId;
+        
+        if (draftId === templateId) {
+          console.log("CarouselEditor: [3.5/4] VALID DRAFT FOUND. Key:", `draft_${templateId}`);
+          const draftData = draft.data || draft;
+          
+          const draftSlides = draftData.slides || [];
+          const finalSlides = slidesCount > 0 
+            ? Array.from({ length: slidesCount }, (_, i) => draftSlides[i] || { title: "", description: "" })
+            : draftSlides;
 
-                loadedFormData = {
-                  ...draftData,
-                  slides: finalSlides
-                };
-              } else {
-                console.warn("CarouselEditor: STALE DRAFT REJECTED. Draft ID:", draftId, "Current ID:", templateId);
-              }
-            } catch (e) {
-              console.error("CarouselEditor: DRAFT PARSE ERROR", e);
-            }
-          } else {
-            console.log("CarouselEditor: NO DRAFT FOUND. Initializing fresh state.");
-          }
+          loadedFormData = {
+            ...draftData,
+            slides: finalSlides
+          };
+        } else {
+          console.warn("CarouselEditor: STALE DRAFT REJECTED. Draft ID:", draftId, "Current ID:", templateId);
+          // CLEAR STALE DRAFT to prevent it from being picked up again
+          localStorage.removeItem(`draft_${templateId}`);
+        }
+      } catch (e) {
+        console.error("CarouselEditor: DRAFT PARSE ERROR", e);
+      }
+    } else {
+      console.log("CarouselEditor: NO DRAFT FOUND. Initializing fresh state.");
+    }
 
           // 4. STAGE: COMMIT - Set finalized state
           console.log("CarouselEditor: [4/4] COMMITTING STATE FOR:", data.name);

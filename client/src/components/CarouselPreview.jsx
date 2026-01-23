@@ -9,15 +9,44 @@ const CarouselPreview = ({ template, data, currentSlideIndex = 0 }) => {
     );
   }
 
-  const theme = template.theme || {
-    primaryColor: '#38bdf8',
-    backgroundColor: '#0f172a',
-    accentColor: '#10b981',
-    textColor: '#ffffff',
-    secondaryTextColor: 'rgba(255,255,255,0.7)',
-    cardBg: 'rgba(255,255,255,0.05)',
-    isDark: true
+  // Determine theme with intelligent fallbacks based on layout if theme object is missing
+  const getInitialTheme = () => {
+    if (template.theme) return template.theme;
+    
+    // Fallback themes based on layout string
+    const layout = template.layout || '';
+    if (layout.includes('mistakes') || layout.includes('warning')) {
+      return { primaryColor: "#ef4444", backgroundColor: "#fef2f2", textColor: "#991b1b", secondaryTextColor: "#b91c1c", cardBg: "#ffffff", accentColor: "#ef4444", isDark: false };
+    }
+    if (layout.includes('howto') || layout.includes('steps')) {
+      return { primaryColor: "#10b981", backgroundColor: "#f0fdf4", textColor: "#0f172a", secondaryTextColor: "#166534", cardBg: "#ffffff", accentColor: "#10b981", isDark: false };
+    }
+    if (layout.includes('stats_clean') || layout.includes('growth')) {
+      return { primaryColor: "#6366f1", backgroundColor: "#ffffff", textColor: "#0f172a", secondaryTextColor: "#4f46e5", cardBg: "#f8fafc", accentColor: "#6366f1", isDark: false };
+    }
+    if (layout.includes('minimal') || layout.includes('simple')) {
+      return { primaryColor: "#0f172a", backgroundColor: "#ffffff", textColor: "#0f172a", secondaryTextColor: "#64748b", cardBg: "#f8fafc", accentColor: "#0ea5e9", isDark: false };
+    }
+    if (layout.includes('split') || layout.includes('framework')) {
+      return { primaryColor: "#0ea5e9", backgroundColor: "#ffffff", textColor: "#0f172a", secondaryTextColor: "#64748b", cardBg: "#f8fafc", accentColor: "#0ea5e9", isDark: false };
+    }
+    
+    // Default Dark Theme (The Masterclass / Bold)
+    return {
+      primaryColor: '#38bdf8',
+      backgroundColor: '#0f172a',
+      accentColor: '#10b981',
+      textColor: '#ffffff',
+      secondaryTextColor: 'rgba(255,255,255,0.7)',
+      cardBg: 'rgba(255,255,255,0.05)',
+      isDark: true
+    };
   };
+
+  const theme = getInitialTheme();
+
+  // Log theme for debugging to see why preview isn't changing
+  console.log(`[CarouselPreview] Rendering template: "${template.name}" with theme:`, theme);
 
   const slideLayouts = template.slideLayouts || [];
   const currentLayout = slideLayouts[currentSlideIndex] || (

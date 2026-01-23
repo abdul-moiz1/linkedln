@@ -87,13 +87,16 @@ export default function TemplateGallery() {
   const handleSeed = async (isReset = false) => {
     try {
       setSeeding(true);
+      console.log(`[Templates] Starting seed. Reset: ${isReset}`);
       const result = isReset ? await resetAndReseedTemplates() : await seedCarouselTemplates();
+      console.log(`[Templates] Seed result:`, result);
       toast({
         title: isReset ? "Templates Reset" : "Templates Seeded",
         description: result.message
       });
       await fetchTemplates();
     } catch (err) {
+      console.error(`[Templates] Seed failed:`, err);
       toast({
         title: "Action Failed",
         description: "An error occurred while managing templates.",
