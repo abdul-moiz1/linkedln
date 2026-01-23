@@ -1,0 +1,315 @@
+I have a working Replit project named CarouselAI.
+
+✅ Current setup
+Frontend
+
+React + Vite (already running)
+
+Auth and Firestore client config already exists using env vars:
+
+VITE_FIREBASE_API_KEY
+
+VITE_FIREBASE_AUTH_DOMAIN
+
+VITE_FIREBASE_PROJECT_ID
+
+VITE_FIREBASE_STORAGE_BUCKET
+
+VITE_FIREBASE_MESSAGING_SENDER_ID
+
+VITE_FIREBASE_APP_ID
+
+Backend / Admin Firestore keys (already integrated)
+
+These Replit secrets are already present and working:
+
+FIREBASE_PROJECT_ID
+
+FIREBASE_CLIENT_EMAIL
+
+FIREBASE_PRIVATE_KEY
+
+Firestore collections in DB:
+
+carousels
+
+carouselTemplates
+
+templates
+
+users
+
+posts_cache
+
+✅ What I want now
+
+I want to integrate Pinecone semantic search with Firestore.
+
+The purpose:
+✅ Users should be able to search their carousels/templates by meaning
+Example searches:
+
+“write a hook for linkedin”
+
+“email marketing tips”
+
+“how to grow business”
+
+It should return relevant carousels/templates even if exact words are different.
+
+✅ Add these Replit Secrets (new)
+
+Create these environment variables:
+
+PINECONE_API_KEY
+
+PINECONE_INDEX_NAME
+
+OPENAI_API_KEY (already exists)
+
+Embedding model must be:
+✅ OpenAI text-embedding-3-small (dimension 1536)
+
+Pinecone metric should be cosine.
+
+✅ Implementation requirements
+✅ 1) Create a new backend folder
+
+Create a folder named /server with these files:
+
+Files
+
+/server/package.json (must include "type": "module")
+
+/server/index.js
+
+/server/firebaseAdmin.js
+
+/server/pineconeClient.js
+
+/server/openaiClient.js
+
+/server/buildEmbeddingText.js
+
+/server/vectorUpsert.js
+
+/server/vectorSearch.js
+
+✅ 2) Firestore Admin config (IMPORTANT)
+
+Do NOT use FIREBASE_SERVICE_ACCOUNT JSON.
+
+Use this format for firebase-admin:
+
+projectId = process.env.FIREBASE_PROJECT_ID
+
+clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+
+privateKey = process.env.FIREBASE_PRIVATE_KEY (must replace \n with real newlines)
+
+Example behavior:
+
+const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
+
+✅ 3) Vector storage design (IMPORTANT)
+
+I want Pinecone to index 2 collections:
+
+✅ A) carousels
+
+Embedding text should include:
+
+title
+
+description (if exists)
+
+category (if exists)
+
+all slides text (if exists)
+
+all post content text (if exists)
+
+✅ B) templates + carouselTemplates
+
+Embedding text should include:
+
+templateName or name
+
+description
+
+tags (if exist)
+
+style/theme info (if exist)
+
+✅ 4) Pinecone vector upsert rules
+
+When indexing, save vector like this:
+
+id: Firestore doc id
+
+values: embedding vector (float array)
+
+metadata must only contain:
+
+{
+  "userId": "USER_ID",
+  "collection": "carousels"
+}
+
+
+Do NOT store full text inside Pinecone metadata (too large).
+
+✅ 5) Search rules (multi-user safe)
+
+Search must support multi-user.
+
+When searching Pinecone, always filter like:
+
+filter userId = incoming userId
+
+filter collection = incoming collection
+
+So user cannot see other user results.
+
+✅ Express API endpoints (must build)
+✅ POST /api/vector/upsert
+
+Body:
+
+{
+  "collection": "carousels",
+  "docId": "abc123",
+  "userId": "user_001"
+}
+
+
+Task:
+
+Validate request body
+
+Fetch doc from Firestore using collection/docId
+
+Build embedding text from that doc
+
+Create embedding using OpenAI
+
+Upsert into Pinecone
+
+Return JSON response:
+
+{
+  "success": true,
+  "collection": "carousels",
+  "docId": "abc123",
+  "indexed": true
+}
+
+
+If doc not found return:
+
+{
+  "success": false,
+  "error": "Document not found"
+}
+
+✅ POST /api/vector/search
+
+Body:
+
+{
+  "collection": "carousels",
+  "userId": "user_001",
+  "query": "write hook for linkedin",
+  "topK": 6
+}
+
+
+Task:
+
+Validate request
+
+Create embedding for query
+
+Search Pinecone topK results with filter userId + collection
+
+Get list of matching docIds
+
+Fetch those docs from Firestore
+
+Return:
+
+{
+  "success": true,
+  "results": [
+    { "id": "docId1", "...docData" },
+    { "id": "docId2", "...docData" }
+  ]
+}
+
+✅ POST /api/vector/index-user
+
+Body:
+
+{
+  "userId": "user_001",
+  "collection": "carousels",
+  "limit": 50
+}
+
+
+Task:
+
+Query Firestore carousels where userId matches
+
+Upsert all into Pinecone (loop)
+
+Return count indexed
+
+This will help me bulk-index old carousels.
+
+✅ 6) Frontend integration
+
+Add a Search UI on Dashboard:
+
+Search input box + Search button
+
+Dropdown to select:
+
+carousels
+
+templates
+
+carouselTemplates
+
+When user searches:
+Call backend /api/vector/search and display results:
+
+show carousel title
+
+show a short preview
+
+click opens that carousel/template
+
+✅ 7) Must include setup instructions
+
+Provide exact instructions:
+
+npm install commands for server
+
+how to run server in Replit
+
+how to make frontend call backend (fetch)
+
+example test curl commands for Replit
+
+✅ Output format
+
+Give me:
+✅ Full code for every file
+✅ Folder structure
+✅ Commands to run
+✅ Exact steps (no missing steps)
+
+If you need to assume Firestore field names for slides/title, make the buildEmbeddingText.js flexible and safe using optional chaining and fallback values.
+
+✅ Build it now fully.
