@@ -1,7 +1,7 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
-const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME;
+const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || "demo";
 
 export const isPineconeConfigured = Boolean(PINECONE_API_KEY && PINECONE_INDEX_NAME);
 
@@ -17,7 +17,7 @@ export function getPineconeClient(): Pinecone | null {
     pineconeClient = new Pinecone({
       apiKey: PINECONE_API_KEY!,
     });
-    console.log("[Pinecone] Client initialized");
+    console.log(`[Pinecone] Client initialized for index: ${PINECONE_INDEX_NAME}`);
   }
 
   return pineconeClient;
