@@ -29,19 +29,25 @@ export default function CarouselEditor() {
     async function loadTemplate() {
       if (!templateId) return;
       try {
-        console.log("CarouselEditor: LOADING NEW TEMPLATE. ID from URL:", templateId);
+        console.log("%cCarouselEditor: [1/4] DETECTED URL CHANGE", "color: #38bdf8; font-weight: bold", "ID:", templateId);
         setLoading(true);
         
-        // 1. STAGE: HARD RESET - Clear all state from previous template
-        console.log("CarouselEditor: HARD RESETTING STATE");
+        // 1. STAGE: HARD RESET
+        console.log("CarouselEditor: [2/4] RESETTING STATE");
         setTemplate(null);
         setFormData(null);
         setCurrentSlideIndex(0);
 
-        // 2. STAGE: FETCH - Get fresh template data from Firestore
+        // 2. STAGE: FETCH
         const data = await getTemplateById(templateId);
         if (data) {
-          console.log("CarouselEditor: FIRESTORE LOAD SUCCESS:", data.name, "(Layout:", data.layout, ")");
+          console.log("%cCarouselEditor: [3/4] FIRESTORE SUCCESS", "color: #10b981; font-weight: bold", {
+            urlId: templateId,
+            docId: data.id,
+            name: data.name,
+            layout: data.layout,
+            slides: data.slidesCount
+          });
           
           const slidesCount = data.slidesCount || 5;
           const defaultSlides = Array.from({ length: slidesCount }, () => ({
@@ -64,7 +70,7 @@ export default function CarouselEditor() {
               const draftId = draft.templateId || (draft.data?.templateId);
               
               if (draftId === templateId) {
-                console.log("CarouselEditor: VALID DRAFT FOUND. Key:", `draft_${templateId}`);
+                console.log("CarouselEditor: [3.5/4] VALID DRAFT FOUND. Key:", `draft_${templateId}`);
                 const draftData = draft.data || draft;
                 
                 // Rebuild slides to ensure count matches template definition
@@ -88,11 +94,11 @@ export default function CarouselEditor() {
           }
 
           // 4. STAGE: COMMIT - Set finalized state
-          console.log("CarouselEditor: COMMITTING STATE FOR:", data.name);
+          console.log("CarouselEditor: [4/4] COMMITTING STATE FOR:", data.name);
           setTemplate(data);
           setFormData(loadedFormData);
         } else {
-          console.error("CarouselEditor: TEMPLATE NOT FOUND IN FIRESTORE:", templateId);
+          console.error("CarouselEditor: TEMPLATE NOT FOUND IN DB:", templateId);
           toast({
             variant: "destructive",
             title: "Error",
@@ -101,7 +107,7 @@ export default function CarouselEditor() {
           setLocation("/templates");
         }
       } catch (err) {
-        console.error("CarouselEditor: FATAL ERROR DURING LOAD:", err);
+        console.error("CarouselEditor: FATAL LOAD ERROR:", err);
       } finally {
         setLoading(false);
       }

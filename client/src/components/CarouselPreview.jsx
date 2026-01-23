@@ -1,7 +1,13 @@
 import React from 'react';
 
 const CarouselPreview = ({ template, data, currentSlideIndex = 0 }) => {
-  if (!template) return null;
+  if (!template) {
+    return (
+      <div className="aspect-[4/5] w-full max-w-sm rounded-xl overflow-hidden shadow-2xl border border-slate-200 mx-auto flex items-center justify-center bg-slate-50">
+        <p className="text-slate-400 text-sm">Loading preview...</p>
+      </div>
+    );
+  }
 
   const theme = template.theme || {
     primaryColor: '#38bdf8',

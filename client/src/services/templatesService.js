@@ -48,18 +48,25 @@ export async function getCarouselTemplates() {
  */
 export async function getTemplateById(templateId) {
   try {
+    console.log(`[templatesService] Fetching template by ID: "${templateId}"`);
     const docRef = doc(db, "templates", templateId);
+    console.log(`[templatesService] docPath: "templates/${templateId}"`);
+    
     const docSnap = await getDoc(docRef);
+    console.log(`[templatesService] snapshot.exists: ${docSnap.exists()}`);
     
     if (docSnap.exists()) {
+      const data = docSnap.data();
+      console.log(`[templatesService] snapshot.id: ${docSnap.id}, data.name: ${data.name}`);
       return {
-        id: docSnap.id,
-        ...docSnap.data()
+        ...data,
+        id: docSnap.id
       };
     }
+    console.warn(`[templatesService] No template found with ID: ${templateId}`);
     return null;
   } catch (error) {
-    console.error("Error fetching template by ID:", error);
+    console.error(`[templatesService] Error fetching template by ID: "${templateId}":`, error);
     return null;
   }
 }
