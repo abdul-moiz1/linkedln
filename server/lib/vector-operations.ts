@@ -118,17 +118,25 @@ async function fallbackTextSearch(
       const data = doc.data();
       const searchableText = buildEmbeddingText(collection, data).toLowerCase();
       
+      // Filter out invalid query terms
+      const validQueryTerms = queryTerms.length > 0 ? queryTerms : [queryLower].filter(t => t.length > 0);
+      
       let matchScore = 0;
-      for (const term of queryTerms) {
-        if (searchableText.includes(term)) {
-          matchScore += 1;
+      if (validQueryTerms.length === 0) {
+        // If no valid terms, but we have a query, check if searchable text contains the full query
+        if (searchableText.includes(queryLower)) matchScore = 1;
+      } else {
+        for (const term of validQueryTerms) {
+          if (searchableText.includes(term)) {
+            matchScore += 1;
+          }
         }
       }
       
       if (matchScore > 0) {
         scoredDocs.push({
           id: doc.id,
-          score: matchScore / queryTerms.length,
+          score: validQueryTerms.length > 0 ? matchScore / validQueryTerms.length : 1,
           ...data,
         });
       }

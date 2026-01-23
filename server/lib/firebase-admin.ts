@@ -150,13 +150,13 @@ export async function seedTemplates(force = false) {
           const imageUrl = `https://images.unsplash.com/photo-${imageId}?auto=format&fit=crop&w=800&q=80`;
 
           const placeholder = {
-            title: index === 0 ? `The Essence of Leadership` : 
-                   index === slidesCount - 1 ? "What are your thoughts?" : 
-                   `Strategic Insight #${index}`,
-            subtitle: index === 0 ? "Building High-Performance Teams in 2026" : "",
+            title: index === 0 ? `The Essence of Leadership (Demo)` : 
+                   index === slidesCount - 1 ? "What are your thoughts? (Demo)" : 
+                   `Strategic Insight #${index} (Demo)`,
+            subtitle: index === 0 ? "Building High-Performance Teams in 2026 (Demo)" : "",
             body: layoutType === "text" || layoutType === "mixed" ? 
-                  (index === slidesCount - 1 ? "Ready to transform your leadership style?\n\nFollow for more!" : 
-                  "True leadership isn't about being in charge. It's about taking care of those in your charge.") : "",
+                  (index === slidesCount - 1 ? "Ready to transform your leadership style?\n\nFollow for more! (Demo)" : 
+                  "True leadership isn't about being in charge. It's about taking care of those in your charge. (Demo)") : "",
             image: layoutType === "image" || layoutType === "mixed" ? imageUrl : ""
           };
 

@@ -2721,7 +2721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (requestCarouselId) {
             // Update existing carousel
             const carousel = await getCarousel(requestCarouselId);
-            if (carousel && carousel.userId === userId) {
+            if (carousel && (carousel as any).userId === userId) {
               await updateCarousel(requestCarouselId, { 
                 pdfUrl: pdfUrl || pdfDataUrl, 
                 status: "pdf_created" 
@@ -2862,12 +2862,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         }
-      } else if (req.session.authType === "firebase") {
-        // Firebase user but no LinkedIn linked - try to get from Firestore
-        try {
-          const { getLinkedLinkedIn, isFirebaseConfigured } = await import("./lib/firebase-admin");
-          if (isFirebaseConfigured) {
-            const linkedLinkedIn = await getLinkedLinkedIn(req.session.user.profile.sub);
+      try {
+        const { getLinkedLinkedIn, isFirebaseConfigured } = await import("./lib/firebase-admin");
+        if (isFirebaseConfigured) {
+          const userId = (req.session.user as any)?.profile?.sub;
+          if (userId) {
+            const linkedLinkedIn = await getLinkedLinkedIn(userId);
             if (linkedLinkedIn) {
               linkedInAccessToken = linkedLinkedIn.accessToken;
               linkedInPersonId = linkedLinkedIn.linkedinId;
@@ -2896,7 +2896,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               };
             }
           }
-        } catch (error) {
+        }
+      } catch (error) {
           console.warn("Failed to fetch linked LinkedIn from Firestore:", error);
         }
       }
@@ -4616,7 +4617,13 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         });
       }
 
-      const result = await searchVectors(collection, userId, query, topK);
+      // Check if Firebase is configured
+      const { isFirebaseConfigured: checkFirebase } = await import("./lib/firebase-admin");
+      if (!checkFirebase) {
+        return res.status(503).json({ success: false, error: "Firebase not configured" });
+      }
+
+      const result = await searchVectors(collection, userId || "global", query, topK);
       res.json(result);
     } catch (error: any) {
       console.error("[Vector Search] Error:", error);
