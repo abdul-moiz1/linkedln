@@ -2,10 +2,13 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { getCarouselTemplates } from "@/services/templatesService";
 import { seedCarouselTemplates, resetAndReseedTemplates } from "@/scripts/seedTemplates";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Database, RefreshCcw } from "lucide-react";
+import { Loader2, Database, RefreshCcw, Search, X } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 const TemplateCard = ({ template }: { template: any }) => {
   const [, setLocation] = useLocation();
@@ -60,9 +63,12 @@ const TemplateCard = ({ template }: { template: any }) => {
 
 export default function TemplateGallery() {
   const [templates, setTemplates] = useState<any[]>([]);
+  const [filteredTemplates, setFilteredTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
 
   const isDev = import.meta.env.MODE === 'development';
@@ -72,6 +78,7 @@ export default function TemplateGallery() {
       setLoading(true);
       const data = await getCarouselTemplates();
       setTemplates(data || []);
+      setFilteredTemplates(data || []);
       setError(null);
     } catch (err) {
       setError("Failed to load templates");
@@ -83,6 +90,56 @@ export default function TemplateGallery() {
   useEffect(() => {
     fetchTemplates();
   }, []);
+
+  const searchMutation = useMutation({
+    mutationFn: async (query: string) => {
+      const response = await apiRequest("POST", "/api/vector/search", {
+        collection: "carouselTemplates",
+        userId: "global",
+        query,
+        topK: 20
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success && data.results) {
+        setFilteredTemplates(data.results);
+      } else {
+        setFilteredTemplates([]);
+      }
+      setIsSearching(false);
+    },
+    onError: (err) => {
+      console.error("Template search failed:", err);
+      toast({
+        title: "Search Failed",
+        description: "Falling back to basic filtering.",
+        variant: "destructive"
+      });
+      // Fallback to local search if API fails
+      const filtered = templates.filter(t => 
+        t.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredTemplates(filtered);
+      setIsSearching(false);
+    }
+  });
+
+  const handleSearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!searchQuery.trim()) {
+      setFilteredTemplates(templates);
+      return;
+    }
+    setIsSearching(true);
+    searchMutation.mutate(searchQuery.trim());
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setFilteredTemplates(templates);
+  };
 
   const handleSeed = async (isReset = false) => {
     try {
@@ -124,41 +181,65 @@ export default function TemplateGallery() {
           <p className="text-slate-500 text-sm font-medium">Select a professional LinkedIn template to start creating.</p>
         </div>
         
-        {isDev && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <form onSubmit={handleSearch} className="relative flex items-center">
+            <Search className="absolute left-3 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-8 w-[200px] sm:w-[300px] rounded-xl border-slate-200 focus:ring-sky-500"
+              data-testid="input-template-search"
+            />
+            {searchQuery && (
+              <button 
+                type="button"
+                onClick={clearSearch}
+                className="absolute right-3 hover:text-slate-600 text-slate-400"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </form>
+          
+          {isDev && (
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => handleSeed(true)} 
               disabled={seeding}
-              className="flex items-center gap-2 border-slate-200"
+              className="flex items-center gap-2 border-slate-200 rounded-xl"
             >
               {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-              Reset & Reseed
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {templates.length === 0 ? (
-        <div className="py-32 mx-4 text-center flex flex-col items-center gap-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-          <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center">
-            <Database className="h-8 w-8 text-slate-400" />
-          </div>
-          <div className="space-y-2">
-            <h3 className="font-bold text-lg text-slate-900">No templates found</h3>
-            <p className="text-slate-500 max-w-xs mx-auto text-sm">Populate your Firestore collection with premium templates to get started.</p>
-          </div>
-          {isDev && (
-            <Button onClick={() => handleSeed(false)} disabled={seeding} className="rounded-xl px-8 shadow-lg shadow-sky-100">
-              {seeding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Populate Gallery
+              Reset
             </Button>
           )}
         </div>
+      </div>
+
+      {isSearching ? (
+        <div className="flex flex-col items-center justify-center py-32 space-y-4">
+          <Loader2 className="h-10 w-10 animate-spin text-sky-500" />
+          <p className="text-slate-500 font-medium">Finding the perfect templates...</p>
+        </div>
+      ) : filteredTemplates.length === 0 ? (
+        <div className="py-32 mx-4 text-center flex flex-col items-center gap-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+          <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center">
+            <Search className="h-8 w-8 text-slate-400" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="font-bold text-lg text-slate-900">No matches found</h3>
+            <p className="text-slate-500 max-w-xs mx-auto text-sm">
+              Try searching for something else like "minimalist" or "corporate".
+            </p>
+          </div>
+          <Button variant="outline" onClick={clearSearch} className="rounded-xl px-8 border-slate-200">
+            Clear Search
+          </Button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 px-4 pb-20">
-          {templates.map((template) => (
+          {filteredTemplates.map((template) => (
             <TemplateCard key={template.id} template={template} />
           ))}
         </div>
