@@ -2,6 +2,7 @@ import { getPineconeIndex, isPineconeConfigured } from "./pinecone-client";
 import { createEmbedding, isOpenAIConfigured } from "./openai-embeddings";
 import { buildEmbeddingText } from "./build-embedding-text";
 import { adminDb, isFirebaseConfigured } from "./firebase-admin";
+import type { firestore as FirebaseFirestore } from "firebase-admin";
 
 export interface VectorUpsertResult {
   success: boolean;
@@ -61,22 +62,85 @@ export async function upsertVector(
       return { success: false, collection, docId, indexed: false, error: "Pinecone index not available" };
     }
 
+    // For global templates, don't store userId in metadata
+    const isGlobalCollection = collection === "carouselTemplates";
+    const metadata: Record<string, string> = { collection };
+    if (!isGlobalCollection && userId) {
+      metadata.userId = userId;
+    }
+
     await index.upsert([
       {
         id: docId,
         values: embedding,
-        metadata: {
-          userId,
-          collection,
-        },
+        metadata,
       },
     ]);
 
-    console.log(`[Vector] Upserted ${collection}/${docId} for user ${userId}`);
+    console.log(`[Vector] Upserted ${collection}/${docId}${userId ? ` for user ${userId}` : " (global)"}`);
     return { success: true, collection, docId, indexed: true };
   } catch (error: any) {
     console.error("[Vector] Upsert error:", error);
     return { success: false, collection, docId, indexed: false, error: error.message };
+  }
+}
+
+async function fallbackTextSearch(
+  collection: string,
+  userId: string,
+  query: string,
+  topK: number
+): Promise<VectorSearchResult> {
+  if (!isFirebaseConfigured || !adminDb) {
+    return { success: false, results: [], error: "Firebase not configured" };
+  }
+
+  try {
+    const isGlobalCollection = collection === "carouselTemplates";
+    const queryLower = query.toLowerCase();
+    const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 2);
+    
+    let dbQuery = adminDb.collection(collection) as FirebaseFirestore.Query;
+    
+    if (!isGlobalCollection && userId) {
+      dbQuery = dbQuery.where("userId", "==", userId);
+    }
+    
+    const snapshot = await dbQuery.limit(50).get();
+    
+    if (snapshot.empty) {
+      return { success: true, results: [] };
+    }
+    
+    const scoredDocs: Array<{ id: string; score: number; [key: string]: any }> = [];
+    
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      const searchableText = buildEmbeddingText(collection, data).toLowerCase();
+      
+      let matchScore = 0;
+      for (const term of queryTerms) {
+        if (searchableText.includes(term)) {
+          matchScore += 1;
+        }
+      }
+      
+      if (matchScore > 0) {
+        scoredDocs.push({
+          id: doc.id,
+          score: matchScore / queryTerms.length,
+          ...data,
+        });
+      }
+    }
+    
+    scoredDocs.sort((a, b) => b.score - a.score);
+    
+    console.log(`[Vector] Fallback text search found ${scoredDocs.length} results for "${query}"`);
+    return { success: true, results: scoredDocs.slice(0, topK) };
+  } catch (error: any) {
+    console.error("[Vector] Fallback search error:", error);
+    return { success: false, results: [], error: error.message };
   }
 }
 
@@ -86,36 +150,42 @@ export async function searchVectors(
   query: string,
   topK: number = 6
 ): Promise<VectorSearchResult> {
-  if (!isPineconeConfigured) {
-    return { success: false, results: [], error: "Pinecone not configured" };
-  }
-
-  if (!isOpenAIConfigured) {
-    return { success: false, results: [], error: "OpenAI not configured" };
-  }
-
   if (!isFirebaseConfigured || !adminDb) {
     return { success: false, results: [], error: "Firebase not configured" };
+  }
+
+  // If Pinecone or OpenAI is not configured, use fallback text search
+  if (!isPineconeConfigured || !isOpenAIConfigured) {
+    console.log("[Vector] Using fallback text search (Pinecone/OpenAI not configured)");
+    return fallbackTextSearch(collection, userId, query, topK);
   }
 
   try {
     const queryEmbedding = await createEmbedding(query);
     if (!queryEmbedding) {
-      return { success: false, results: [], error: "Failed to create query embedding" };
+      console.log("[Vector] Embedding creation failed, falling back to text search");
+      return fallbackTextSearch(collection, userId, query, topK);
     }
 
     const index = getPineconeIndex();
     if (!index) {
-      return { success: false, results: [], error: "Pinecone index not available" };
+      console.log("[Vector] Pinecone index not available, falling back to text search");
+      return fallbackTextSearch(collection, userId, query, topK);
+    }
+
+    // For global templates (carouselTemplates), don't filter by userId
+    const isGlobalCollection = collection === "carouselTemplates";
+    const filter: Record<string, any> = {
+      collection: { $eq: collection },
+    };
+    if (!isGlobalCollection) {
+      filter.userId = { $eq: userId };
     }
 
     const searchResults = await index.query({
       vector: queryEmbedding,
       topK,
-      filter: {
-        userId: { $eq: userId },
-        collection: { $eq: collection },
-      },
+      filter,
       includeMetadata: true,
     });
 
@@ -123,7 +193,6 @@ export async function searchVectors(
       return { success: true, results: [] };
     }
 
-    const docIds = searchResults.matches.map((m) => m.id);
     const docs: Array<{ id: string; score?: number; [key: string]: any }> = [];
 
     for (const match of searchResults.matches) {
@@ -144,7 +213,8 @@ export async function searchVectors(
     return { success: true, results: docs };
   } catch (error: any) {
     console.error("[Vector] Search error:", error);
-    return { success: false, results: [], error: error.message };
+    // Fall back to text search on any error
+    return fallbackTextSearch(collection, userId, query, topK);
   }
 }
 

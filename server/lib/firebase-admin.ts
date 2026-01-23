@@ -222,6 +222,20 @@ export async function seedTemplates(force = false) {
       templates.forEach(t => batch.set(db.collection("carouselTemplates").doc(t.templateId), t));
       await batch.commit();
       console.log(`[Firebase] Seeded ${templates.length} templates.`);
+      
+      // Index templates in Pinecone for semantic search
+      try {
+        const { upsertVector } = await import("./vector-operations");
+        console.log(`[Firebase] Indexing ${templates.length} templates in Pinecone...`);
+        let indexedCount = 0;
+        for (const t of templates) {
+          const result = await upsertVector("carouselTemplates", t.templateId, "");
+          if (result.indexed) indexedCount++;
+        }
+        console.log(`[Firebase] Indexed ${indexedCount}/${templates.length} templates in Pinecone.`);
+      } catch (indexError: any) {
+        console.warn(`[Firebase] Template indexing skipped:`, indexError.message);
+      }
     }
   } catch (e) {
     console.error("[Firebase] Seeding failed:", e);
