@@ -2,6 +2,7 @@ import { generateContent } from "./gemini";
 import * as cheerio from "cheerio";
 import { YoutubeTranscript } from 'youtube-transcript';
 import axios from "axios";
+import ytdl from "ytdl-core";
 
 const LINKEDIN_PROMPT_TEMPLATE = `You are a LinkedIn content writer. Create a clear LinkedIn post with:
 
@@ -40,6 +41,8 @@ Generate a LinkedIn post based on the content above.`;
 
 export async function repurposeYouTube(youtubeUrl: string, instructions: string) {
   let transcriptText = "";
+  let videoDetails: any = null;
+
   try {
     // Extract videoId from URL
     const videoIdMatch = youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[&?]|$)/);
@@ -48,22 +51,30 @@ export async function repurposeYouTube(youtubeUrl: string, instructions: string)
     console.log("YouTube URL:", youtubeUrl);
     console.log("YouTube videoId:", videoId);
     
-    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-    transcriptText = transcript.map(t => t.text).join(" ");
-    
-    console.log("Transcript length:", transcriptText?.length || 0);
-    if (transcriptText) {
-      console.log("Transcript preview (200 chars):", transcriptText.substring(0, 200));
+    try {
+      const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+      transcriptText = transcript.map(t => t.text).join(" ");
+      console.log("Transcript length:", transcriptText?.length || 0);
+    } catch (e) {
+      console.warn("[YouTube] Transcript unavailable, fetching metadata instead");
+    }
+
+    if (!transcriptText || transcriptText.trim().length < 50) {
+      const info = await ytdl.getInfo(youtubeUrl);
+      videoDetails = {
+        title: info.videoDetails.title,
+        description: info.videoDetails.description,
+        channel: info.videoDetails.author?.name
+      };
+      console.log("Video metadata fetched:", videoDetails.title);
     }
   } catch (error) {
-    console.warn("[YouTube] Failed to fetch transcript:", error);
+    console.warn("[YouTube] Failed to fetch transcript or metadata:", error);
   }
 
-  if (!transcriptText || transcriptText.trim().length < 50) {
-    return "Transcript unavailable. Please try another video.";
-  }
-
-  const prompt = `You are a LinkedIn content writer.
+  let prompt = "";
+  if (transcriptText && transcriptText.trim().length >= 50) {
+    prompt = `You are a LinkedIn content writer.
 
 Generate a LinkedIn post ONLY based on the transcript below.
 Do not guess.
@@ -86,6 +97,28 @@ User instructions:
 ${instructions}
 
 Return plain text only (no markdown, no JSON).`;
+  } else if (videoDetails) {
+    prompt = `You are a LinkedIn content writer.
+
+Write a LinkedIn post based on this YouTube video information.
+Do not talk about productivity unless the video is about it.
+
+Video Title: ${videoDetails.title}
+Channel: ${videoDetails.channel}
+Description: ${videoDetails.description}
+
+User instructions: ${instructions}
+
+Rules:
+- Strong hook
+- 3–6 short paragraphs
+- Simple English
+- No heavy emojis
+- End with 5–8 hashtags
+Return plain text only.`;
+  } else {
+    return "Transcript and metadata unavailable. Please try another video.";
+  }
 
   const result = await generateContent(prompt);
   return cleanGeminiResponse(result);

@@ -4839,10 +4839,10 @@ Return plain text only.`;
       const { repurposeYouTube } = await import("./lib/repurpose-service");
       const post = await repurposeYouTube(youtubeUrl, instructions);
 
-      if (post === "Transcript unavailable. Please try another video.") {
+      if (post === "Transcript and metadata unavailable. Please try another video.") {
         return res.status(400).json({ 
           success: false, 
-          message: "Transcript not available for this video. Try another link or upload summary." 
+          message: "Could not extract video content or metadata. Try another link." 
         });
       }
 
