@@ -4724,10 +4724,27 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
 
       const instructions = req.body.instructions || "";
       
-      const pdfParseModule = await import("pdf-parse");
-      // @ts-ignore - Handle different module export formats
-      const pdf = pdfParseModule.default || pdfParseModule;
-      const data = await pdf(req.file.buffer);
+      // Use a more resilient way to handle pdf-parse's export
+      let pdfParse;
+      try {
+        const pdfParseModule = await import("pdf-parse");
+        // @ts-ignore
+        pdfParse = pdfParseModule.default || pdfParseModule;
+        
+        // Final check to handle some CommonJS wrapper scenarios
+        if (typeof pdfParse !== 'function' && (pdfParse as any).pdf) {
+          pdfParse = (pdfParse as any).pdf;
+        }
+      } catch (e) {
+        console.error("Error importing pdf-parse:", e);
+        throw new Error("PDF processing library not correctly loaded");
+      }
+
+      if (typeof pdfParse !== 'function') {
+        throw new Error("PDF parser is not a function");
+      }
+      
+      const data = await pdfParse(req.file.buffer);
       const extractedText = data.text;
 
       if (!extractedText || extractedText.trim().length < 50) {
