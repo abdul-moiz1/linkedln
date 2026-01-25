@@ -13,9 +13,9 @@ export default function YoutubePostGenerator() {
   const [error, setError] = useState("");
   const [instructions, setInstructions] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<string | null>(null);
 
-  const validateUrl = (value) => {
+  const validateUrl = (value: string) => {
     if (!value) return true;
     const isValid = value.includes("youtube.com/watch?v=") || value.includes("youtu.be/");
     if (!isValid) {
@@ -26,38 +26,37 @@ export default function YoutubePostGenerator() {
     return isValid;
   };
 
-  const handleUrlChange = (e) => {
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setUrl(value);
     if (value) validateUrl(value);
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!url || error) return;
     setIsLoading(true);
     setResult(null);
+    setError("");
 
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/repurpose/youtube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ youtubeUrl: url, instructions }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to generate post");
+      }
+
+      setResult(data.post);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
       setIsLoading(false);
-      setResult(`🎥 Key takeaways from this incredible YouTube video
-
-I just finished watching a deep dive on video-first marketing, and it completely changed my perspective on how we build brands in 2026.
-
-Here are my top 3 insights:
-
-1️⃣ Attention is the New Currency
-We used to compete for clicks. Now we compete for seconds. If you don't hook the viewer in 3 seconds, you've lost them.
-
-2️⃣ Authenticity > Production
-Raw, unedited, "behind-the-scenes" content is outperforming high-budget studio shoots 4-to-1.
-
-3️⃣ The Hybrid Strategy
-Long-form builds depth. Short-form builds reach. You need both to survive.
-
-Now the uncomfortable question: Is your brand still hiding behind a logo, or are you showing your face?
-
-The content landscape is shifting faster than ever. Are you adapting or just watching?`);
-    }, 1200);
+    }
   };
 
   return (
@@ -77,8 +76,9 @@ The content landscape is shifting faster than ever. Are you adapting or just wat
             className={`border-gray-200 rounded-xl h-12 focus:ring-blue-500 ${error ? 'border-red-500 focus:ring-red-500' : ''}`}
             value={url}
             onChange={handleUrlChange}
+            data-testid="input-youtube-url"
           />
-          {error && <p className="text-red-500 text-xs mt-1 font-medium">{error}</p>}
+          {error && <p className="text-red-500 text-xs mt-1 font-medium" data-testid="text-error">{error}</p>}
         </div>
 
         <ContentStyleSelector />
@@ -90,6 +90,7 @@ The content landscape is shifting faster than ever. Are you adapting or just wat
             className="min-h-[120px] border-gray-200 rounded-xl focus:ring-blue-500"
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
+            data-testid="input-instructions"
           />
         </div>
 
@@ -97,9 +98,10 @@ The content landscape is shifting faster than ever. Are you adapting or just wat
           className="w-full md:w-auto px-8 py-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
           onClick={handleGenerate}
           disabled={!url || !!error || isLoading}
+          data-testid="button-generate"
         >
           <Sparkles className="mr-2 h-5 w-5" />
-          Generate
+          {isLoading ? "Generating..." : "Generate"}
         </Button>
 
         <GeneratedResultCard isLoading={isLoading} result={result} />

@@ -13,9 +13,9 @@ export default function ArticlePostGenerator() {
   const [error, setError] = useState("");
   const [instructions, setInstructions] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<string | null>(null);
 
-  const validateUrl = (value) => {
+  const validateUrl = (value: string) => {
     if (!value) return true;
     const isHttp = value.startsWith("http://") || value.startsWith("https://");
     const isRestricted = value.includes(".pdf") || value.includes("docs.google.com");
@@ -32,38 +32,37 @@ export default function ArticlePostGenerator() {
     }
   };
 
-  const handleUrlChange = (e) => {
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setUrl(value);
     if (value) validateUrl(value);
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!url || error) return;
     setIsLoading(true);
     setResult(null);
+    setError("");
 
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/repurpose/article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ articleUrl: url, instructions }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to generate post");
+      }
+
+      setResult(data.post);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
       setIsLoading(false);
-      setResult(`📝 Insights from a thought-provoking article I just read
-
-This piece on the future of remote work truly challenged my assumptions about corporate culture.
-
-Key Takeaways:
-
-1️⃣ The Synchronous Trap
-Most teams are just trying to recreate the office on Zoom. It's failing. The future is asynchronous by design.
-
-2️⃣ Documentation > Presence
-If it's not written down, it didn't happen. Strong cultures are built on strong writing.
-
-3️⃣ The Talent Arbitrage
-Geography is no longer a constraint. The best teams are built globally from Day 1.
-
-Now the uncomfortable question: Are you measuring "hours at the desk" or actual "value created"?
-
-It's time to stop fighting the shift and start leading it.`);
-    }, 1200);
+    }
   };
 
   return (
@@ -88,8 +87,9 @@ It's time to stop fighting the shift and start leading it.`);
             className={`border-gray-200 rounded-xl h-12 focus:ring-blue-500 ${error ? 'border-red-500 focus:ring-red-500' : ''}`}
             value={url}
             onChange={handleUrlChange}
+            data-testid="input-article-url"
           />
-          {error && <p className="text-red-500 text-xs mt-1 font-medium">{error}</p>}
+          {error && <p className="text-red-500 text-xs mt-1 font-medium" data-testid="text-error">{error}</p>}
         </div>
 
         <ContentStyleSelector />
@@ -101,6 +101,7 @@ It's time to stop fighting the shift and start leading it.`);
             className="min-h-[120px] border-gray-200 rounded-xl focus:ring-blue-500"
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
+            data-testid="input-instructions"
           />
         </div>
 
@@ -108,9 +109,10 @@ It's time to stop fighting the shift and start leading it.`);
           className="w-full md:w-auto px-8 py-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
           onClick={handleGenerate}
           disabled={!url || !!error || isLoading}
+          data-testid="button-generate"
         >
           <Sparkles className="mr-2 h-5 w-5" />
-          Generate
+          {isLoading ? "Generating..." : "Generate"}
         </Button>
 
         <GeneratedResultCard isLoading={isLoading} result={result} />

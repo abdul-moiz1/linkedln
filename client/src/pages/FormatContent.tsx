@@ -11,25 +11,34 @@ export default function FormatContent() {
   const [content, setContent] = useState("");
   const [instructions, setInstructions] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!content) return;
     setIsLoading(true);
     setResult(null);
+    setError("");
 
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/repurpose/format", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawContent: content, instructions }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to format content");
+      }
+
+      setResult(data.post);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
       setIsLoading(false);
-      setResult(`✨ Here is your formatted content, optimized for LinkedIn
-
-${content.split('\n').map(line => `• ${line}`).join('\n\n')}
-
----
-
-I've restructured your thoughts to maximize readability. Notice how the bullet points and white space make it easier to consume.
-
-What do you think of this layout?`);
-    }, 1200);
+    }
   };
 
   return (
@@ -49,6 +58,7 @@ What do you think of this layout?`);
             className="min-h-[250px] border-gray-200 rounded-xl focus:ring-blue-500 text-base"
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            data-testid="input-content"
           />
         </div>
 
@@ -59,16 +69,20 @@ What do you think of this layout?`);
             className="min-h-[120px] border-gray-200 rounded-xl focus:ring-blue-500"
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
+            data-testid="input-instructions"
           />
         </div>
+
+        {error && <p className="text-red-500 text-sm font-medium" data-testid="text-error">{error}</p>}
 
         <Button 
           className="w-full md:w-auto px-8 py-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
           onClick={handleGenerate}
           disabled={!content || isLoading}
+          data-testid="button-generate"
         >
           <Sparkles className="mr-2 h-5 w-5" />
-          Generate
+          {isLoading ? "Generating..." : "Generate"}
         </Button>
 
         <GeneratedResultCard isLoading={isLoading} result={result} title="Formatted Output" />

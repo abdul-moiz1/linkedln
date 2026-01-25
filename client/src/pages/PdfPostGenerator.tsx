@@ -8,46 +8,50 @@ import { Label } from "@/components/ui/label";
 import { Upload, Sparkles, FileText } from "lucide-react";
 
 export default function PdfPostGenerator() {
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [instructions, setInstructions] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
     if (selectedFile && selectedFile.type === "application/pdf") {
       setFile(selectedFile);
+      setError("");
+    } else if (selectedFile) {
+      setError("Please select a valid PDF file");
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!file) return;
     setIsLoading(true);
     setResult(null);
+    setError("");
 
-    setTimeout(() => {
+    try {
+      const formData = new FormData();
+      formData.append("pdf", file);
+      formData.append("instructions", instructions);
+
+      const response = await fetch("/api/repurpose/pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to generate post");
+      }
+
+      setResult(data.post);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
       setIsLoading(false);
-      setResult(`🚀 How we scaled our operations using PDF automation
-
-I've been thinking a lot about structural efficiency lately. Most companies treat PDFs as "dead documents," but they are actually untapped data goldmines.
-
-Here's my 3-step framework for PDF data extraction:
-
-1️⃣ The Identifier (The Sorter)
-Every document needs clear classification. You can't process what you haven't identified.
-
-2️⃣ Automated Flow (The Pipeline)
-Once identified, data should flow directly into your CRM. No manual entry. No human error.
-
-3️⃣ Validation Layer (The Quality Check)
-Final verification ensures data integrity remains at 100%.
-
-The uncomfortable question: How much time is your team losing to "copy-paste" tasks?
-
-It's not a documentation problem. It's an architectural one.
-
-Innovation is flashy. Strategy is sustainable. Choose wisely.`);
-    }, 1200);
+    }
   };
 
   return (
@@ -68,13 +72,14 @@ Innovation is flashy. Strategy is sustainable. Choose wisely.`);
               accept=".pdf" 
               className="absolute inset-0 opacity-0 cursor-pointer" 
               onChange={handleFileChange}
+              data-testid="input-pdf-file"
             />
             <div className="flex flex-col items-center space-y-4">
               <div className="p-3 bg-blue-50 rounded-full text-blue-500 group-hover:scale-110 transition-transform">
                 {file ? <FileText className="h-8 w-8" /> : <Upload className="h-8 w-8" />}
               </div>
               <div>
-                <p className="text-slate-900 font-medium">
+                <p className="text-slate-900 font-medium" data-testid="text-file-name">
                   {file ? file.name : "Choose a file or drag & drop it here."}
                 </p>
                 <p className="text-slate-400 text-sm mt-1">Accept only .pdf</p>
@@ -95,16 +100,20 @@ Innovation is flashy. Strategy is sustainable. Choose wisely.`);
             className="min-h-[120px] border-gray-200 rounded-xl focus:ring-blue-500"
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
+            data-testid="input-instructions"
           />
         </div>
+
+        {error && <p className="text-red-500 text-sm font-medium" data-testid="text-error">{error}</p>}
 
         <Button 
           className="w-full md:w-auto px-8 py-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
           onClick={handleGenerate}
           disabled={!file || isLoading}
+          data-testid="button-generate"
         >
           <Sparkles className="mr-2 h-5 w-5" />
-          Generate
+          {isLoading ? "Generating..." : "Generate"}
         </Button>
 
         <GeneratedResultCard isLoading={isLoading} result={result} />
