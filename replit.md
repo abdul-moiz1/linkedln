@@ -35,6 +35,11 @@ The application allows users to generate carousels from text input or a URL (whi
 ### AI Integration
 - Supports multiple AI providers for image generation: Gemini, Stability AI, and OpenAI DALL-E.
 - Utilizes AI for summarizing content from URLs to create carousel slides.
+- **Content Repurposing**: Uses Gemini AI to repurpose content into LinkedIn posts:
+  - PDF to Post: Upload PDF, extract text, generate LinkedIn post
+  - YouTube to Post: Extract transcript and generate LinkedIn post
+  - Article to Post: Scrape article content and generate LinkedIn post
+  - Format Content: Format raw text into LinkedIn-style posts
 
 ### Security
 - Implements CSRF protection, HttpOnly session cookies, secure cookies for production, and environment-based secret management.
