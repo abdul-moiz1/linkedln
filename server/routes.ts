@@ -4713,6 +4713,48 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
   });
 
   /**
+   * POST /api/repurpose/format
+   * Format raw content into a clean LinkedIn post
+   */
+  app.post("/api/repurpose/format", async (req: Request, res: Response) => {
+    try {
+      const { rawContent, instructions } = req.body;
+      
+      if (!rawContent || rawContent.trim().length === 0) {
+        return res.status(400).json({ success: false, message: "Please paste your content" });
+      }
+
+      const prompt = `You are an expert LinkedIn editor.
+Rewrite and format the text below into a clean LinkedIn post.
+
+Rules:
+Keep the meaning same
+Fix grammar and spacing
+Make short paragraphs
+Add bullet points if helpful
+Remove unnecessary emojis
+Keep it natural and human
+Add a short ending line + 5-8 hashtags
+Follow user instructions: ${instructions || ""}
+
+Raw content:
+${rawContent}
+
+Return plain text only.`;
+
+      const { generateContent } = await import("./lib/gemini");
+      const result = await generateContent(prompt);
+      
+      const post = result.trim().replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+
+      res.json({ success: true, post });
+    } catch (error: any) {
+      console.error("[Repurpose Format] Error:", error);
+      res.status(500).json({ success: false, message: "Failed to generate post" });
+    }
+  });
+
+  /**
    * POST /api/repurpose/pdf
    * Upload PDF and generate LinkedIn post from its content
    */
