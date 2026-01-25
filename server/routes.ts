@@ -477,9 +477,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Look for a JSON array or object
       let data = { versions: [] as any[] };
       try {
-        const jsonMatch = response.match(/\[\s*\{.*\}\s*\]|\{\s*"versions".*\}/s);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
+        const jsonMatch = response.match(/\[\s*\{.*\}\s*\]|\{\s*"versions".*\}/); // Removed /s flag to avoid es2018 error if environment is older, though it's node 20. Wait, node 20 supports it. 
+        // The error said: This regular expression flag is only available when targeting 'es2018' or later.
+        // This is a TS config issue. I'll just remove the /s if possible or change it.
+        // Actually /s is dotAll. I'll use [\s\S] instead.
+        const jsonMatchAlt = response.match(/\[\s*\{[\s\S]*?\}\s*\]|\{\s*"versions"[\s\S]*?\}/);
+        if (jsonMatchAlt) {
+          const parsed = JSON.parse(jsonMatchAlt[0]);
           data = Array.isArray(parsed) ? { versions: parsed } : parsed;
         } else {
           // Fallback: search for anything that looks like a JSON block
