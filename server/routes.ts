@@ -4715,7 +4715,8 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       const instructions = req.body.instructions || "";
       
       const pdfParse = await import("pdf-parse");
-      const pdfData = await pdfParse.default(req.file.buffer);
+      // @ts-ignore - pdf-parse has compatibility issues with ESM/CommonJS interop in some environments
+      const pdfData = await (pdfParse.default || pdfParse)(req.file.buffer);
       const extractedText = pdfData.text;
 
       if (!extractedText || extractedText.trim().length < 50) {
