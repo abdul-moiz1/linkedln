@@ -1,0 +1,208 @@
+My UI + route already exists for:
+
+✅ /generate-posts/article
+
+Gemini API key is already in Replit Secrets:
+
+✅ GEMINI_API_KEY
+
+Now implement ONLY the functionality for Generate Post from Article using Gemini.
+
+Do NOT redesign UI. Do NOT change routes. Only implement working feature.
+
+✅ Backend Requirements (Express)
+
+Create endpoint:
+
+✅ POST /api/repurpose/article
+
+Request JSON:
+
+{
+  "articleUrl": "https://example.com/blog-post",
+  "instructions": "make it engaging, short, add less emojis"
+}
+
+
+Response JSON:
+
+{
+  "success": true,
+  "post": "Generated LinkedIn post..."
+}
+
+
+If invalid URL:
+
+{
+  "success": false,
+  "message": "Invalid article URL"
+}
+
+✅ Article Fetching (Fix 403 issue)
+
+My problem: Some sites (example dawn.com) return 403 Forbidden.
+
+So implement robust fetch logic:
+
+1) Use axios with real browser headers
+
+Add headers like:
+
+User-Agent
+
+Accept
+
+Accept-Language
+
+Referer
+
+Example:
+
+const response = await axios.get(articleUrl, {
+  headers: {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.google.com/"
+  },
+  timeout: 15000
+});
+
+2) If still 403 → fallback mode using Gemini
+
+If response fails due to 403 / 401 / 404 / timeout:
+
+✅ DO NOT crash
+✅ Use Gemini to still generate post by using the URL only
+
+Example fallback prompt:
+
+"Generate a LinkedIn post based on this article URL. If you cannot access full article content, infer likely key ideas from the page title + URL and create a general but relevant post."
+
+Return success with post even if scraping fails.
+
+✅ Extract Clean Article Text (Cheerio)
+
+Use:
+
+axios
+
+cheerio
+
+Steps:
+
+Load html in cheerio
+
+Remove junk:
+
+script, style, nav, footer, header, noscript, ads
+
+Get title:
+
+$('title').text()
+
+$('h1').first().text()
+
+Extract paragraphs:
+
+select all p
+
+join them
+
+keep max 5000 characters (for Gemini limit)
+
+Example:
+
+const $ = cheerio.load(html);
+
+$("script, style, nav, footer, header, noscript, iframe").remove();
+
+const title = $("h1").first().text().trim() || $("title").text().trim();
+const paragraphs = $("p")
+  .map((i, el) => $(el).text().trim())
+  .get()
+  .filter(Boolean);
+
+const content = paragraphs.join("\n").slice(0, 5000);
+
+
+If content length < 100 characters → treat as blocked and use fallback mode.
+
+✅ Gemini Prompt (Article to LinkedIn Post)
+
+Use Gemini (@google/generative-ai) to generate the LinkedIn post.
+
+Prompt format:
+
+You are a professional LinkedIn content writer.
+
+Write a LinkedIn post based on the article content below.
+
+Rules:
+
+Hook in the first line
+
+3 to 6 short paragraphs
+
+Simple English
+
+No heavy emojis
+
+Keep it human and natural
+
+End with 5–8 relevant hashtags
+
+Follow these instructions from the user: {instructions}
+
+Article Title: {title}
+Article Content:
+{content}
+
+Return plain text only.
+
+✅ Files to Create / Update
+
+Backend:
+
+server/routes/articleRoutes.js
+
+Add into existing server router: /api/repurpose/article
+
+Use existing server/services/geminiService.js
+
+Frontend:
+Update my existing file:
+
+src/pages/ArticlePostGenerator.jsx
+
+On Generate button:
+✅ Validate URL starts with http/https
+✅ POST to /api/repurpose/article
+✅ Show loading state
+✅ Show error message in red if failed
+✅ Show result card on success
+✅ Add copy button
+
+✅ Important: Error Handling
+
+Frontend should show:
+
+“Failed to fetch article: 403” BUT still allow fallback generation
+So backend must return success even on 403 by using Gemini URL fallback.
+
+Backend error response should include:
+
+{
+  "success": false,
+  "message": "Failed to generate post"
+}
+
+✅ Final Goal
+
+✅ Article generator should work for normal blogs
+✅ Should NOT break on 403 sites like dawn.com
+✅ If blocked, still produce a post using URL fallback
+✅ No UI redesign
+
+Now implement full working code.

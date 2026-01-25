@@ -1,0 +1,143 @@
+I am still getting this error after multiple fixes:
+
+"PDF parser library resolved but is not a function"
+
+Stop trying to fix pdf-parse.
+Now replace pdf parsing completely using pdfjs-dist, because it is stable in Replit.
+
+✅ 1) Install dependency
+
+Run:
+
+npm i pdfjs-dist
+
+✅ 2) Create a PDF text extractor helper
+
+Create file:
+
+server/utils/extractPdfText.js
+
+Put this code:
+
+import pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+
+export async function extractPdfTextFromBuffer(buffer) {
+  const uint8Array = new Uint8Array(buffer);
+
+  const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+  const pdf = await loadingTask.promise;
+
+  let fullText = "";
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+
+    const strings = content.items.map((item) => item.str);
+    fullText += strings.join(" ") + "\n";
+  }
+
+  return fullText.trim();
+}
+
+✅ 3) Update PDF endpoint to use this helper
+
+In:
+
+POST /api/repurpose/pdf
+
+Do:
+
+use multer memoryStorage
+
+read file from req.file.buffer
+
+extract text using extractPdfTextFromBuffer(req.file.buffer)
+
+send extracted text + instructions to Gemini
+
+return response
+
+Example:
+
+import express from "express";
+import multer from "multer";
+import { extractPdfTextFromBuffer } from "../utils/extractPdfText.js";
+import { generateWithGemini } from "../services/geminiService.js";
+
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+router.post("/pdf", upload.single("pdfFile"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Please upload a PDF file" });
+    }
+
+    const instructions = req.body.instructions || "";
+    const extractedText = await extractPdfTextFromBuffer(req.file.buffer);
+
+    if (!extractedText || extractedText.length < 20) {
+      return res.status(400).json({ success: false, message: "Could not extract text from PDF" });
+    }
+
+    const prompt = `
+You are a professional LinkedIn content writer.
+Write a LinkedIn post using the PDF content below.
+
+Rules:
+- Hook in first line
+- 3–6 short paragraphs
+- Simple English
+- No heavy emojis
+- End with 5–8 hashtags
+Instructions: ${instructions}
+
+PDF Content:
+${extractedText}
+`;
+
+    const post = await generateWithGemini(prompt);
+
+    return res.json({ success: true, post });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: "PDF generation failed",
+      error: err.message,
+    });
+  }
+});
+
+export default router;
+
+✅ 4) Keep frontend same
+
+Frontend must keep uploading:
+
+FormData:
+
+pdfFile
+
+instructions
+
+No UI changes needed.
+
+✅ 5) Remove pdf-parse usage completely
+
+Delete pdf-parse import and code everywhere.
+
+✅ Implement now and ensure PDF upload + generate works successfully in Replit.
+
+✅ If it still fails (rare)
+
+Then your file field name is wrong.
+
+It must be:
+
+upload.single("pdfFile")
+
+
+and frontend must send:
+
+formData.append("pdfFile", file)

@@ -1,6 +1,7 @@
 import { generateContent } from "./gemini";
 import * as cheerio from "cheerio";
 import { YoutubeTranscript } from 'youtube-transcript';
+import axios from "axios";
 
 const LINKEDIN_PROMPT_TEMPLATE = `You are a LinkedIn content writer. Create a clear LinkedIn post with:
 
@@ -67,41 +68,60 @@ Return plain text only (no markdown, no JSON).`;
 }
 
 export async function extractArticleContent(url: string): Promise<{ title: string; content: string }> {
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch article: ${response.status}`);
-  }
-  
-  const html = await response.text();
-  const $ = cheerio.load(html);
-  
-  $('script, style, nav, header, footer, aside, .advertisement, .ads, .comments').remove();
-  
-  const title = $('title').text() || $('h1').first().text() || 'Untitled';
-  
-  const paragraphs: string[] = [];
-  $('article p, .content p, .post-content p, main p, .entry-content p, p').each((_, el) => {
-    const text = $(el).text().trim();
-    if (text.length > 30) {
-      paragraphs.push(text);
-    }
-  });
-  
-  if (paragraphs.length === 0) {
-    $('article, .content, main, .post-content').each((_, el) => {
-      const text = $(el).text().trim();
-      if (text.length > 100) {
-        paragraphs.push(text.slice(0, 5000));
-      }
+  try {
+    const response = await axios.get(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.google.com/"
+      },
+      timeout: 15000,
+      validateStatus: (status) => status < 500 // Accept anything below 500 to handle 403 gracefully
     });
+    
+    const html = response.data;
+    const $ = cheerio.load(html);
+    
+    $("script, style, nav, footer, header, noscript, iframe").remove();
+    
+    const title = $("h1").first().text().trim() || $("title").text().trim() || url;
+    const paragraphs = $("p")
+      .map((i, el) => $(el).text().trim())
+      .get()
+      .filter(Boolean);
+    
+    const content = paragraphs.join("\n").slice(0, 5000);
+    
+    return { title, content: content || `URL: ${url}` };
+  } catch (error: any) {
+    console.warn(`[Scraping] Failed to fetch ${url}, falling back:`, error.message);
+    return { title: url, content: `URL: ${url}` };
   }
+}
+
+export async function repurposeArticle(articleUrl: string, instructions: string) {
+  const { title, content } = await extractArticleContent(articleUrl);
   
-  const content = paragraphs.slice(0, 20).join('\n\n');
-  
-  return { title, content: content || 'No content could be extracted from this page.' };
+  const prompt = `You are a professional LinkedIn content writer.
+Write a LinkedIn post based on the article content below.
+Rules:
+Hook in the first line
+3 to 6 short paragraphs
+Simple English
+No heavy emojis
+Keep it human and natural
+End with 5–8 relevant hashtags
+Follow these instructions from the user: ${instructions}
+
+Article Title: ${title}
+Article Content:
+${content}
+
+If the content is just a URL, infer likely key ideas from the page title and URL to create a general but relevant post.
+
+Return plain text only.`;
+
+  const result = await generateContent(prompt);
+  return cleanGeminiResponse(result);
 }

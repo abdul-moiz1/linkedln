@@ -4761,6 +4761,28 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
   });
 
   /**
+   * POST /api/repurpose/article
+   * Scrape article content and generate LinkedIn post
+   */
+  app.post("/api/repurpose/article", async (req: Request, res: Response) => {
+    try {
+      const { articleUrl, instructions } = req.body;
+      
+      if (!articleUrl || !articleUrl.startsWith("http")) {
+        return res.status(400).json({ success: false, message: "Invalid article URL" });
+      }
+
+      const { repurposeArticle } = await import("./lib/repurpose-service");
+      const post = await repurposeArticle(articleUrl, instructions || "");
+
+      res.json({ success: true, post });
+    } catch (error: any) {
+      console.error("[Repurpose Article] Error:", error);
+      res.status(500).json({ success: false, message: "Failed to generate post" });
+    }
+  });
+
+  /**
    * POST /api/repurpose/youtube
    * Generate LinkedIn post from YouTube video transcript
    */
