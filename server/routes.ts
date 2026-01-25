@@ -4839,7 +4839,7 @@ Return plain text only.`;
       const { repurposeYouTube } = await import("./lib/repurpose-service");
       const post = await repurposeYouTube(youtubeUrl, instructions);
 
-      if (post.includes("Transcript unavailable")) {
+      if (post === "Transcript unavailable. Please try another video.") {
         return res.status(400).json({ 
           success: false, 
           message: "Transcript not available for this video. Try another link or upload summary." 
