@@ -600,6 +600,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  app.post("/api/repurpose/youtube", async (req: Request, res: Response) => {
+    const { youtubeUrl, instructions } = req.body;
+    
+    if (!youtubeUrl || (!youtubeUrl.includes("youtube.com/watch?v=") && !youtubeUrl.includes("youtu.be/"))) {
+      return res.status(400).json({ success: false, message: "Invalid YouTube URL" });
+    }
+
+    try {
+      const { repurposeYouTube } = await import("./lib/repurpose-service");
+      const post = await repurposeYouTube(youtubeUrl, instructions);
+      res.json({ success: true, post });
+    } catch (error: any) {
+      console.error("[YouTube API] Error:", error);
+      res.status(500).json({ success: false, message: error.message || "Failed to generate post" });
+    }
+  });
+
   app.get("/api/templates", async (req: Request, res: Response) => {
     try {
       const { getTemplates, seedTemplates } = await import("./lib/firebase-admin");
