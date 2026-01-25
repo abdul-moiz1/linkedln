@@ -1,0 +1,144 @@
+My YouTube functionality is working now ✅
+Now implement ONLY PDF → Post functionality using Gemini.
+
+✅ My UI + route already exist:
+
+/generate-posts/pdf
+
+✅ Gemini API key is already in Replit Secrets:
+GEMINI_API_KEY
+
+Do NOT redesign UI. Do NOT change routing. Only add functionality.
+
+✅ What to Build
+1) PDF API Endpoint
+
+Create this endpoint:
+
+✅ POST /api/repurpose/pdf
+
+It must accept:
+
+multipart/form-data
+
+field name: pdfFile
+
+also accept form fields:
+
+instructions
+
+Example request:
+
+pdfFile: (uploaded file)
+
+instructions: "focus on key takeaways"
+
+Return JSON:
+
+{
+  "success": true,
+  "post": "Generated LinkedIn post..."
+}
+
+
+If PDF missing or invalid:
+
+{
+  "success": false,
+  "message": "Please upload a PDF file"
+}
+
+2) PDF Upload Handling
+
+Use:
+
+multer
+
+store file in memory (buffer)
+
+✅ Only allow .pdf
+✅ Max size 10MB
+
+3) Extract Text from PDF
+
+Use:
+
+pdf-parse
+
+⚠️ Fix import correctly to avoid this error:
+“pdfParse is not a function”
+
+Use correct code:
+
+If ESModule:
+import pdf from "pdf-parse";
+const data = await pdf(req.file.buffer);
+const extractedText = data.text;
+
+4) Gemini Prompt for PDF
+
+Send extractedText + instructions to Gemini.
+
+Prompt style:
+
+You are a professional LinkedIn content writer.
+Create a LinkedIn post from the content below.
+
+Rules:
+
+Hook in first line
+
+3–6 short paragraphs
+
+Easy English
+
+Natural human tone
+
+No heavy emojis
+
+End with 5–8 hashtags
+Also follow these instructions: {instructions}
+
+Content from PDF:
+{extractedText}
+
+Return plain text only.
+
+5) Frontend Connection
+
+Update my existing page:
+
+src/pages/PdfPostGenerator.jsx
+
+On Generate button:
+✅ upload PDF using FormData
+✅ send POST request to /api/repurpose/pdf
+✅ show loading state
+✅ show error under uploader if no file
+✅ show result card with generated post
+✅ Copy button to copy the post
+
+Example frontend:
+
+FormData.append("pdfFile", file)
+
+FormData.append("instructions", instructions)
+
+✅ Backend Files
+
+Put code in these files (or match my current structure):
+
+server/routes/pdfRoutes.js
+
+add route into server/index.js
+
+reuse existing geminiService.js from YouTube
+
+✅ Final Requirement
+
+✅ PDF upload + parse must work
+✅ Gemini must generate LinkedIn post
+✅ Response must display in UI
+✅ Do not touch Article/Format pages yet
+
+Now implement PDF functionality completely.

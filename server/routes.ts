@@ -4700,16 +4700,26 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
   // =============================================
   
   const repurposeMulter = await import("multer");
-  const repurposeUpload = repurposeMulter.default({ storage: repurposeMulter.memoryStorage() });
+  const repurposeUpload = repurposeMulter.default({ 
+    storage: repurposeMulter.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype === "application/pdf") {
+        cb(null, true);
+      } else {
+        cb(new Error("Only .pdf files are allowed"));
+      }
+    }
+  });
 
   /**
    * POST /api/repurpose/pdf
    * Upload PDF and generate LinkedIn post from its content
    */
-  app.post("/api/repurpose/pdf", repurposeUpload.single("pdf"), async (req: Request, res: Response) => {
+  app.post("/api/repurpose/pdf", repurposeUpload.single("pdfFile"), async (req: Request, res: Response) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ success: false, error: "No PDF file uploaded" });
+        return res.status(400).json({ success: false, message: "Please upload a PDF file" });
       }
 
       const instructions = req.body.instructions || "";
@@ -4721,16 +4731,16 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       const extractedText = data.text;
 
       if (!extractedText || extractedText.trim().length < 50) {
-        return res.status(400).json({ success: false, error: "Could not extract meaningful text from PDF" });
+        return res.status(400).json({ success: false, message: "Could not extract meaningful text from PDF" });
       }
 
-      const { generateLinkedInPost } = await import("./lib/repurpose-service");
-      const post = await generateLinkedInPost(extractedText.slice(0, 10000), instructions);
+      const { generateYouTubePost } = await import("./lib/gemini");
+      const post = await generateYouTubePost(extractedText.slice(0, 10000), instructions);
 
-      res.json({ success: true, text: extractedText, post });
+      res.json({ success: true, post });
     } catch (error: any) {
       console.error("[Repurpose PDF] Error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to process PDF" });
+      res.status(500).json({ success: false, message: error.message || "Failed to process PDF" });
     }
   });
 

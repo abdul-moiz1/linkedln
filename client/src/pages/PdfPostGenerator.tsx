@@ -25,14 +25,17 @@ export default function PdfPostGenerator() {
   };
 
   const handleGenerate = async () => {
-    if (!file) return;
+    if (!file) {
+      setError("Please upload a PDF file");
+      return;
+    }
     setIsLoading(true);
     setResult(null);
     setError("");
 
     try {
       const formData = new FormData();
-      formData.append("pdf", file);
+      formData.append("pdfFile", file);
       formData.append("instructions", instructions);
 
       const response = await fetch("/api/repurpose/pdf", {
@@ -43,7 +46,7 @@ export default function PdfPostGenerator() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || "Failed to generate post");
+        throw new Error(data.message || "Failed to generate post");
       }
 
       setResult(data.post);
@@ -51,6 +54,12 @@ export default function PdfPostGenerator() {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (result) {
+      navigator.clipboard.writeText(result);
     }
   };
 
@@ -82,13 +91,14 @@ export default function PdfPostGenerator() {
                 <p className="text-slate-900 font-medium" data-testid="text-file-name">
                   {file ? file.name : "Choose a file or drag & drop it here."}
                 </p>
-                <p className="text-slate-400 text-sm mt-1">Accept only .pdf</p>
+                <p className="text-slate-400 text-sm mt-1">Accept only .pdf (max 10MB)</p>
               </div>
               <Button variant="outline" className="text-blue-600 border-blue-200">
                 Browse File
               </Button>
             </div>
           </div>
+          {error && <p className="text-red-500 text-sm font-medium" data-testid="text-error">{error}</p>}
         </div>
 
         <ContentStyleSelector />
@@ -104,17 +114,28 @@ export default function PdfPostGenerator() {
           />
         </div>
 
-        {error && <p className="text-red-500 text-sm font-medium" data-testid="text-error">{error}</p>}
+        <div className="flex gap-4">
+          <Button 
+            className="flex-1 md:w-auto px-8 py-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
+            onClick={handleGenerate}
+            disabled={!file || isLoading}
+            data-testid="button-generate"
+          >
+            <Sparkles className="mr-2 h-5 w-5" />
+            {isLoading ? "Generating..." : "Generate"}
+          </Button>
 
-        <Button 
-          className="w-full md:w-auto px-8 py-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
-          onClick={handleGenerate}
-          disabled={!file || isLoading}
-          data-testid="button-generate"
-        >
-          <Sparkles className="mr-2 h-5 w-5" />
-          {isLoading ? "Generating..." : "Generate"}
-        </Button>
+          {result && (
+            <Button
+              variant="outline"
+              className="px-8 py-6 rounded-full font-semibold text-lg border-gray-200 hover:bg-gray-50 transition-all"
+              onClick={copyToClipboard}
+              data-testid="button-copy"
+            >
+              Copy Post
+            </Button>
+          )}
+        </div>
 
         <GeneratedResultCard isLoading={isLoading} result={result} />
       </div>
