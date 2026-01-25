@@ -1,0 +1,288 @@
+I already have a working React app with React Router v6 and a main page /generate-posts working.
+
+Now I want you to design and implement these 4 pages exactly like Supergrow UI:
+
+Pages to design:
+
+/generate-posts/pdf
+
+/generate-posts/youtube
+
+/generate-posts/article
+
+/generate-posts/format
+
+⚠️ Important:
+
+Only UI + front-end design + form structure + basic validations + fake generation output
+
+No backend required for now
+
+These pages must look consistent with Supergrow clean layout shown in screenshots
+
+✅ Global UI Requirements (Supergrow Style)
+Layout:
+
+White background, lots of spacing, centered content container
+
+Top heading section (title + subtitle)
+
+Horizontal thin divider line under header
+
+Left aligned form content
+
+Modern rounded input boxes and cards
+
+Use soft border colors (#e5e7eb like Tailwind border-gray-200)
+
+Buttons should look premium, rounded, blue primary button with icon
+
+Reusable Page Header Component:
+
+Create a component named PageHeader which supports:
+
+Back arrow button (goBack)
+
+Title
+
+Subtitle
+
+Divider line below
+
+Example:
+
+"Generate a post from a PDF"
+
+"Upload a PDF and generate a post from it"
+
+Reusable Language Selector:
+
+On all 4 pages show a small language selector row:
+
+icon + “English”
+
+keep it same on every page
+
+✅ Shared Section Component (Same on all 4 pages)
+
+After input area, show this section:
+
+Section title:
+
+"Select Post format or Content style"
+
+Option cards:
+
+Post Formats (default selected)
+
+description text: "Generate your content in different formats that to get you more reach."
+
+button: “+ Select a post format”
+
+Content Style (Beta)
+
+description text: "Generate your content that can mimic your writing style and personalized tone."
+
+Allow selecting one using radio-style UI.
+
+✅ Page 1: Generate Post from PDF (/generate-posts/pdf)
+UI:
+
+Page header: "Generate a post from a PDF"
+
+Subtitle: "Upload a PDF and generate a post from it"
+
+Upload area:
+
+Large dashed border box
+
+Upload icon
+
+text: “Choose a file or drag & drop it here.”
+
+button “Browse File”
+
+Accept only .pdf
+
+Instructions box:
+
+Below the Post Formats section, show:
+
+label: "Add your instructions"
+
+textarea with placeholder: “focus on a specific part of the PDF”
+
+Generate button:
+
+Blue rounded button: "Generate"
+
+With sparkle icon
+
+Result card:
+
+After Generate, show:
+
+a loading state: “Generating post...”
+
+then show a card with:
+
+“Generated Post”
+
+a realistic LinkedIn style post text output
+
+✅ Page 2: Generate Post from Youtube (/generate-posts/youtube)
+UI:
+
+Header: "Generate a post from a Youtube video"
+
+Subtitle: "Share a Youtube video link and generate a post from it"
+
+Form fields:
+
+Label: "Youtube Video URL"
+
+Input placeholder: "https://www.youtube.com/watch?v=xxxx
+"
+
+Validation rules:
+
+must include youtube.com/watch?v= OR youtu.be/
+
+show red error text if invalid
+
+Instructions:
+
+label: "Add your instructions"
+
+placeholder: "focus on a specific part of the video"
+
+Generate button:
+
+On click show loading and then output in card as generated post
+
+✅ Page 3: Generate Post from Article (/generate-posts/article)
+UI:
+
+Header: "Generate a post from an article"
+
+Subtitle: "Share a link to a blog post and generate a post from it"
+
+Form fields:
+
+Label text exactly like:
+“Blog post URL(the URL content should be open and public),
+Currently, we don't support PDFs, Google Docs.”
+
+Input placeholder: "https://www.example.com/blog-post
+"
+
+Validation:
+
+Must start with http:// or https://
+
+Must not include pdf or docs.google.com
+
+Show error below if invalid
+
+Instructions:
+
+"Add your instructions"
+
+placeholder: "add less emojis"
+
+Generate:
+
+Generate button should create a realistic generated post
+
+✅ Page 4: Format your content (/generate-posts/format)
+UI:
+
+Header: "Format your content"
+
+Subtitle: "Use the power of AI to format your clunky content into readable posts"
+
+Form fields:
+
+Large textarea:
+
+label: "Add your content"
+
+placeholder: "Paste your content"
+
+big height like Supergrow
+
+Instructions textarea:
+
+label: "Add your instructions"
+
+placeholder: "add less emojis"
+
+Generate button:
+
+When clicked:
+
+show loading
+
+output formatted version of the content in a result card
+
+include:
+
+Title: “Formatted Output”
+
+Copy button on top-right
+
+✅ Navigation Requirements
+
+Ensure all 4 pages are included in App Router
+
+Each card on /generate-posts should navigate properly:
+
+PDF card -> /generate-posts/pdf
+
+Youtube card -> /generate-posts/youtube
+
+Article card -> /generate-posts/article
+
+Format content card -> /generate-posts/format
+
+✅ File Structure Requirements
+
+Create these files:
+
+src/pages/PdfPostGenerator.jsx
+
+src/pages/YoutubePostGenerator.jsx
+
+src/pages/ArticlePostGenerator.jsx
+
+src/pages/FormatContent.jsx
+
+Reusable components:
+
+src/components/PageHeader.jsx
+
+src/components/ContentStyleSelector.jsx
+
+src/components/GeneratedResultCard.jsx
+
+Also create src/pages/styles/generatorPages.css (or use Tailwind classes)
+
+✅ Output Behavior
+
+Use useState to store:
+
+input values
+
+errors
+
+loading state
+
+generated text result
+
+Use fake AI generation like:
+
+setTimeout 1200ms
+
+return a sample LinkedIn post
+
+Now implement everything fully with clean modern UI and ensure pages match Supergrow design.

@@ -23,6 +23,10 @@ import CalendarPage from "@/pages/calendar";
 import Analytics from "@/pages/analytics";
 import Templates from "@/pages/templates";
 import CarouselEditor from "@/pages/CarouselEditor";
+import PdfPostGenerator from "@/pages/PdfPostGenerator";
+import YoutubePostGenerator from "@/pages/YoutubePostGenerator";
+import ArticlePostGenerator from "@/pages/ArticlePostGenerator";
+import FormatContent from "@/pages/FormatContent";
 import NotFound from "@/pages/not-found";
 import { useQuery } from "@tanstack/react-query";
 
@@ -41,6 +45,10 @@ function Router() {
             <Route path="/login" component={Login} />
             <Route path="/signup" component={Signup} />
             <Route path="/create" component={Create} />
+            <Route path="/generate-posts/pdf" component={PdfPostGenerator} />
+            <Route path="/generate-posts/youtube" component={YoutubePostGenerator} />
+            <Route path="/generate-posts/article" component={ArticlePostGenerator} />
+            <Route path="/generate-posts/format" component={FormatContent} />
             <Route path="/preview" component={Preview} />
             <Route path="/profile" component={Profile} />
             <Route path="/writing-style" component={WritingStyle} />
