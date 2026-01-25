@@ -44,32 +44,39 @@ export async function repurposeYouTube(youtubeUrl: string, instructions: string)
   let videoDetails: any = null;
 
   try {
-    // Extract videoId from URL
-    const videoIdMatch = youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[&?]|$)/);
-    const videoId = videoIdMatch ? videoIdMatch[1] : youtubeUrl;
+    // Safely extract videoId from URL
+    const videoId = youtubeUrl.includes("v=")
+      ? new URL(youtubeUrl).searchParams.get("v")
+      : youtubeUrl.split("youtu.be/")[1]?.split("?")[0];
     
     console.log("YouTube URL:", youtubeUrl);
     console.log("YouTube videoId:", videoId);
     
-    try {
-      const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-      transcriptText = transcript.map(t => t.text).join(" ");
-      console.log("Transcript length:", transcriptText?.length || 0);
-    } catch (e) {
-      console.warn("[YouTube] Transcript unavailable, fetching metadata instead");
+    if (videoId) {
+      try {
+        const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+        transcriptText = transcript.map(t => t.text).join(" ");
+        console.log("Transcript length:", transcriptText?.length || 0);
+      } catch (e) {
+        console.warn("[YouTube] Transcript unavailable, fetching metadata instead");
+      }
     }
 
     if (!transcriptText || transcriptText.trim().length < 50) {
-      const info = await ytdl.getInfo(youtubeUrl);
-      videoDetails = {
-        title: info.videoDetails.title,
-        description: info.videoDetails.description,
-        channel: info.videoDetails.author?.name
-      };
-      console.log("Video metadata fetched:", videoDetails.title);
+      try {
+        const info = await ytdl.getInfo(youtubeUrl);
+        videoDetails = {
+          title: info.videoDetails.title,
+          description: info.videoDetails.description,
+          channel: info.videoDetails.author?.name
+        };
+        console.log("Video metadata fetched:", videoDetails.title);
+      } catch (metadataError) {
+        console.warn("[YouTube] Metadata fetch failed, using URL fallback");
+      }
     }
   } catch (error) {
-    console.warn("[YouTube] Failed to fetch transcript or metadata:", error);
+    console.warn("[YouTube] Error in processing chain:", error);
   }
 
   let prompt = "";
@@ -117,7 +124,22 @@ Rules:
 - End with 5–8 hashtags
 Return plain text only.`;
   } else {
-    return "Transcript and metadata unavailable. Please try another video.";
+    // FINAL FALLBACK: URL Only
+    prompt = `You are a LinkedIn content writer.
+
+The user shared a YouTube video link but transcript and metadata are unavailable.
+
+You must still generate a LinkedIn post in a helpful way:
+- Ask 1 short question at the end
+- Keep it generic but related to learning web development / tech
+- Do NOT talk about productivity unless user asked
+- Keep it short and clean
+- End with 5-8 hashtags
+
+YouTube URL: ${youtubeUrl}
+User instructions: ${instructions}
+
+Return plain text only.`;
   }
 
   const result = await generateContent(prompt);

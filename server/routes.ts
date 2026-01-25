@@ -4839,13 +4839,6 @@ Return plain text only.`;
       const { repurposeYouTube } = await import("./lib/repurpose-service");
       const post = await repurposeYouTube(youtubeUrl, instructions);
 
-      if (post === "Transcript and metadata unavailable. Please try another video.") {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Could not extract video content or metadata. Try another link." 
-        });
-      }
-
       res.json({ success: true, post });
     } catch (error: any) {
       console.error("[Repurpose YouTube] Error:", error);
