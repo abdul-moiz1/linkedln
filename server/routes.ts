@@ -4831,39 +4831,25 @@ Return plain text only.`;
   app.post("/api/repurpose/youtube", async (req: Request, res: Response) => {
     try {
       const { youtubeUrl, instructions = "" } = req.body;
-
-      if (!youtubeUrl) {
-        return res.status(400).json({ success: false, error: "YouTube URL is required" });
+      
+      if (!youtubeUrl || (!youtubeUrl.includes("youtube.com") && !youtubeUrl.includes("youtu.be"))) {
+        return res.status(400).json({ success: false, message: "Invalid YouTube URL" });
       }
 
-      const isValidUrl = youtubeUrl.includes("youtube.com/watch?v=") || youtubeUrl.includes("youtu.be/");
-      if (!isValidUrl) {
-        return res.status(400).json({ success: false, error: "Invalid YouTube URL" });
-      }
+      const { repurposeYouTube } = await import("./lib/repurpose-service");
+      const post = await repurposeYouTube(youtubeUrl, instructions);
 
-      let transcript = "";
-      try {
-        const { YoutubeTranscript } = await import("youtube-transcript");
-        const videoId = youtubeUrl.includes("youtu.be/") 
-          ? youtubeUrl.split("youtu.be/")[1].split("?")[0]
-          : new URL(youtubeUrl).searchParams.get("v");
-        
-        if (!videoId) throw new Error("Could not extract video ID");
-        
-        const transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
-        transcript = transcriptData.map((item: any) => item.text).join(" ");
-      } catch (transcriptError) {
-        console.warn("[YouTube] Transcript extraction failed, using URL only:", transcriptError);
-        transcript = `YouTube video URL: ${youtubeUrl}. Please analyze this video topic and create a relevant LinkedIn post.`;
+      if (post.includes("Transcript unavailable")) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Transcript not available for this video. Try another link or upload summary." 
+        });
       }
-
-      const { generateLinkedInPost } = await import("./lib/repurpose-service");
-      const post = await generateLinkedInPost(transcript.slice(0, 10000), instructions);
 
       res.json({ success: true, post });
     } catch (error: any) {
       console.error("[Repurpose YouTube] Error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to process YouTube video" });
+      res.status(500).json({ success: false, message: "Failed to generate post" });
     }
   });
 

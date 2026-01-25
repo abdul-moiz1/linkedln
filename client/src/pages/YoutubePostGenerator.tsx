@@ -48,7 +48,8 @@ export default function YoutubePostGenerator() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || "Failed to generate post");
+        const errorMsg = data.message || data.error || "Failed to generate post";
+        throw new Error(errorMsg);
       }
 
       setResult(data.post);

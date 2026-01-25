@@ -41,25 +41,49 @@ Generate a LinkedIn post based on the content above.`;
 export async function repurposeYouTube(youtubeUrl: string, instructions: string) {
   let transcriptText = "";
   try {
-    const transcript = await YoutubeTranscript.fetchTranscript(youtubeUrl);
+    // Extract videoId from URL
+    const videoIdMatch = youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[&?]|$)/);
+    const videoId = videoIdMatch ? videoIdMatch[1] : youtubeUrl;
+    
+    console.log("YouTube URL:", youtubeUrl);
+    console.log("YouTube videoId:", videoId);
+    
+    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
     transcriptText = transcript.map(t => t.text).join(" ");
+    
+    console.log("Transcript length:", transcriptText?.length || 0);
+    if (transcriptText) {
+      console.log("Transcript preview (200 chars):", transcriptText.substring(0, 200));
+    }
   } catch (error) {
-    console.warn("[YouTube] Failed to fetch transcript, falling back to URL only:", error);
-    transcriptText = `YouTube Video URL: ${youtubeUrl}`;
+    console.warn("[YouTube] Failed to fetch transcript:", error);
   }
 
-  const prompt = `You are a professional LinkedIn content writer.
-Write a LinkedIn post based on this YouTube video transcript (or summary if transcript missing).
+  if (!transcriptText || transcriptText.trim().length < 50) {
+    return "Transcript unavailable. Please try another video.";
+  }
+
+  const prompt = `You are a LinkedIn content writer.
+
+Generate a LinkedIn post ONLY based on the transcript below.
+Do not guess.
+If the transcript is missing or unrelated, respond with:
+"Transcript unavailable. Please try another video."
+
 Rules:
 Hook in first line
 3 to 6 short paragraphs
 Easy English
 No heavy emojis
 End with 5–8 hashtags
-Also follow these user instructions: ${instructions}
+Must reference specific concepts found in transcript
+If it's about web development, reference at least 3 technical concepts from it
 
-Video context:
+Transcript:
 ${transcriptText}
+
+User instructions:
+${instructions}
 
 Return plain text only (no markdown, no JSON).`;
 
