@@ -4724,52 +4724,27 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
 
       const instructions = req.body.instructions || "";
       
-      // Use require as a fallback for the most common pdf-parse error in this env
       let pdfParse;
       try {
-        const { createRequire } = await import("module");
-        const require = createRequire(import.meta.url);
-        const pdfModule = require("pdf-parse");
-        
-        if (typeof pdfModule === 'function') {
-          pdfParse = pdfModule;
-        } else if (pdfModule && typeof pdfModule.default === 'function') {
-          pdfParse = pdfModule.default;
-        } else if (pdfModule && pdfModule.pdf && typeof pdfModule.pdf === 'function') {
-          pdfParse = pdfModule.pdf;
-        } else {
-          // If all else fails, try to import directly
-          const pdfParseModule = await import("pdf-parse");
-          // @ts-ignore
-          pdfParse = pdfParseModule.default || pdfParseModule;
-        }
+        const mod = await import("pdf-parse");
+        // @ts-ignore
+        pdfParse = mod.default || mod;
       } catch (e) {
-        try {
-          const pdfParseModule = await import("pdf-parse");
-          // @ts-ignore
-          pdfParse = pdfParseModule.default || pdfParseModule;
-        } catch (e2) {
-          throw new Error("PDF processing library failed to load");
-        }
+        // @ts-ignore
+        const mod = require("pdf-parse");
+        pdfParse = mod.default || mod;
       }
 
-      // If it's an object with a default property that's a function, use that
-      if (typeof pdfParse !== 'function' && pdfParse && typeof (pdfParse as any).default === 'function') {
-        pdfParse = (pdfParse as any).default;
-      }
-      
-      // If it's an object with a pdf property that's a function, use that
-      if (typeof pdfParse !== 'function' && pdfParse && typeof (pdfParse as any).pdf === 'function') {
-        pdfParse = (pdfParse as any).pdf;
+      if (typeof pdfParse !== "function") {
+        return res.status(500).json({
+          success: false,
+          message: "pdf-parse import failed: pdfParse is not a function",
+          debugType: typeof pdfParse
+        });
       }
 
-      if (typeof pdfParse !== 'function') {
-        console.error("PDF parser structure:", typeof pdfParse, pdfParse);
-        throw new Error("PDF parser library resolved but is not a function.");
-      }
-      
-      const data = await (pdfParse as any)(req.file.buffer);
-      const extractedText = data.text;
+      const result = await pdfParse(req.file.buffer);
+      const extractedText = result.text || "";
 
       if (!extractedText || extractedText.trim().length < 50) {
         return res.status(400).json({ success: false, message: "Could not extract meaningful text from PDF" });
