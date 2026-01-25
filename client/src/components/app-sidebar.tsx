@@ -46,6 +46,7 @@ import { CreatePostModal } from "./create-post-modal";
 const menuItems = [
   { group: "Main", items: [
     { title: "Dashboard", icon: LayoutDashboard, url: "/dashboard" },
+    { title: "Repurpose Content", icon: PlusCircle, url: "/create" },
     { title: "Settings", icon: Settings, url: "/settings" },
     { title: "Analytics", icon: BarChart3, url: "/analytics" },
   ]},

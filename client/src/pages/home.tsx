@@ -101,7 +101,7 @@ export default function Home() {
                 </p>
                 
                 <div className="flex flex-col sm:flex-row justify-center gap-6">
-                  <Button size="lg" onClick={handleAction} className="h-14 px-10 text-base font-semibold rounded-full shadow-2xl bg-white text-slate-900 hover:bg-slate-100 transition-all hover:scale-[1.02]">
+                  <Button size="lg" onClick={() => setLocation("/create")} className="h-14 px-10 text-base font-semibold rounded-full shadow-2xl bg-white text-slate-900 hover:bg-slate-100 transition-all hover:scale-[1.02]">
                     Get Started Free <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                   <Button size="lg" variant="outline" onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="h-14 px-10 text-base font-semibold rounded-full bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm">
