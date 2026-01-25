@@ -4734,8 +4734,8 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
         return res.status(400).json({ success: false, message: "Could not extract meaningful text from PDF" });
       }
 
-      const { generateYouTubePost } = await import("./lib/gemini");
-      const post = await generateYouTubePost(extractedText.slice(0, 10000), instructions);
+      const { generateLinkedInPost } = await import("./lib/repurpose-service");
+      const post = await generateLinkedInPost(extractedText.slice(0, 10000), instructions);
 
       res.json({ success: true, post });
     } catch (error: any) {
