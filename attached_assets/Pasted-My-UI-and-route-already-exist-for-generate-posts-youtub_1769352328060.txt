@@ -1,0 +1,117 @@
+My UI and route already exist for:
+
+✅ /generate-posts/youtube
+
+Gemini API key is already saved in Replit Secrets as:
+
+GEMINI_API_KEY
+
+Now implement ONLY the YouTube to Post functionality.
+
+✅ What to build
+1) Create Backend (Express)
+
+Create a small Express backend inside /server:
+
+Files:
+
+server/index.js
+
+server/routes/youtubeRoutes.js
+
+server/services/geminiService.js
+
+Backend must run in Replit and support frontend API calls.
+
+2) API Endpoint
+
+Create this endpoint:
+
+✅ POST /api/repurpose/youtube
+
+Request JSON:
+
+{
+  "youtubeUrl": "https://www.youtube.com/watch?v=XXXX",
+  "instructions": "focus on key takeaways"
+}
+
+
+Validation:
+
+youtubeUrl must include:
+
+youtube.com/watch?v= OR youtu.be/
+
+if missing → return:
+
+{ "success": false, "message": "Invalid YouTube URL" }
+
+3) Extract Transcript (optional but best)
+
+Use package:
+
+youtube-transcript
+
+Try to fetch transcript text from YouTube.
+
+If transcript fetch fails:
+✅ still generate output using the youtubeUrl only (fallback mode).
+
+4) Gemini Generation
+
+Use:
+@google/generative-ai
+
+In geminiService.js:
+
+read API key from process.env.GEMINI_API_KEY
+
+call Gemini with a clean prompt:
+
+Prompt format:
+
+You are a professional LinkedIn content writer.
+Write a LinkedIn post based on this YouTube video transcript (or summary if transcript missing).
+Rules:
+
+Hook in first line
+
+3 to 6 short paragraphs
+
+Easy English
+
+No heavy emojis
+
+End with 5–8 hashtags
+Also follow these user instructions: {instructions}
+
+Return plain text only (no markdown, no JSON).
+
+5) Frontend Connection
+
+Update ONLY the existing YouTube generator page:
+
+File example:
+src/pages/YoutubePostGenerator.jsx
+
+On "Generate" button:
+
+send POST request to /api/repurpose/youtube
+
+show loading on button
+
+show error message under input if invalid
+
+display result in a nice output card
+
+add Copy button to copy generated post
+
+✅ Final Requirements
+
+✅ Do NOT redesign UI
+✅ Do NOT touch other pages (PDF, Article, Format)
+✅ Only implement YouTube functionality end-to-end
+✅ Return full working code and ensure it runs in Replit
+
+Implement now.

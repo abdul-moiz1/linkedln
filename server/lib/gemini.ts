@@ -15,7 +15,6 @@ export async function generateContent(prompt: string, options: any = {}) {
     for (const modelName of modelsToTry) {
       try {
         console.log(`[Gemini] Attempting with model: ${modelName}`);
-        // Ensure model name has the prefix if not present, though the lib usually handles it
         const formattedModelName = modelName.startsWith("models/") ? modelName : `models/${modelName}`;
         const model = genAI.getGenerativeModel({ model: formattedModelName });
         
@@ -45,12 +44,30 @@ export async function generateContent(prompt: string, options: any = {}) {
       } catch (error: any) {
         console.warn(`[Gemini] Model ${modelName} failed:`, error.message);
         lastError = error;
-        // Continue to next model if it's a 404 or support error
         if (error.status === 404 || error.message?.includes("not found") || error.message?.includes("not supported")) {
           continue;
         }
-        throw error; // Rethrow if it's an API key or other critical error
+        throw error;
       }
     }
     throw lastError;
+}
+
+export async function generateYouTubePost(videoContext: string, userInstructions: string = "") {
+  const prompt = `You are a professional LinkedIn content writer.
+Write a LinkedIn post based on this YouTube video transcript (or summary if transcript missing).
+Rules:
+Hook in first line
+3 to 6 short paragraphs
+Easy English
+No heavy emojis
+End with 5–8 hashtags
+Also follow these user instructions: ${userInstructions}
+
+Video context:
+${videoContext}
+
+Return plain text only (no markdown, no JSON).`;
+
+  return generateContent(prompt);
 }

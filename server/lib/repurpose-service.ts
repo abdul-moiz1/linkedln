@@ -1,5 +1,6 @@
 import { generateContent } from "./gemini";
 import * as cheerio from "cheerio";
+import { YoutubeTranscript } from 'youtube-transcript';
 
 const LINKEDIN_PROMPT_TEMPLATE = `You are a LinkedIn content writer. Create a clear LinkedIn post with:
 
@@ -31,6 +32,35 @@ ${content}
 ${instructions ? `User's additional instructions: ${instructions}` : ''}
 
 Generate a LinkedIn post based on the content above.`;
+
+  const result = await generateContent(prompt);
+  return cleanGeminiResponse(result);
+}
+
+export async function repurposeYouTube(youtubeUrl: string, instructions: string) {
+  let transcriptText = "";
+  try {
+    const transcript = await YoutubeTranscript.fetchTranscript(youtubeUrl);
+    transcriptText = transcript.map(t => t.text).join(" ");
+  } catch (error) {
+    console.warn("[YouTube] Failed to fetch transcript, falling back to URL only:", error);
+    transcriptText = `YouTube Video URL: ${youtubeUrl}`;
+  }
+
+  const prompt = `You are a professional LinkedIn content writer.
+Write a LinkedIn post based on this YouTube video transcript (or summary if transcript missing).
+Rules:
+Hook in first line
+3 to 6 short paragraphs
+Easy English
+No heavy emojis
+End with 5–8 hashtags
+Also follow these user instructions: ${instructions}
+
+Video context:
+${transcriptText}
+
+Return plain text only (no markdown, no JSON).`;
 
   const result = await generateContent(prompt);
   return cleanGeminiResponse(result);

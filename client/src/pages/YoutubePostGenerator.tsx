@@ -59,6 +59,13 @@ export default function YoutubePostGenerator() {
     }
   };
 
+  const copyToClipboard = () => {
+    if (result) {
+      navigator.clipboard.writeText(result);
+      // You could add a toast here if available, but the prompt just says add Copy button
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-6 pb-20">
       <PageHeader 
@@ -94,15 +101,28 @@ export default function YoutubePostGenerator() {
           />
         </div>
 
-        <Button 
-          className="w-full md:w-auto px-8 py-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
-          onClick={handleGenerate}
-          disabled={!url || !!error || isLoading}
-          data-testid="button-generate"
-        >
-          <Sparkles className="mr-2 h-5 w-5" />
-          {isLoading ? "Generating..." : "Generate"}
-        </Button>
+        <div className="flex gap-4">
+          <Button 
+            className="flex-1 md:w-auto px-8 py-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
+            onClick={handleGenerate}
+            disabled={!url || !!error || isLoading}
+            data-testid="button-generate"
+          >
+            <Sparkles className="mr-2 h-5 w-5" />
+            {isLoading ? "Generating..." : "Generate"}
+          </Button>
+
+          {result && (
+            <Button
+              variant="outline"
+              className="px-8 py-6 rounded-full font-semibold text-lg border-gray-200 hover:bg-gray-50 transition-all"
+              onClick={copyToClipboard}
+              data-testid="button-copy"
+            >
+              Copy Post
+            </Button>
+          )}
+        </div>
 
         <GeneratedResultCard isLoading={isLoading} result={result} />
       </div>
