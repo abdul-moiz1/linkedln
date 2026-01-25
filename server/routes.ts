@@ -4678,6 +4678,137 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
     });
   });
 
+  // =============================================
+  // REPURPOSE CONTENT ROUTES
+  // =============================================
+  
+  const repurposeMulter = await import("multer");
+  const repurposeUpload = repurposeMulter.default({ storage: repurposeMulter.memoryStorage() });
+
+  /**
+   * POST /api/repurpose/pdf
+   * Upload PDF and generate LinkedIn post from its content
+   */
+  app.post("/api/repurpose/pdf", repurposeUpload.single("pdf"), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: "No PDF file uploaded" });
+      }
+
+      const instructions = req.body.instructions || "";
+      
+      const pdfParse = await import("pdf-parse");
+      const pdfData = await pdfParse.default(req.file.buffer);
+      const extractedText = pdfData.text;
+
+      if (!extractedText || extractedText.trim().length < 50) {
+        return res.status(400).json({ success: false, error: "Could not extract meaningful text from PDF" });
+      }
+
+      const { generateLinkedInPost } = await import("./lib/repurpose-service");
+      const post = await generateLinkedInPost(extractedText.slice(0, 10000), instructions);
+
+      res.json({ success: true, post });
+    } catch (error: any) {
+      console.error("[Repurpose PDF] Error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to process PDF" });
+    }
+  });
+
+  /**
+   * POST /api/repurpose/youtube
+   * Generate LinkedIn post from YouTube video transcript
+   */
+  app.post("/api/repurpose/youtube", async (req: Request, res: Response) => {
+    try {
+      const { youtubeUrl, instructions = "" } = req.body;
+
+      if (!youtubeUrl) {
+        return res.status(400).json({ success: false, error: "YouTube URL is required" });
+      }
+
+      const isValidUrl = youtubeUrl.includes("youtube.com/watch?v=") || youtubeUrl.includes("youtu.be/");
+      if (!isValidUrl) {
+        return res.status(400).json({ success: false, error: "Invalid YouTube URL" });
+      }
+
+      let transcript = "";
+      try {
+        const { YoutubeTranscript } = await import("youtube-transcript");
+        const videoId = youtubeUrl.includes("youtu.be/") 
+          ? youtubeUrl.split("youtu.be/")[1].split("?")[0]
+          : new URL(youtubeUrl).searchParams.get("v");
+        
+        if (!videoId) throw new Error("Could not extract video ID");
+        
+        const transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
+        transcript = transcriptData.map((item: any) => item.text).join(" ");
+      } catch (transcriptError) {
+        console.warn("[YouTube] Transcript extraction failed, using URL only:", transcriptError);
+        transcript = `YouTube video URL: ${youtubeUrl}. Please analyze this video topic and create a relevant LinkedIn post.`;
+      }
+
+      const { generateLinkedInPost } = await import("./lib/repurpose-service");
+      const post = await generateLinkedInPost(transcript.slice(0, 10000), instructions);
+
+      res.json({ success: true, post });
+    } catch (error: any) {
+      console.error("[Repurpose YouTube] Error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to process YouTube video" });
+    }
+  });
+
+  /**
+   * POST /api/repurpose/article
+   * Generate LinkedIn post from article/blog post
+   */
+  app.post("/api/repurpose/article", async (req: Request, res: Response) => {
+    try {
+      const { articleUrl, instructions = "" } = req.body;
+
+      if (!articleUrl) {
+        return res.status(400).json({ success: false, error: "Article URL is required" });
+      }
+
+      if (!articleUrl.startsWith("http://") && !articleUrl.startsWith("https://")) {
+        return res.status(400).json({ success: false, error: "URL must start with http:// or https://" });
+      }
+
+      const { extractArticleContent, generateLinkedInPost } = await import("./lib/repurpose-service");
+      const { title, content } = await extractArticleContent(articleUrl);
+      
+      const fullContent = `Title: ${title}\n\n${content}`;
+      const post = await generateLinkedInPost(fullContent.slice(0, 10000), instructions);
+
+      res.json({ success: true, post });
+    } catch (error: any) {
+      console.error("[Repurpose Article] Error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to process article" });
+    }
+  });
+
+  /**
+   * POST /api/repurpose/format
+   * Format raw content into a LinkedIn-style post
+   */
+  app.post("/api/repurpose/format", async (req: Request, res: Response) => {
+    try {
+      const { rawContent, instructions = "" } = req.body;
+
+      if (!rawContent) {
+        return res.status(400).json({ success: false, error: "Content is required" });
+      }
+
+      const { generateLinkedInPost } = await import("./lib/repurpose-service");
+      const post = await generateLinkedInPost(rawContent, instructions);
+
+      res.json({ success: true, post });
+    } catch (error: any) {
+      console.error("[Repurpose Format] Error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to format content" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -1,0 +1,186 @@
+I already completed the UI pages and routing for Repurpose Content in my React app.
+
+✅ Pages already exist:
+
+/generate-posts/pdf
+
+/generate-posts/youtube
+
+/generate-posts/article
+
+/generate-posts/format
+
+✅ My Gemini API key is already added in Replit Secrets as:
+GEMINI_API_KEY
+
+Now I want you to implement ONLY the functionality using Gemini.
+
+✅ Requirements
+1) Backend Setup (Node + Express)
+
+Create an Express backend inside my project:
+
+Server files:
+
+server/index.js
+
+server/routes/repurposeRoutes.js
+
+server/services/geminiService.js
+
+Run backend in Replit
+
+Use a single command or configure so both frontend + backend run correctly.
+
+✅ Gemini Integration
+
+Use Google Gemini with this library:
+@google/generative-ai
+
+In geminiService.js:
+
+read key from process.env.GEMINI_API_KEY
+
+create function generateWithGemini(promptText)
+
+return clean text
+
+Also handle if Gemini returns ```json blocks, remove them safely.
+
+✅ 4 API Endpoints
+✅ A) PDF → Post
+
+Endpoint:
+POST /api/repurpose/pdf
+
+Use:
+
+multer for PDF upload
+
+pdf-parse to extract text
+
+Then send extracted PDF text + user instructions to Gemini and generate LinkedIn post.
+
+Return JSON:
+
+{
+  "success": true,
+  "post": "...."
+}
+
+✅ B) YouTube → Post
+
+Endpoint:
+POST /api/repurpose/youtube
+
+Input JSON:
+
+{
+  "youtubeUrl": "https://youtube.com/watch?v=xxxx",
+  "instructions": "..."
+}
+
+
+Rules:
+
+validate youtube URL
+
+extract transcript using youtube-transcript
+
+if transcript fails, still call Gemini using the URL and instructions
+
+Return:
+
+{
+  "success": true,
+  "post": "..."
+}
+
+✅ C) Article → Post
+
+Endpoint:
+POST /api/repurpose/article
+
+Input JSON:
+
+{
+  "articleUrl": "https://example.com/post",
+  "instructions": "..."
+}
+
+
+Use:
+
+axios
+
+cheerio
+
+Extract readable article text (title + paragraphs).
+Send to Gemini to generate LinkedIn post.
+
+Return same JSON.
+
+✅ D) Format Content
+
+Endpoint:
+POST /api/repurpose/format
+
+Input JSON:
+
+{
+  "rawContent": "....",
+  "instructions": "...."
+}
+
+
+Gemini should format it into a clean LinkedIn style post.
+
+Return:
+
+{
+  "success": true,
+  "post": "..."
+}
+
+✅ Frontend Integration (important)
+
+Now connect my existing React pages to these endpoints.
+
+For each page:
+
+✅ Use fetch() or axios
+✅ Show loading state on Generate button
+✅ Show errors below input field
+✅ After success show result inside UI
+✅ Add Copy button for result
+
+✅ Gemini Prompt Style
+
+Every Gemini call should follow this style:
+
+“You are a LinkedIn content writer. Create a clear LinkedIn post with:
+
+Hook line
+
+3–6 short paragraphs
+
+Optional bullet points
+
+End with 5–8 hashtags
+Keep it natural and human. Do not use too many emojis.”
+
+Also include user’s instructions at the end.
+
+✅ Final Output
+
+Implement full working code for:
+✅ backend + routes + gemini calls
+✅ pdf upload + parsing
+✅ youtube transcript
+✅ article scraping
+✅ format content
+✅ frontend API calls working from buttons
+
+Do NOT redesign UI. Do NOT change routes. Only add functionality.
+
+✅ Please implement now.
