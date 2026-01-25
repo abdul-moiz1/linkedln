@@ -4724,24 +4724,30 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
 
       const instructions = req.body.instructions || "";
       
-      // Use a more resilient way to handle pdf-parse's export
+      // Use require as a fallback for the most common pdf-parse error in this env
       let pdfParse;
       try {
-        const pdfParseModule = await import("pdf-parse");
-        // @ts-ignore
-        pdfParse = pdfParseModule.default || pdfParseModule;
-        
-        // Final check to handle some CommonJS wrapper scenarios
-        if (typeof pdfParse !== 'function' && (pdfParse as any).pdf) {
-          pdfParse = (pdfParse as any).pdf;
-        }
+        // Try direct require first for CommonJS compatibility in tsx/esm
+        const { createRequire } = await import("module");
+        const require = createRequire(import.meta.url);
+        const pdfModule = require("pdf-parse");
+        pdfParse = typeof pdfModule === 'function' ? pdfModule : (pdfModule.default || pdfModule);
       } catch (e) {
-        console.error("Error importing pdf-parse:", e);
-        throw new Error("PDF processing library not correctly loaded");
+        try {
+          const pdfParseModule = await import("pdf-parse");
+          pdfParse = (pdfParseModule as any).default || pdfParseModule;
+        } catch (e2) {
+          console.error("Failed to load pdf-parse:", e2);
+          throw new Error("PDF processing library failed to load");
+        }
+      }
+
+      if (typeof pdfParse !== 'function' && (pdfParse as any).pdf) {
+        pdfParse = (pdfParse as any).pdf;
       }
 
       if (typeof pdfParse !== 'function') {
-        throw new Error("PDF parser is not a function");
+        throw new Error("PDF parser library resolved but is not a function");
       }
       
       const data = await pdfParse(req.file.buffer);
