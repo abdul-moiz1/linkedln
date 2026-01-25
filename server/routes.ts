@@ -4727,30 +4727,48 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       // Use require as a fallback for the most common pdf-parse error in this env
       let pdfParse;
       try {
-        // Try direct require first for CommonJS compatibility in tsx/esm
         const { createRequire } = await import("module");
         const require = createRequire(import.meta.url);
         const pdfModule = require("pdf-parse");
-        pdfParse = typeof pdfModule === 'function' ? pdfModule : (pdfModule.default || pdfModule);
+        
+        if (typeof pdfModule === 'function') {
+          pdfParse = pdfModule;
+        } else if (pdfModule && typeof pdfModule.default === 'function') {
+          pdfParse = pdfModule.default;
+        } else if (pdfModule && pdfModule.pdf && typeof pdfModule.pdf === 'function') {
+          pdfParse = pdfModule.pdf;
+        } else {
+          // If all else fails, try to import directly
+          const pdfParseModule = await import("pdf-parse");
+          // @ts-ignore
+          pdfParse = pdfParseModule.default || pdfParseModule;
+        }
       } catch (e) {
         try {
           const pdfParseModule = await import("pdf-parse");
-          pdfParse = (pdfParseModule as any).default || pdfParseModule;
+          // @ts-ignore
+          pdfParse = pdfParseModule.default || pdfParseModule;
         } catch (e2) {
-          console.error("Failed to load pdf-parse:", e2);
           throw new Error("PDF processing library failed to load");
         }
       }
 
-      if (typeof pdfParse !== 'function' && (pdfParse as any).pdf) {
+      // If it's an object with a default property that's a function, use that
+      if (typeof pdfParse !== 'function' && pdfParse && typeof (pdfParse as any).default === 'function') {
+        pdfParse = (pdfParse as any).default;
+      }
+      
+      // If it's an object with a pdf property that's a function, use that
+      if (typeof pdfParse !== 'function' && pdfParse && typeof (pdfParse as any).pdf === 'function') {
         pdfParse = (pdfParse as any).pdf;
       }
 
       if (typeof pdfParse !== 'function') {
-        throw new Error("PDF parser library resolved but is not a function");
+        console.error("PDF parser structure:", typeof pdfParse, pdfParse);
+        throw new Error("PDF parser library resolved but is not a function.");
       }
       
-      const data = await pdfParse(req.file.buffer);
+      const data = await (pdfParse as any)(req.file.buffer);
       const extractedText = data.text;
 
       if (!extractedText || extractedText.trim().length < 50) {
