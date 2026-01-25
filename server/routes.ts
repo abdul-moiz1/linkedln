@@ -4716,9 +4716,9 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       
       const pdfParseModule = await import("pdf-parse");
       // @ts-ignore - Handle different module export formats
-      const pdfParse = pdfParseModule.default || pdfParseModule;
-      const pdfData = await pdfParse(req.file.buffer);
-      const extractedText = pdfData.text;
+      const pdf = pdfParseModule.default || pdfParseModule;
+      const data = await pdf(req.file.buffer);
+      const extractedText = data.text;
 
       if (!extractedText || extractedText.trim().length < 50) {
         return res.status(400).json({ success: false, error: "Could not extract meaningful text from PDF" });
@@ -4727,7 +4727,7 @@ Create a compelling carousel that captures the key insights. Return ONLY the JSO
       const { generateLinkedInPost } = await import("./lib/repurpose-service");
       const post = await generateLinkedInPost(extractedText.slice(0, 10000), instructions);
 
-      res.json({ success: true, post });
+      res.json({ success: true, text: extractedText, post });
     } catch (error: any) {
       console.error("[Repurpose PDF] Error:", error);
       res.status(500).json({ success: false, error: error.message || "Failed to process PDF" });
