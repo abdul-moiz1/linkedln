@@ -52,6 +52,11 @@ declare module "express-session" {
   }
 }
 
+import multer from "multer";
+import { extractPdfTextFromBuffer } from "./utils/extractPdfText.js";
+
+const repurposeUpload = multer({ storage: multer.memoryStorage() });
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Test endpoint to verify Firebase Storage is working
   app.get("/api/test-storage", async (req: Request, res: Response) => {
@@ -4749,28 +4754,7 @@ Return plain text only.`;
       }
 
       const instructions = req.body.instructions || "";
-      
-      let pdfParse;
-      try {
-        const mod = await import("pdf-parse");
-        // @ts-ignore
-        pdfParse = mod.default || mod;
-      } catch (e) {
-        // @ts-ignore
-        const mod = require("pdf-parse");
-        pdfParse = mod.default || mod;
-      }
-
-      if (typeof pdfParse !== "function") {
-        return res.status(500).json({
-          success: false,
-          message: "pdf-parse import failed: pdfParse is not a function",
-          debugType: typeof pdfParse
-        });
-      }
-
-      const result = await pdfParse(req.file.buffer);
-      const extractedText = result.text || "";
+      const extractedText = await extractPdfTextFromBuffer(req.file.buffer);
 
       if (!extractedText || extractedText.trim().length < 50) {
         return res.status(400).json({ success: false, message: "Could not extract meaningful text from PDF" });
