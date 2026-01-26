@@ -600,22 +600,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.post("/api/repurpose/youtube", async (req: Request, res: Response) => {
-    const { youtubeUrl, instructions } = req.body;
-    
-    if (!youtubeUrl || (!youtubeUrl.includes("youtube.com/watch?v=") && !youtubeUrl.includes("youtu.be/"))) {
-      return res.status(400).json({ success: false, message: "Invalid YouTube URL" });
-    }
-
-    try {
-      const { repurposeYouTube } = await import("./lib/repurpose-service");
-      const post = await repurposeYouTube(youtubeUrl, instructions);
-      res.json({ success: true, post });
-    } catch (error: any) {
-      console.error("[YouTube API] Error:", error);
-      res.status(500).json({ success: false, message: error.message || "Failed to generate post" });
-    }
-  });
 
   app.get("/api/templates", async (req: Request, res: Response) => {
     try {
@@ -4831,18 +4815,19 @@ Return plain text only.`;
   app.post("/api/repurpose/youtube", async (req: Request, res: Response) => {
     try {
       const { youtubeUrl, instructions = "" } = req.body;
+      console.log("[YouTube Repurpose] Received URL:", youtubeUrl);
       
       if (!youtubeUrl || (!youtubeUrl.includes("youtube.com") && !youtubeUrl.includes("youtu.be"))) {
-        return res.status(400).json({ success: false, message: "Invalid YouTube URL" });
+        return res.status(400).json({ success: false, error: "Invalid YouTube URL" });
       }
 
       const { repurposeYouTube } = await import("./lib/repurpose-service");
-      const post = await repurposeYouTube(youtubeUrl, instructions);
+      const { post, debug } = await repurposeYouTube(youtubeUrl, instructions);
 
-      res.json({ success: true, post });
+      res.json({ success: true, post, debug });
     } catch (error: any) {
       console.error("[Repurpose YouTube] Error:", error);
-      res.status(500).json({ success: false, message: "Failed to generate post" });
+      res.status(500).json({ success: false, error: error.message || "Failed to generate post" });
     }
   });
 

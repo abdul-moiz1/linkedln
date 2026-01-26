@@ -42,12 +42,12 @@ Generate a LinkedIn post based on the content above.`;
 export async function repurposeYouTube(youtubeUrl: string, instructions: string) {
   let transcriptText = "";
   let videoDetails: any = null;
+  let debugInfo = { transcriptLength: 0, titleFound: false };
 
   try {
     // Safely extract videoId from URL
-    const videoId = youtubeUrl.includes("v=")
-      ? new URL(youtubeUrl).searchParams.get("v")
-      : youtubeUrl.split("youtu.be/")[1]?.split("?")[0];
+    const urlObj = new URL(youtubeUrl);
+    const videoId = urlObj.searchParams.get("v") || youtubeUrl.split("youtu.be/")[1]?.split("?")[0];
     
     console.log("YouTube URL:", youtubeUrl);
     console.log("YouTube videoId:", videoId);
@@ -56,7 +56,8 @@ export async function repurposeYouTube(youtubeUrl: string, instructions: string)
       try {
         const transcript = await YoutubeTranscript.fetchTranscript(videoId);
         transcriptText = transcript.map(t => t.text).join(" ");
-        console.log("Transcript length:", transcriptText?.length || 0);
+        debugInfo.transcriptLength = transcriptText?.length || 0;
+        console.log("Transcript length:", debugInfo.transcriptLength);
       } catch (e) {
         console.warn("[YouTube] Transcript unavailable, fetching metadata instead");
       }
@@ -70,6 +71,7 @@ export async function repurposeYouTube(youtubeUrl: string, instructions: string)
           description: info.videoDetails.description,
           channel: info.videoDetails.author?.name
         };
+        debugInfo.titleFound = !!videoDetails.title;
         console.log("Video metadata fetched:", videoDetails.title);
       } catch (metadataError) {
         console.warn("[YouTube] Metadata fetch failed, using URL fallback");
@@ -81,69 +83,60 @@ export async function repurposeYouTube(youtubeUrl: string, instructions: string)
 
   let prompt = "";
   if (transcriptText && transcriptText.trim().length >= 50) {
-    prompt = `You are a LinkedIn content writer.
-
-Generate a LinkedIn post ONLY based on the transcript below.
-Do not guess.
-If the transcript is missing or unrelated, respond with:
-"Transcript unavailable. Please try another video."
-
-Rules:
-Hook in first line
-3 to 6 short paragraphs
-Easy English
-No heavy emojis
-End with 5–8 hashtags
-Must reference specific concepts found in transcript
-If it's about web development, reference at least 3 technical concepts from it
-
-Transcript:
-${transcriptText}
-
-User instructions:
-${instructions}
-
-Return plain text only (no markdown, no JSON).`;
+    prompt = `You are an expert LinkedIn content strategist.
+    
+    CRITICAL: Generate a high-impact LinkedIn post based on the transcript below.
+    
+    Transcript:
+    """
+    ${transcriptText}
+    """
+    
+    User's Style Instructions: ${instructions || "Professional and engaging"}
+    
+    Structure:
+    1. Attention-grabbing hook
+    2. 3-6 punchy paragraphs with deep insights from the video
+    3. Use technical terms from the video if applicable
+    4. End with 5-8 relevant hashtags
+    
+    Do not use generic "productivity" filler unless it's in the transcript.
+    Return only the post content.`;
   } else if (videoDetails) {
-    prompt = `You are a LinkedIn content writer.
-
-Write a LinkedIn post based on this YouTube video information.
-Do not talk about productivity unless the video is about it.
-
-Video Title: ${videoDetails.title}
-Channel: ${videoDetails.channel}
-Description: ${videoDetails.description}
-
-User instructions: ${instructions}
-
-Rules:
-- Strong hook
-- 3–6 short paragraphs
-- Simple English
-- No heavy emojis
-- End with 5–8 hashtags
-Return plain text only.`;
+    prompt = `You are an expert LinkedIn content strategist.
+    
+    Generate a high-impact LinkedIn post based on this video metadata:
+    Title: ${videoDetails.title}
+    Channel: ${videoDetails.channel}
+    Description: ${videoDetails.description}
+    
+    User's Style Instructions: ${instructions || "Professional and engaging"}
+    
+    Structure:
+    1. Strong hook related to the title
+    2. 3-6 paragraphs expanding on the video's theme
+    3. End with 5-8 relevant hashtags
+    
+    Return only the post content.`;
   } else {
-    // FINAL FALLBACK: URL Only
-    prompt = `You are a LinkedIn content writer.
-
-The user shared a YouTube video link but transcript and metadata are unavailable.
-
-You must still generate a LinkedIn post in a helpful way:
-- Ask 1 short question at the end
-- Keep it generic but related to learning web development / tech
-- Do NOT talk about productivity unless user asked
-- Keep it short and clean
-- End with 5-8 hashtags
-
-YouTube URL: ${youtubeUrl}
-User instructions: ${instructions}
-
-Return plain text only.`;
+    prompt = `You are an expert LinkedIn content strategist.
+    
+    The user shared a YouTube video: ${youtubeUrl}
+    
+    User's Style Instructions: ${instructions || "Professional and engaging"}
+    
+    Create an engaging LinkedIn post discussing the potential themes of this video/link in a professional context.
+    
+    Structure:
+    1. Engaging hook
+    2. 3-5 thoughtful paragraphs
+    3. 5-8 hashtags
+    
+    Return only the post content.`;
   }
 
   const result = await generateContent(prompt);
-  return cleanGeminiResponse(result);
+  return { post: cleanGeminiResponse(result), debug: debugInfo };
 }
 
 export async function extractArticleContent(url: string): Promise<{ title: string; content: string }> {
