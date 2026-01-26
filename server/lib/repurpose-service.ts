@@ -42,7 +42,7 @@ Generate a LinkedIn post based on the content above.`;
 export async function repurposeYouTube(youtubeUrl: string, instructions: string) {
   let transcriptText = "";
   let videoDetails: any = null;
-  let debugInfo = { transcriptLength: 0, titleFound: false };
+  let debugInfo = { transcriptLength: 0, title: "", author_name: "", mode: "fallback" };
 
   try {
     // Safely extract videoId from URL
@@ -57,24 +57,31 @@ export async function repurposeYouTube(youtubeUrl: string, instructions: string)
         const transcript = await YoutubeTranscript.fetchTranscript(videoId);
         transcriptText = transcript.map(t => t.text).join(" ");
         debugInfo.transcriptLength = transcriptText?.length || 0;
+        debugInfo.mode = "transcript";
         console.log("Transcript length:", debugInfo.transcriptLength);
       } catch (e) {
-        console.warn("[YouTube] Transcript unavailable, fetching metadata instead");
+        console.warn("[YouTube] Transcript unavailable, fetching oEmbed metadata instead");
       }
     }
 
     if (!transcriptText || transcriptText.trim().length < 50) {
       try {
-        const info = await ytdl.getInfo(youtubeUrl);
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(youtubeUrl)}&format=json`;
+        const response = await axios.get(oembedUrl);
+        const data = response.data;
+        
         videoDetails = {
-          title: info.videoDetails.title,
-          description: info.videoDetails.description,
-          channel: info.videoDetails.author?.name
+          title: data.title,
+          channel: data.author_name,
+          description: "" // oEmbed doesn't provide description
         };
-        debugInfo.titleFound = !!videoDetails.title;
-        console.log("Video metadata fetched:", videoDetails.title);
+        
+        debugInfo.title = data.title;
+        debugInfo.author_name = data.author_name;
+        debugInfo.mode = "oembed";
+        console.log("Video oEmbed metadata fetched:", videoDetails.title);
       } catch (metadataError) {
-        console.warn("[YouTube] Metadata fetch failed, using URL fallback");
+        console.warn("[YouTube] oEmbed fetch failed, using URL fallback");
       }
     }
   } catch (error) {
@@ -105,16 +112,15 @@ export async function repurposeYouTube(youtubeUrl: string, instructions: string)
   } else if (videoDetails) {
     prompt = `You are an expert LinkedIn content strategist.
     
-    Generate a high-impact LinkedIn post based on this video metadata:
+    Generate a high-impact LinkedIn post based on this YouTube video:
     Title: ${videoDetails.title}
     Channel: ${videoDetails.channel}
-    Description: ${videoDetails.description}
     
     User's Style Instructions: ${instructions || "Professional and engaging"}
     
     Structure:
     1. Strong hook related to the title
-    2. 3-6 paragraphs expanding on the video's theme
+    2. 3-6 paragraphs expanding on the video's theme based on its title and creator
     3. End with 5-8 relevant hashtags
     
     Return only the post content.`;
